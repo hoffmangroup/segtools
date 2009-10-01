@@ -1,0 +1,24 @@
+==========
+ segtools
+==========
+by Michael Hoffman <mmh1@washington.edu>
+and Orion Buske <orion.buske@gmail.com>
+
+
+Installation
+============
+
+Prerequisites to this installation guide:
+    Python 2.5.1+
+    Zlib
+    R 2.7+ (compiled with --enable-R-shlib)
+    The following R packages (installed in R with install.packages):
+        lattice
+        RColorBrewer
+        latticeExtra
+
+Installation has been simplified with the install.py script.
+
+1) Download and run the install.py script:
+   wget http://encodestatistics.org/svn/segmentation_validation/trunk/src/segtools/install.py
+   python install.py

@@ -1,0 +1,76 @@
+==========
+ segtools
+==========
+by Michael Hoffman <mmh1@washington.edu>
+and Orion Buske <orion.buske@gmail.com>
+
+
+Description
+===========
+DESCRIPTION
+
+
+Prerequisites
+=============
+- Python_ 2.5.1
+- HDF5_ 1.8.2
+- PyTables 2.1.1 (from source)
+- R 2.7 (configured with --enable-R-shlib)
+- NumPy 1.2.1
+- zlib
+- szip (if installing HDF5 from binaries)
+
+.. _HDF5: http://www.hdfgroup.org/
+.. _PyTables: http://www.pytables.org/download/stable/tables-2.1.1.tar.gz
+.. _NumPy: http://numpy.scipy.org/
+.. _zlib: http://www.hdfgroup.org/HDF5/release/obtain5.html
+.. _szip: http://www.hdfgroup.org/HDF5/release/obtain5.html
+
+Automatically installed
+-----------------------
+- Setuptools 0.6c9
+- path.py
+- textinput
+- rpy2
+
+
+Installation
+============
+For a detailed walk-through, see the ``INSTALL'' file.
+
+Once all prerequisites have been installed, segtools (and other
+prerequisites) will be installed with:
+
+    python setup.py install
+
+If R is not installed, or plotting is not desired, call the validator
+with the --noplot flag.
+
+
+Running
+=======
+Installing segtools creates a number of command-line entry points to 
+run the modules in the python package. These commands are placed in 
+~/bin, so you may want to add ~/bin to your PATH for your convenience:
+
+   seg-validate
+   seg-validate-feature-aggregation
+   seg-validate-label-transition
+   seg-validate-length-distribution
+   seg-validate-nucleotide-frequency
+   seg-validate-signal-distribution
+   seg-validate-transition-matrix
+   seg-validate-tss-overlap
+
+All the above commands are equipped with -h/--help options for usage 
+information.
+
+License
+=======
+This program is free software; you can redistribute it and/or modify
+it under the terms of version 2 of the GNU General Public License as
+published by the Free Software Foundation.
+
+seg-validate is distributed in the hope that it will be
+useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.

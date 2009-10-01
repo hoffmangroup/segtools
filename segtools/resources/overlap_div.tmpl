@@ -1,0 +1,40 @@
+<div class="module" id="$id">
+  <h2><a href="#">^</a>  $title</h2>
+  <ul>
+    <li> Overlap with features in <code>$featurefilename</code></li>
+    <li> Units of overlap: <code>$by</code></li><br />
+    <li> Predictive ability of labels on features:
+         <br />
+         <a href="$slidefilename">
+           <img src="$thumbfilename" />
+         </a>
+         <br />
+         [ <a href="$pngfilename">PNG</a> ]
+         [ <a href="$slidefilename">SLIDE</a> ]
+         [ <a href="$pdffilename">PDF</a> ]
+         [ <a href="$tabfilename">TAB</a> ]
+    </li><br />
+    $significance
+    <li> Counts:
+      <ul>
+        <li>Overlapping groups on rows</li>
+        <li>Overlapped groups on columns (plus 'none' and 'total' columns)</li>
+        <li>Each row,col is the number of times a feature in the row
+        group overlapped at least one feature in the col
+        group.</li><br />
+        <li> Overlap of segmentation with features:
+          <br />
+          $forwardtable
+          <br />
+          [ <a href="$forwardtablefilename">TAB</a> ]
+        </li><br />
+        <li> Overlap of features with segmentation:
+          <br />
+          $backwardtable
+          <br />
+          [ <a href="$backwardtablefilename">TAB</a> ]
+        </li>
+      </ul>
+    </li>
+  </ul>
+</div>

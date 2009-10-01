@@ -1,0 +1,13 @@
+Lengths:
+
+* report mad.len as well as mean.len (use rpy2 for mad)
+
+Additional analyses:
+
+* kernel density plot of change points
+
+Overall:
+
+* Get setuptools to autoinstall NumPy
+* Get setuptools to autoinstall PyTables
+* Add ability to analyze multiple segmentations at once => run it on the cluster
