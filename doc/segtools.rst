@@ -33,9 +33,16 @@ as downloading and running this script! For instance::
 .. _script: http://encodestatistics.org/svn/segmentation_validation/
    segtools/trunk/install.py
 
+.. note::
+   R and several R modules (``reshape``, ``latticeExtra``) are not yet 
+   installed by this script, but are required for segtools to generate 
+   images. Please have R installed and install these modules with CRAN
+   prior to running segtools
+
 
 Usage
 =====
+
 All segtools modules requires, at the very least, a segmentation in 
 `BED format`_. Some modules also require additional files, such as 
 genomic feature files to compare with the segmentation. Modules are most
