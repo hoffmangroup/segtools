@@ -12,7 +12,7 @@ code.
 
 (c) 2009: Orion Buske <orion.buske@gmail.com>
 
-XXX: R and necessary R packages are not checked/installed.
+XXX: R is not installed
 XXX: Relatively untested
 """
 
@@ -69,13 +69,12 @@ rm -f $file
 ####################### END COMMON CODE HEADER #####################
 
 
-# One command per line
-SEGTOOLS_INSTALL_SCRIPT = """
-cd $dir
-svn co $url
-cd $file
-python setup.py install
-"""
+from pkg_resources import DistributionNotFound, require
+
+# List of R package pre-requisites
+R_PACKAGES = ["latticeExtra", "reshape"]
+# Repository to use for downloading R libraries through CRAN
+CRAN_REPO = "http://cran.fhcrc.org"
 
 ####################### BEGIN COMMON CODE BODY #####################
 
@@ -146,7 +145,7 @@ class ShellManager(object):
                 self._out = open(os.path.expanduser(self.file), "a")
         
         cmd = self._env_format % (variable, value)
-        print >>self._out, "\n%s  # Added in segway installation\n" % cmd
+        print >>self._out, "\n%s  # Added by install script\n" % cmd
             
     def add_to_rc_env(self, variable, value):
         """Prepend the value to the variable in the shell rc file (or stdout)
@@ -427,6 +426,7 @@ def _installer(progname, install_func, version_func=None,
     progname: string name of program
     install_func: function to call with *args, **kwargs to install progname
     version_func: function to call with *args, **kwargs to find progname version
+      If version_func is none, installation will be promped no matter what.
     install_message: helpful message to print if user chooses to install program
 
     Checks if program is installed in a succificent version,
@@ -459,7 +459,11 @@ def _abort_skip_install(func, *args, **kwargs):
     """
     try:
         return func(*args, **kwargs)
-    except InstallationError:
+    except InstallationError, e:
+        e_str = str(e)
+        if e_str:
+            print >>sys.stderr, "Error: %s" % e_str  # print any error message
+            
         query = ("\nWould you like to try to continue the installation"
                  " without this program?")
         default = "n"
@@ -472,16 +476,22 @@ def _abort_skip_install(func, *args, **kwargs):
 def _check_install(progname, version_func, min_version=None, *args, **kwargs):
     """Returns True if program found with at least min_version, False otherwise
 
-    version_func should be a function that, when called, returns the version of
-    the installation as a tuple, or True if installed,
-    or None if not found/unavailable.
+    version_func should either:
+    - be a function that, when called, returns the version of
+      the installation as a tuple, or True if installed,
+      or None if not found/unavailable.
+    - or None, in which False will be returned immediately
 
     If version_func returns True, installation accepted regardless of
     min_version
     """
-    print >>sys.stdout, "\nSearching for %s..." % progname,
-    sys.stdout.flush()
-    version = version_func()
+    if version_func is None:
+        return False
+    else:
+        print >>sys.stdout, "\nSearching for %s..." % progname,
+        sys.stdout.flush()
+        version = version_func()
+        
     if version is not None:
         print >>sys.stderr, "found!"
         if min_version is None or version is True:
@@ -600,15 +610,6 @@ def install_script(progname, prog_dir, script, **kwargs):
     os.chdir(cwd)
     return prog_dir
 
-def reinstall_program(progname, *args, **kwargs):
-    """Reinstall program given name and arguments."""
-    progname = progname.lower()
-    if progname == "hdf5":
-        install_hdf5(*args, **kwargs)
-    elif progname == "numpy":
-        install_numpy(*args, **kwargs)
-    elif progname == "segway":
-        install_segway(*args, **kwargs)
 
 ########################## PROGRAM TESTING ######################
 def prompt_test_packages(*args, **kwargs):
@@ -619,7 +620,6 @@ def prompt_test_packages(*args, **kwargs):
     print >>sys.stderr, "\n\n"
     try:
         prompt_test_pytables(*args, **kwargs)
-        print >>sys.stderr, "\n=========== All tests passed! ============"
     except InstallationError:
         die("\n=========== Some tests failed! =============="
             "\nYour installation may be incomplete and might not work.")
@@ -632,7 +632,7 @@ def prompt_test_pytables(*args, **kwargs):
         try:
             import tables
             tables.test()
-            print >>sys.stderr, "Test passed!"
+            print >>sys.stderr, "Test seemed to have passed."
         except:
             print >>sys.stderr, ("There seems to be an error with the"
                                  " PyTables installation!")
@@ -651,6 +651,10 @@ def prompt_install(progname, install_prompt = None,
         
     query = install_prompt % info
     return prompt_yes_no(query, default=default)
+
+def prompt_path(query, default):
+    path = prompt_user(query, default)
+    return fix_path(path)
 
 def prompt_install_path(progname, default):
     query = "Where should %s be installed?" % progname
@@ -776,18 +780,46 @@ def main(args=sys.argv[1:]):
         # Add Numpy, if necessary
         prompt_install_numpy()
 
+        # Add rpy2, if necessary
+        prompt_install_rpy2()
+        
+        # Add R libraries
+        prompt_install_R_libs(pkgs=R_PACKAGES, repo=CRAN_REPO)
+        
         # Install segtools (and dependencies)
-        prompt_install_segtools(arch_home)
+        prompt_install_segtools()
 
         # Test package installations
-        prompt_test_packages(arch_home=arch_home)
+        prompt_test_packages()
 
         print >>sys.stderr, "\n=========== Installation complete ============="
         
     finally:  # Clean up
         shell.close()
     
-########################### GET VERSION ########################
+########################### GET VERSION ########################        
+def get_rpy2_version():
+    """Returns rpy2 version as a string or None if not found or installed
+    
+    Temporarily removes '.' from sys.path during installation to prevent
+    finding rpy2 in current directory (but uninstalled)
+    """
+    dir = os.getcwd()
+    index = None
+    if dir in sys.path:
+        index = sys.path.index(dir)
+        del sys.path[index]
+        
+    try:
+        try:
+            import rpy2
+            return rpy2.__version__
+        except (AttributeError, ImportError):
+            return None
+    finally:
+        if index is not None:
+            sys.path.insert(index, dir)
+            
 def get_segtools_version():
     """Returns segtools version as a string or None if not found or installed
     
@@ -811,16 +843,44 @@ def get_segtools_version():
             sys.path.insert(index, dir)
 
 ##################### SPECIFIC PROGRAM INSTALLERS ################
-def prompt_install_segtools(arch_home):
-    return _installer("segtools", install_segtools, get_segtools_version,
-                      install_prompt = EASY_INSTALL_PROMPT, arch_home=arch_home)
-         
-def install_segtools(arch_home, *args, **kwargs):
-    segtools_dir = prompt_install_path("segtools", arch_home)
-    install_dir = install_script("segtools", segtools_dir,
-                                 SEGTOOLS_INSTALL_SCRIPT, url=SEGTOOLS_URL)
-    return install_dir
+def prompt_install_rpy2():
+    return _installer("rpy2", install_rpy2, get_rpy2_version,
+                      install_prompt=EASY_INSTALL_PROMPT)
 
-            
+def prompt_install_R_libs(pkgs=R_PACKAGES, repo=CRAN_REPO):
+    query = "\nMay I download and install necessary R libraries?"
+    permission = prompt_yes_no(query)
+    if permission:
+        return install_R_libs(pkgs=pkgs, repo=repo)
+    else:
+        return False
+
+def prompt_install_segtools():
+    return _installer("segtools", install_segtools, get_segtools_version,
+                      install_prompt=EASY_INSTALL_PROMPT)
+         
+def install_rpy2(*args, **kwargs):
+    return easy_install("rpy2")
+
+def install_R_libs(pkgs=R_PACKAGES, repo=CRAN_REPO, *args, **kwargs):
+    try:
+        require(["rpy2", "numpy"]) # Load rpy2 & numpy eggs into current state
+
+        from rpy2.robjects import r, numpy2ri
+        # numpy2ri imported for side-effects
+        from numpy import array
+
+        if "R_LIBS" not in os.environ:
+            raise DependencyError("R_LIBS must be set in order to install"
+                                  " necessary R packages using CRAN")
+        
+        r["install.packages"](array(pkgs), repo=repo, dep=True)
+    except (DistributionNotFound, ImportError):
+        raise InstallationError("rpy2 required to install R libs!")
+
+def install_segtools(*args, **kwargs):
+    return easy_install("segtools")
+
+
 if __name__ == "__main__":
     sys.exit(main())

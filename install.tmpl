@@ -12,19 +12,18 @@ code.
 
 (c) 2009: Orion Buske <orion.buske@gmail.com>
 
-XXX: R and necessary R packages are not checked/installed.
+XXX: R is not installed
 XXX: Relatively untested
 """
 
 ${COMMON_CODE_HEADER}
 
-# One command per line
-SEGTOOLS_INSTALL_SCRIPT = """
-cd $dir
-svn co $url
-cd $file
-python setup.py install
-"""
+from pkg_resources import DistributionNotFound, require
+
+# List of R package pre-requisites
+R_PACKAGES = ["latticeExtra", "reshape"]
+# Repository to use for downloading R libraries through CRAN
+CRAN_REPO = "http://cran.fhcrc.org"
 
 ${COMMON_CODE_BODY}
 
@@ -66,18 +65,46 @@ def main(args=sys.argv[1:]):
         # Add Numpy, if necessary
         prompt_install_numpy()
 
+        # Add rpy2, if necessary
+        prompt_install_rpy2()
+        
+        # Add R libraries
+        prompt_install_R_libs(pkgs=R_PACKAGES, repo=CRAN_REPO)
+        
         # Install segtools (and dependencies)
-        prompt_install_segtools(arch_home)
+        prompt_install_segtools()
 
         # Test package installations
-        prompt_test_packages(arch_home=arch_home)
+        prompt_test_packages()
 
         print >>sys.stderr, "\n=========== Installation complete ============="
         
     finally:  # Clean up
         shell.close()
     
-########################### GET VERSION ########################
+########################### GET VERSION ########################        
+def get_rpy2_version():
+    """Returns rpy2 version as a string or None if not found or installed
+    
+    Temporarily removes '.' from sys.path during installation to prevent
+    finding rpy2 in current directory (but uninstalled)
+    """
+    dir = os.getcwd()
+    index = None
+    if dir in sys.path:
+        index = sys.path.index(dir)
+        del sys.path[index]
+        
+    try:
+        try:
+            import rpy2
+            return rpy2.__version__
+        except (AttributeError, ImportError):
+            return None
+    finally:
+        if index is not None:
+            sys.path.insert(index, dir)
+            
 def get_segtools_version():
     """Returns segtools version as a string or None if not found or installed
     
@@ -101,16 +128,44 @@ def get_segtools_version():
             sys.path.insert(index, dir)
 
 ##################### SPECIFIC PROGRAM INSTALLERS ################
-def prompt_install_segtools(arch_home):
-    return _installer("segtools", install_segtools, get_segtools_version,
-                      install_prompt = EASY_INSTALL_PROMPT, arch_home=arch_home)
-         
-def install_segtools(arch_home, *args, **kwargs):
-    segtools_dir = prompt_install_path("segtools", arch_home)
-    install_dir = install_script("segtools", segtools_dir,
-                                 SEGTOOLS_INSTALL_SCRIPT, url=SEGTOOLS_URL)
-    return install_dir
+def prompt_install_rpy2():
+    return _installer("rpy2", install_rpy2, get_rpy2_version,
+                      install_prompt=EASY_INSTALL_PROMPT)
 
-            
+def prompt_install_R_libs(pkgs=R_PACKAGES, repo=CRAN_REPO):
+    query = "\nMay I download and install necessary R libraries?"
+    permission = prompt_yes_no(query)
+    if permission:
+        return install_R_libs(pkgs=pkgs, repo=repo)
+    else:
+        return False
+
+def prompt_install_segtools():
+    return _installer("segtools", install_segtools, get_segtools_version,
+                      install_prompt=EASY_INSTALL_PROMPT)
+         
+def install_rpy2(*args, **kwargs):
+    return easy_install("rpy2")
+
+def install_R_libs(pkgs=R_PACKAGES, repo=CRAN_REPO, *args, **kwargs):
+    try:
+        require(["rpy2", "numpy"]) # Load rpy2 & numpy eggs into current state
+
+        from rpy2.robjects import r, numpy2ri
+        # numpy2ri imported for side-effects
+        from numpy import array
+
+        if "R_LIBS" not in os.environ:
+            raise DependencyError("R_LIBS must be set in order to install"
+                                  " necessary R packages using CRAN")
+        
+        r["install.packages"](array(pkgs), repo=repo, dep=True)
+    except (DistributionNotFound, ImportError):
+        raise InstallationError("rpy2 required to install R libs!")
+
+def install_segtools(*args, **kwargs):
+    return easy_install("segtools")
+
+
 if __name__ == "__main__":
     sys.exit(main())
