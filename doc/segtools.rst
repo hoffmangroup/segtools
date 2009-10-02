@@ -34,10 +34,9 @@ as downloading and running this script! For instance::
    segtools/trunk/install.py
 
 .. note::
-   R and several R modules (``reshape``, ``latticeExtra``) are not yet 
-   installed by this script, but are required for segtools to generate 
-   images. Please have R installed and install these modules with CRAN
-   prior to running segtools
+   R is not yet installed by this script, but is required to run segtools.
+   Please have R installed, with R_LIBS set appropriately prior to 
+   installing segtools
 
 
 Usage
