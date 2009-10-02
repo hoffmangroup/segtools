@@ -23,6 +23,7 @@ import sys
 
 from distutils.spawn import find_executable
 from distutils.version import StrictVersion
+from pkg_resources import require
 from urllib import urlretrieve
 from string import Template
 from subprocess import PIPE, Popen
@@ -630,6 +631,7 @@ def prompt_test_pytables(*args, **kwargs):
     permission = prompt_yes_no(query)
     if permission:
         try:
+            require("tables")
             import tables
             tables.test()
             print >>sys.stderr, "Test seemed to have passed."
@@ -869,10 +871,6 @@ def install_R_libs(pkgs=R_PACKAGES, repo=CRAN_REPO, *args, **kwargs):
         from rpy2.robjects import r, numpy2ri
         # numpy2ri imported for side-effects
         from numpy import array
-
-        if "R_LIBS" not in os.environ:
-            raise DependencyError("R_LIBS must be set in order to install"
-                                  " necessary R packages using CRAN")
         
         r["install.packages"](array(pkgs), repo=repo, dep=True)
     except (DistributionNotFound, ImportError):
