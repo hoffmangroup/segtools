@@ -19,11 +19,11 @@ XXX: Relatively untested
 ####################### BEGIN COMMON CODE HEADER #####################
 
 import os
+import site
 import sys
 
 from distutils.spawn import find_executable
 from distutils.version import StrictVersion
-from pkg_resources import require
 from urllib import urlretrieve
 from string import Template
 from subprocess import PIPE, Popen
@@ -69,8 +69,6 @@ rm -f $file
 
 ####################### END COMMON CODE HEADER #####################
 
-
-from pkg_resources import DistributionNotFound, require
 
 # List of R package pre-requisites
 R_PACKAGES = ["latticeExtra", "reshape"]
@@ -322,7 +320,7 @@ def write_pydistutils_cfg(cfg_file, arch_home,
     """Write a pydistutils.cfg file
     """
     fields = {}
-    fields["prefix"] = arch_home
+    fields["prefix"] = fix_path(arch_home)
     
     if python_home == default_python_home:
         platlib = "$platbase/lib/python$py_version_short"
@@ -485,6 +483,7 @@ def _check_install(progname, version_func, min_version=None, *args, **kwargs):
 
     If version_func returns True, installation accepted regardless of
     min_version
+    
     """
     if version_func is None:
         return False
@@ -563,6 +562,7 @@ def install_script(progname, prog_dir, script, **kwargs):
     
     Returns installation directory if installation is successful
     (or True if unknown), and None otherwise.
+    
     """
     fields = kwargs
 
@@ -617,8 +617,10 @@ def prompt_test_packages(*args, **kwargs):
     """Run each dependency's unit tests and if they fail, prompt reinstall
     
     XXX: implement this for more than pytables (but numpy always fails)
+    
     """
-    print >>sys.stderr, "\n\n"
+    # Start by making sure everything is up to date loaded into sys.path
+    print >>sys.stderr, "\n"
     try:
         prompt_test_pytables(*args, **kwargs)
     except InstallationError:
@@ -631,7 +633,6 @@ def prompt_test_pytables(*args, **kwargs):
     permission = prompt_yes_no(query)
     if permission:
         try:
-            require("tables")
             import tables
             tables.test()
             print >>sys.stderr, "Test seemed to have passed."
@@ -761,7 +762,7 @@ def main(args=sys.argv[1:]):
         python_home, default_python_home = setup_python_home(arch_home)
         # Add python_home to PYTHONPATH
         prompt_add_to_env(shell, "PYTHONPATH", python_home)
-        
+
         # Set up bin directory
         script_home, default_script_home = setup_script_home(arch_home)
         # Add script_home to PATH
@@ -784,8 +785,9 @@ def main(args=sys.argv[1:]):
 
         # Add rpy2, if necessary
         prompt_install_rpy2()
-        
+
         # Add R libraries
+        reload(site)  # Get any packages/eggs in this new directory
         prompt_install_R_libs(pkgs=R_PACKAGES, repo=CRAN_REPO)
         
         # Install segtools (and dependencies)
@@ -865,15 +867,14 @@ def install_rpy2(*args, **kwargs):
     return easy_install("rpy2")
 
 def install_R_libs(pkgs=R_PACKAGES, repo=CRAN_REPO, *args, **kwargs):
+    # Start by loading in all eggs that have been installed since script start
     try:
-        require(["rpy2", "numpy"]) # Load rpy2 & numpy eggs into current state
-
         from rpy2.robjects import r, numpy2ri
         # numpy2ri imported for side-effects
         from numpy import array
         
         r["install.packages"](array(pkgs), repo=repo, dep=True)
-    except (DistributionNotFound, ImportError):
+    except ImportError:
         raise InstallationError("rpy2 required to install R libs!")
 
 def install_segtools(*args, **kwargs):
