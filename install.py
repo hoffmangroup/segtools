@@ -19,7 +19,6 @@ XXX: Relatively untested
 ####################### BEGIN COMMON CODE HEADER #####################
 
 import os
-import site
 import sys
 
 from distutils.spawn import find_executable
@@ -69,6 +68,8 @@ rm -f $file
 
 ####################### END COMMON CODE HEADER #####################
 
+
+from site import addsitedir
 
 # List of R package pre-requisites
 R_PACKAGES = ["latticeExtra", "reshape"]
@@ -786,8 +787,10 @@ def main(args=sys.argv[1:]):
         # Add rpy2, if necessary
         prompt_install_rpy2()
 
+        # Done installing eggs
+        addsitedir(python_home)  # Get any packages/eggs in this new directory
+
         # Add R libraries
-        reload(site)  # Get any packages/eggs in this new directory
         prompt_install_R_libs(pkgs=R_PACKAGES, repo=CRAN_REPO)
         
         # Install segtools (and dependencies)

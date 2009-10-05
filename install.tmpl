@@ -18,6 +18,8 @@ XXX: Relatively untested
 
 ${COMMON_CODE_HEADER}
 
+from site import addsitedir
+
 # List of R package pre-requisites
 R_PACKAGES = ["latticeExtra", "reshape"]
 # Repository to use for downloading R libraries through CRAN
@@ -66,8 +68,10 @@ def main(args=sys.argv[1:]):
         # Add rpy2, if necessary
         prompt_install_rpy2()
 
+        # Done installing eggs
+        addsitedir(python_home)  # Get any packages/eggs in this new directory
+
         # Add R libraries
-        reload(site)  # Get any packages/eggs in this new directory
         prompt_install_R_libs(pkgs=R_PACKAGES, repo=CRAN_REPO)
         
         # Install segtools (and dependencies)

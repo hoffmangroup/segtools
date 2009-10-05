@@ -328,7 +328,7 @@ def calc_significance(seg_labels, feature_labels, bedfilename,
 
         if quick: break
 
-    print(str(p_values))
+    print >> sys.stderr, str(p_values)
     return p_values
     
 def make_tab_row(row_labels, row_key, col_labels, col_ordered_keys,
