@@ -18,14 +18,31 @@ XXX: Relatively untested
 
 ${COMMON_CODE_HEADER}
 
+import re
+
 from site import addsitedir
 
+MIN_R_VERSION = "2.8"
 MIN_SEGTOOLS_VERSION = "0.1.0"
+
+R_DOWNLOAD_VERSION = "2.9.2"  # Displayed to user. Should match URL below.
+R_URL = "http://cran.fhcrc.org/src/base/R-2/R-2.9.2.tar.gz"
 
 # List of R package pre-requisites
 R_PACKAGES = ["latticeExtra", "reshape"]
 # Repository to use for downloading R libraries through CRAN
 CRAN_REPO = "http://cran.fhcrc.org"
+
+# One command per line
+R_INSTALL_SCRIPT = """
+if [ ! -e $file ]; then wget $url -O $file; fi
+if [ ! -d $filebase ]; then tar -xzf $file; fi
+cd $filebase
+./configure --prefix=$dir --enable-R-shlib
+make
+make install
+rm -f $file
+"""
 
 ${COMMON_CODE_BODY}
 
@@ -39,55 +56,63 @@ def main(args=sys.argv[1:]):
     shell = ShellManager(shell_name)
                 
     try:
-        # Set up arch_home
         arch_home = setup_arch_home()
         
-        # Set up python home
         python_home, default_python_home = setup_python_home(arch_home)
         # Add python_home to PYTHONPATH
         prompt_add_to_env(shell, "PYTHONPATH", python_home)
 
-        # Set up bin directory
         script_home, default_script_home = setup_script_home(arch_home)
         # Add script_home to PATH
         prompt_add_to_env(shell, "PATH", script_home)
 
-        # Maybe create pydistutils.cfg
         prompt_create_cfg(arch_home, python_home, default_python_home,
                           script_home, default_script_home)
             
-        # Add HDF5, if necessary
         hdf5_dir = prompt_install_hdf5(arch_home)
         if hdf5_dir:
             print >>sys.stderr, ("\nPyTables uses the environment variable"
                                  " HDF5DIR to locate HDF5.")
             prompt_set_env(shell, "HDF5_DIR", hdf5_dir)
 
-
-        # Add Numpy, if necessary
         prompt_install_numpy()
 
-        # Add rpy2, if necessary
+        prompt_install_R(arch_home)
+        
         prompt_install_rpy2()
 
         # Done installing eggs
         addsitedir(python_home)  # Get any packages/eggs in this new directory
 
-        # Add R libraries
         prompt_install_R_libs(pkgs=R_PACKAGES, repo=CRAN_REPO)
         
-        # Install segtools (and dependencies)
         prompt_install_segtools()
 
-        # Test package installations
+        # DONE: Test package installations?
         prompt_test_packages()
 
         print >>sys.stderr, "\n=========== Installation complete ============="
+        print >>sys.stderr, ("* Source your ~/.*rc file to update your"
+                             " environment *")
         
     finally:  # Clean up
         shell.close()
     
-########################### GET VERSION ########################        
+########################### GET VERSION ########################
+def get_R_version():
+    """Returns R version as a string or None if not found or installed."""
+    try:
+        cmd = Popen(["R", "--version"], stdout=PIPE, stderr=PIPE)
+        text = cmd.stdout.readlines()[0].strip()
+        matched = re.search("R version ([.0-9a-zA-Z]*) .*", text)
+        if matched:
+            # R Version found!
+            return matched.group(1)
+        else:
+            return None
+    except (OSError, IndexError):
+        return None
+        
 def get_rpy2_version():
     """Returns rpy2 version as a string or None if not found or installed
     
@@ -137,6 +162,11 @@ def prompt_install_rpy2():
     return _installer("rpy2", install_rpy2, get_rpy2_version,
                       install_prompt=EASY_INSTALL_PROMPT)
 
+def prompt_install_R(arch_home, min_version=MIN_R_VERSION):
+    return _installer("R", install_R, get_R_version,
+                      version=R_DOWNLOAD_VERSION,
+                      min_version=min_version, arch_home=arch_home)
+
 def prompt_install_R_libs(pkgs=R_PACKAGES, repo=CRAN_REPO):
     query = "\nMay I download and install necessary R libraries?"
     permission = prompt_yes_no(query)
@@ -149,7 +179,13 @@ def prompt_install_segtools(min_version=MIN_SEGTOOLS_VERSION):
     return _installer("segtools", install_segtools, get_segtools_version,
                       install_prompt=EASY_INSTALL_PROMPT,
                       min_version=min_version)
-         
+
+def install_R(arch_home, *args, **kwargs):
+    #hdf5_dir = prompt_install_path("HDF5", arch_home)
+    install_dir = install_script("R", arch_home, R_INSTALL_SCRIPT,
+                                 url=R_URL)
+    return install_dir
+
 def install_rpy2(*args, **kwargs):
     return easy_install("rpy2")
 
