@@ -27,8 +27,8 @@ A simple, interactive script_ has been created to install segtools
 (and most dependencies) on any Linux platform. Installation is as simple
 as downloading and running this script! For instance::
    
-   > wget http://encodestatistics.org/svn/segmentation_validation/segtools/trunk/install.py
-   > python install.py
+   wget http://encodestatistics.org/svn/segmentation_validation/segtools/trunk/install.py
+   python install.py
 
 .. _script: http://encodestatistics.org/svn/segmentation_validation/
    segtools/trunk/install.py
@@ -77,7 +77,7 @@ The following modules are currently available:
 These modules can be run from the command line by prepending ``segtools-``
 to the module name, such as::
 
-> segtools-length-distribution --help
+   segtools-length-distribution --help
 
 Each module generates:
 
@@ -138,6 +138,7 @@ Command-line usage summary
      --replot            Load data from output tab files and regenerate plots
                          instead of recomputing data
      --noplot            Do not generate plots
+     --no-factor         Do not separate data into different factors
 
    Aggregation options:
      -m MODE, --mode=MODE
