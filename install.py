@@ -71,6 +71,8 @@ rm -f $file
 
 from site import addsitedir
 
+MIN_SEGTOOLS_VERSION = "0.1.0"
+
 # List of R package pre-requisites
 R_PACKAGES = ["latticeExtra", "reshape"]
 # Repository to use for downloading R libraries through CRAN
@@ -390,9 +392,9 @@ def prompt_install_hdf5(arch_home):
                       install_message=HDF5_INSTALL_MESSAGE, arch_home=arch_home,
                       version=HDF5_DOWNLOAD_VERSION)
 
-def prompt_install_numpy():
+def prompt_install_numpy(min_version=MIN_NUMPY_VERSION):
     return _installer("Numpy", install_numpy, get_numpy_version,
-                      min_version=MIN_NUMPY_VERSION,
+                      min_version=min_version,
                       install_prompt=EASY_INSTALL_PROMPT)
 
 def install_hdf5(arch_home, *args, **kwargs):
@@ -862,9 +864,10 @@ def prompt_install_R_libs(pkgs=R_PACKAGES, repo=CRAN_REPO):
     else:
         return False
 
-def prompt_install_segtools():
+def prompt_install_segtools(min_version=MIN_SEGTOOLS_VERSION):
     return _installer("segtools", install_segtools, get_segtools_version,
-                      install_prompt=EASY_INSTALL_PROMPT)
+                      install_prompt=EASY_INSTALL_PROMPT,
+                      min_version=min_version)
          
 def install_rpy2(*args, **kwargs):
     return easy_install("rpy2")
@@ -880,8 +883,8 @@ def install_R_libs(pkgs=R_PACKAGES, repo=CRAN_REPO, *args, **kwargs):
     except ImportError:
         raise InstallationError("rpy2 required to install R libs!")
 
-def install_segtools(*args, **kwargs):
-    return easy_install("segtools")
+def install_segtools(min_version=MIN_SEGTOOLS_VERSION, *args, **kwargs):
+    return easy_install("segtools", min_version=min_version)
 
 
 if __name__ == "__main__":

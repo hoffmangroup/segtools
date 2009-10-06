@@ -20,6 +20,8 @@ ${COMMON_CODE_HEADER}
 
 from site import addsitedir
 
+MIN_SEGTOOLS_VERSION = "0.1.0"
+
 # List of R package pre-requisites
 R_PACKAGES = ["latticeExtra", "reshape"]
 # Repository to use for downloading R libraries through CRAN
@@ -143,9 +145,10 @@ def prompt_install_R_libs(pkgs=R_PACKAGES, repo=CRAN_REPO):
     else:
         return False
 
-def prompt_install_segtools():
+def prompt_install_segtools(min_version=MIN_SEGTOOLS_VERSION):
     return _installer("segtools", install_segtools, get_segtools_version,
-                      install_prompt=EASY_INSTALL_PROMPT)
+                      install_prompt=EASY_INSTALL_PROMPT,
+                      min_version=min_version)
          
 def install_rpy2(*args, **kwargs):
     return easy_install("rpy2")
@@ -161,8 +164,8 @@ def install_R_libs(pkgs=R_PACKAGES, repo=CRAN_REPO, *args, **kwargs):
     except ImportError:
         raise InstallationError("rpy2 required to install R libs!")
 
-def install_segtools(*args, **kwargs):
-    return easy_install("segtools")
+def install_segtools(min_version=MIN_SEGTOOLS_VERSION, *args, **kwargs):
+    return easy_install("segtools", min_version=min_version)
 
 
 if __name__ == "__main__":
