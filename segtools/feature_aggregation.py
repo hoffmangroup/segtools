@@ -24,10 +24,11 @@ import os
 import sys
 
 from collections import defaultdict
+from operator import itemgetter
 from rpy2.robjects import r, numpy2ri
 
 # XXX: Do this without the kludgy constants
-from .common import die, fill_array, get_ordered_labels, image_saver, key_by_field, load_genome, load_gff_data, load_segmentation, make_tabfilename, map_mnemonics, map_segments, r_source, SEGMENT_START_COL, SEGMENT_END_COL, setup_directory, tab_saver
+from .common import die, fill_array, get_ordered_labels, image_saver, load_genome, load_gff_data, load_segmentation, make_tabfilename, map_mnemonics, map_segments, maybe_gzip_open, r_source, SEGMENT_START_COL, SEGMENT_END_COL, setup_directory, tab_saver
 
 from .html import list2html, save_html_div
 
@@ -50,7 +51,7 @@ FLANK_5P = "5' flanking: %d bp"
 FLANK_3P = "3' flanking: %d bp"
 FLANK_COMPONENTS = [FLANK_5P, FLANK_3P]
 POINT_COMPONENTS = list(FLANK_COMPONENTS)
-REGION_COMPONENT = "internal: %d bp"
+REGION_COMPONENT = "internal"
 REGION_COMPONENTS = [FLANK_5P, REGION_COMPONENT, FLANK_3P]
 SPLICE_COMPONENTS = [
     "initial exon",
@@ -226,6 +227,16 @@ def feature_field_values(features, field="name"):
 
 
 def preprocess_entries(entries):
+    """Convert list of gene feature entries to processed gene data.
+
+    If multiple transcripts are found, only the longest is taken.
+    
+    :param entries: each entry is (chrom, start, end, strand, component, source)
+                    and all entries should correspond to the same gene_id
+    :type entries: list of 6-tuples
+    :returns: chrom, strand, source, list(exons), list(cds's)
+    
+    """
     # Remove list of gene features and preprocess
     #   (extracting constant strand, chrom, source)
     # Returns gene info and list of exons and CDSs
@@ -243,18 +254,19 @@ def preprocess_entries(entries):
         if gene_strand is None:
             gene_strand = strand
         elif gene_strand != strand:
-            die("Found gene features on more than one strand: [%s, %s]" %
-                (gene_strand, strand))
+            die("Found gene features on more than one strand: [%s, %s]\n%s" %
+                (gene_strand, strand, str(entries)))
         if gene_chrom is None:
             gene_chrom = chrom
         elif gene_chrom != chrom:
-            die("Found gene features on more than one chromosome: [%s, %s]" %
-                (gene_chrom, chrom))
+            die("Found gene features on more than one chromosome: [%s, %s]\n%s" %
+                (gene_chrom, chrom, str(entries)))
         if gene_source is None:
             gene_source = source
         elif gene_source != source:
-            die("Found gene features from more than one source: [%s, %s]" %
-                (gene_source, source))
+            print >>sys.stderr, ("Found gene features from more than one"
+                                 "source: [%s, %s]\n%s" %
+                                 (gene_source, source, str(entries)))
             
         partial_entry = (start, end)
         if component == EXON_COMPONENT:
@@ -273,7 +285,8 @@ def interpret_features_as_gene(entries):
     or None if the entries don't fit the model.
     """
 
-    gene_chrom, gene_strand, gene_source, exons, cdss = preprocess_entries(entries)
+    gene_chrom, gene_strand, gene_source, exons, cdss = \
+        preprocess_entries(entries)
             
     # ... removing gene if without a start_codon feature or enough exons
     if len(exons) < MIN_EXONS or len(cdss) < MIN_CDSS:
@@ -430,39 +443,72 @@ def load_gtf_data(gtf_filename):
     exon or do not contain a start codon) are skipped.
     """
     # Start with establishing a dict:
-    #   geneid -> (chrom, start, end, strand, component)
+    #   gene_id -> dict(transcript_id -> (chrom, start, end, strand, component))
     #   start is 0-indexed, end is non-inclusive (BED)
-    genedict = defaultdict(list)
-    geneid_col = 0
-    with open(gtf_filename) as ifp:
+    genedict = defaultdict(defaultdict(list))
+    gene_id_col = 0
+    transcript_id_col = 1
+    with maybe_gzip_open(gtf_filename) as ifp:
         for line in ifp:
+            # Ignore comment lines
+            if line.startswith("#"): continue
+            
             # Parse tokens from GTF line
-            tokens = line.strip().split("\t")
-            chrom = tokens[0]
-            source = tokens[1]
+            try:
+                tokens = line.strip().split("\t")
+                chrom = tokens[0]
+                source = tokens[1]
+            except ValueError:
+                die("Error parsing chrom (field 1) or source (field 2)"
+                    " from GTF line: %s" % line)
             try:
                 start = int(tokens[3]) - 1
                 end = int(tokens[4])
             except ValueError:
-                die("Error parsing start (field 4) or end (field 5) from GTF line: %s" % line)
+                die("Error parsing start (field 4) or end (field 5)"
+                    " from GTF line: %s" % line)
             strand = tokens[6]
             if strand != "+" and strand != "-":
-                die("Expected +/- strand, but found: %s in GTF line: %s" % (strand, line))
+                die("Expected +/- strand, but found: %s in GTF line:"
+                    " %s" % (strand, line))
             component = tokens[2]
                 
             properties = tokens[8].split(";")
-            if not properties[geneid_col].startswith("gene_id"):
-                die("Expected gene_id to be first property in field 9 of GTF line: %s" % line)
+            if not properties[gene_id_col].startswith("gene_id"):
+                # Try to find the gene_id column
+                gene_id_col = None
+                for prop, col_offset in enumerate(properties):
+                    if prop.startswith("gene_id"):
+                        gene_id_col = col_offset
+
+                if gene_id_col is None:
+                    die("Could not find the gene_id column in GTF line: %s" %
+                        line)
             
-            geneid = properties[geneid_col].split()[1].strip('"')
+            gene_id = properties[gene_id_col].split()[1].strip('"')
+
+            
+            if not properties[transcript_id_col].startswith("transcript_id"):
+                # Try to find the transcript_id column
+                transcript_id_col = None
+                for prop, col_offset in enumerate(properties):
+                    if prop.startswith("transcript_id"):
+                        transcript_id_col = col_offset
+
+                if transcript_id_col is None:
+                    die("Could not find the transcript_id column in"
+                        " GTF line: %s" % line)
+            
+            transcript_id = properties[transcript_id_col].split()[1].strip('"')
 
             # Add feature to dict
             entry = (chrom, start, end, strand, component, source)
-            genedict[geneid].append(entry)
+            genedict[gene_id][transcript_id].append(entry)
 
     # Eventually create feature dict: chrom -> list(features)
     data = defaultdict(list)
-    for geneid, entries in genedict.iteritems():
+    for geneid in genedict:
+        #####!SFDBHWBH!#$B !B!#RVFQWERTY
         entries = interpret_features_as_gene(entries)
         if entries is not None:
             # Add features to a normal, chrom-based feature dict
@@ -476,7 +522,7 @@ def load_gtf_data(gtf_filename):
 
     # Sort features by ascending start        
     for chrom_features in data.itervalues():
-        chrom_features.sort(key=key_by_field("start"))
+        chrom_features.sort(key=itemgetter("start"))
         
     return data
     
@@ -490,12 +536,14 @@ def load_gtf_data(gtf_filename):
 ##     flanking regions before the 1st and after the last component in the list
 ##     Each feature's component entry must match one of these exactly
 ## component_bins is a dict: component -> number of bins for that component
+## If nofactor: all factors found are treated as only factor in factors
 ## Returns:
 ##   factors: a list of the factors (groups) aggregated over
 ##   counts: dict(label_key -> dict(feature -> dict(component -> histogram)))
-##   component_counts: an array of the number of factors with valid labels at each bin pos
+##   component_counts: an array of the number of factors with valid
+##     labels at each bin pos
 def calc_aggregation(segmentation, mode, features, factors, components=[],
-                     component_bins=None, quick=False):
+                     component_bins=None, quick=False, nofactor=False):
     assert len(factors) > 0
 
     if component_bins is None:
@@ -503,6 +551,9 @@ def calc_aggregation(segmentation, mode, features, factors, components=[],
     else:
         for component in components:
             assert component in component_bins
+
+    if nofactor:
+        assert len(factors) == 1
             
     labels = segmentation.labels
 
@@ -565,7 +616,10 @@ def calc_aggregation(segmentation, mode, features, factors, components=[],
                     feature["start"] > segmentation_end:
                 continue  # Feature outside segmentation
 
-            factor = get_feature_factor(feature, mode)
+            if nofactor:
+                factor = factors[0]
+            else:
+                factor = get_feature_factor(feature, mode)
 
             # Spread internal bins throughout feature
             component_windows = calc_feature_windows(feature, mode, components,
@@ -677,19 +731,20 @@ def save_html(dirpath, featurefilename, mode, num_features, factors,
     
 def print_array(arr, tag="", type="%d"):
     fstring = "%%s:  %s, %s, ..., %s, ..., %s, %s" % tuple([type]*5)
-    print fstring % (tag,
-                     arr[0],
-                     arr[1],
-                     arr[int(arr.shape[0] / 2)],
-                     arr[-2],
-                     arr[-1])
+    print >>sys.stderr, fstring % (tag,
+                                   arr[0],
+                                   arr[1],
+                                   arr[int(arr.shape[0] / 2)],
+                                   arr[-2],
+                                   arr[-1])
     
 ## Package entry point
 def validate(bedfilename, featurefilename, dirpath,
              flank_bins=FLANK_BINS, region_bins=REGION_BINS,
              intron_bins=INTRON_BINS, exon_bins=EXON_BINS,
-             mode=DEFAULT_MODE, clobber=False, quick=False,
-             replot=False, noplot=False, mnemonicfilename=None):
+             nofactor=False, mode=DEFAULT_MODE, clobber=False,
+             quick=False, replot=False, noplot=False,
+             mnemonicfilename=None):
     setup_directory(dirpath)
     segmentation = load_segmentation(bedfilename)
     
@@ -702,16 +757,22 @@ def validate(bedfilename, featurefilename, dirpath,
         load_func = load_gff_data
     features = load_func(featurefilename)
     assert features is not None
-        
+
+    if nofactor:
+        factors = ["factor"]
+    
     if mode == GENE_MODE:
-        factors = feature_field_values(features, "source")
         components = GENE_COMPONENTS
+        if not nofactor:
+            factors = feature_field_values(features, "source")
     elif mode == REGION_MODE:
-        factors = feature_field_values(features, "name")
         components = REGION_COMPONENTS
+        if not nofactor:
+            factors = feature_field_values(features, "name")
     elif mode == POINT_MODE:
-        factors = feature_field_values(features, "name")
         components = POINT_COMPONENTS
+        if not nofactor:
+            factors = feature_field_values(features, "name")
 
     labels = segmentation.labels
     mnemonics = map_mnemonics(labels, mnemonicfilename)
@@ -730,7 +791,8 @@ def validate(bedfilename, featurefilename, dirpath,
         
         res = calc_aggregation(segmentation, mode=mode, features=features,
                                factors=factors, components=components,
-                               component_bins=component_bins, quick=quick)
+                               component_bins=component_bins, quick=quick,
+                               nofactor=nofactor)
         counts, label_counts, component_counts, counted_features = res
         for factor in factors:
             for component in components:
@@ -771,19 +833,22 @@ def parse_options(args):
 
     group = OptionGroup(parser, "Flags")
     group.add_option("--clobber", action="store_true",
-                      dest="clobber", default=False,
-                      help="Overwrite existing output files if the specified"
-                      " directory already exists.")
+                     dest="clobber", default=False,
+                     help="Overwrite existing output files if the specified"
+                     " directory already exists.")
     group.add_option("--quick", action="store_true", 
-                      dest="quick", default=False,
-                      help="Compute values only for one chromosome.")
+                     dest="quick", default=False,
+                     help="Compute values only for one chromosome.")
     group.add_option("--replot", action="store_true", 
-                      dest="replot", default=False,
-                      help="Load data from output tab files and"
-                      " regenerate plots instead of recomputing data")
+                     dest="replot", default=False,
+                     help="Load data from output tab files and"
+                     " regenerate plots instead of recomputing data")
     group.add_option("--noplot", action="store_true", 
-                      dest="noplot", default=False,
-                      help="Do not generate plots")
+                     dest="noplot", default=False,
+                     help="Do not generate plots")
+    group.add_option("--no-factor", action="store_true", 
+                     dest="nofactor", default=False,
+                     help="Do not separate data into different factors")
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Aggregation options")
@@ -833,7 +898,7 @@ def main(args=sys.argv[1:]):
              intron_bins=options.intronbins, exon_bins=options.exonbins,
              clobber=options.clobber, quick=options.quick,
              replot=options.replot, noplot=options.noplot,
-             mode=options.mode,
+             nofactor=options.nofactor, mode=options.mode,
              mnemonicfilename=options.mnemonicfilename)
         
 if __name__ == "__main__":
