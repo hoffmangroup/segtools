@@ -5,7 +5,7 @@
 LONG_DESCRIPTION
 """
 
-__version__ = "0.1.1"
+__version__ = "0.1.0"
 
 # Copyright 2008-2009 Michael M. Hoffman <mmh1@washington.edu>
 
@@ -24,7 +24,7 @@ doclines = __doc__.splitlines()
 name, short_description = doclines[0].split(": ")
 long_description = "\n".join(doclines[2:])
 
-url = "http://noble.gs.washington.edu/~mmh1/software/%s/" % name.lower()
+url = "http://noble.gs.washington.edu/proj/segtools/%s/" % name.lower()
 download_url = "%s%s-%s.tar.gz" % (url, name, __version__)
 
 dependency_links = ["http://noble.gs.washington.edu/~mmh1/software/genomedata/",

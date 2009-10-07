@@ -12,8 +12,6 @@ code.
 
 (c) 2009: Orion Buske <orion.buske@gmail.com>
 
-XXX: R is not installed
-XXX: Relatively untested
 """
 
 ####################### BEGIN COMMON CODE HEADER #####################
@@ -22,8 +20,9 @@ import os
 import sys
 
 from distutils.spawn import find_executable
-from distutils.version import StrictVersion
+from distutils.version import LooseVersion, StrictVersion
 from urllib import urlretrieve
+from site import addsitedir
 from string import Template
 from subprocess import PIPE, Popen
 
@@ -69,9 +68,8 @@ rm -f $file
 ####################### END COMMON CODE HEADER #####################
 
 
+import pkg_resources
 import re
-
-from site import addsitedir
 
 MIN_R_VERSION = "2.8"
 MIN_SEGTOOLS_VERSION = "0.1.0"
@@ -234,6 +232,7 @@ def setup_python_home(arch_home = None):
     default_python_home = get_default_python_home(arch_home)
     python_home = fix_path(prompt_user(query, default_python_home))
     make_dir(python_home)
+    addsitedir(python_home)  # Load already-installed packages/eggs
     return python_home, default_python_home
 
 def get_default_python_home(arch_home):
@@ -401,7 +400,7 @@ def get_setuptools_version():
 def str2version(ver):  # string to version object
     if ver.startswith("$Revision:"):
         ver = ver.split()[1]  # Get revision number
-    return StrictVersion(ver)
+    return LooseVersion(ver)
 
 ##################### SPECIFIC PROGRAM INSTALLERS ################
 def prompt_install_hdf5(arch_home):
@@ -804,7 +803,7 @@ def main(args=sys.argv[1:]):
         prompt_install_rpy2()
 
         # Done installing eggs
-        addsitedir(python_home)  # Get any packages/eggs in this new directory
+        addsitedir(python_home)  # Get any new packages/eggs in this directory
 
         prompt_install_R_libs(pkgs=R_PACKAGES, repo=CRAN_REPO)
         
@@ -826,7 +825,7 @@ def get_R_version():
     try:
         cmd = Popen(["R", "--version"], stdout=PIPE, stderr=PIPE)
         resp = cmd.stdout.readlines()[0].strip()
-        matched = re.search("R version ([.0-9a-zA-Z]*) .*", res)
+        matched = re.search("R version ([.0-9a-zA-Z]*) .*", resp)
         if matched:
             # R Version found! Check compilation configuration
             print >>sys.stderr, ("found!\nSearching for R library"
@@ -869,7 +868,10 @@ def get_segtools_version():
     """Returns segtools version as a string or None if not found or installed
     
     Temporarily removes '.' from sys.path during installation to prevent
-    finding segtools in current directory (but uninstalled)
+    finding segtools in current directory (but uninstalled).
+
+    Since segtools __version__ is currently a revision number, get the full
+    number from pkg_resources
     """
     dir = os.getcwd()
     index = None
@@ -879,8 +881,9 @@ def get_segtools_version():
         
     try:
         try:
-            import segtools
-            return segtools.__version__
+            ref = pkg_resources.Requirement.parse("segtools")
+            data = pkg_resources.working_set.find(ref)
+            return data.version
         except (AttributeError, ImportError):
             return None
     finally:
