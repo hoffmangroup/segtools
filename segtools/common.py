@@ -21,7 +21,6 @@ from functools import partial
 from genomedata import Genome
 from gzip import open as _gzip_open
 from numpy import array, empty, iinfo
-from operator import itemgetter
 from pkg_resources import resource_filename, resource_string
 from string import Template
 from tabdelim import DictReader, DictWriter
@@ -216,6 +215,54 @@ def tab_saver(dirpath, basename, fieldnames, comment=None,
     if verbose:
         print >>sys.stderr, "done"
 
+## OLD IMAGE SAVER
+## Generator to save an R plot to both png and pdf with only one plot
+## Yields to caller to plot, then saves images
+# @contextmanager
+# def image_saver(dirpath, basename, clobber=False, **kwargs):
+#     png_filename = make_filename(dirpath, basename, EXT_PNG)
+#     png_slide_filename = make_filename(dirpath,
+#                                        "%s%s" % (basename, ".slide"),
+#                                        EXT_PNG)
+#     pdf_filename = make_filename(dirpath, basename, EXT_PDF)
+
+#     # Make sure there is no silent overwrite
+#     filenames = [png_filename, png_slide_filename, pdf_filename]
+#     if not clobber:
+#         file_exists = list(os.path.isfile(file) for file in filenames)
+#         if any(file_exists):
+#             die("Output file: %s already exists! Use --clobber to overwrite!" % filenames[file_exists.index(True)])
+        
+#     # Set up primary device
+#     try:
+#         r.png(png_filename, **kwargs)
+#     except rinterface.RRuntimeError:
+#         die('If unable to start PNG device, try `export DISPLAY=":1"` from the shell before re-running validation')
+        
+#     png_device = r['dev.cur']()
+        
+#     r['dev.control']("enable")  # Allow copying from device
+
+#     print >>sys.stderr, "\tCreating images..."
+#     yield  # Wait for plot
+
+#     try:
+#         # Make pdf copy
+#         # Dingbats off because otherwise circles displayed as q's
+#         r['dev.copy2pdf'](file=pdf_filename, useDingbats=False)
+        
+#         # Make slide copy
+#         r['dev.print.slide'](png_slide_filename)
+        
+#         # Flush buffer and close plot
+#         r['dev.off'](png_device)
+        
+#         print >>sys.stderr, "\tImages saved!"
+#     except:
+#         r['dev.off'](png_device)
+#         print >> sys.stderr, "ERROR: R crashed. Some images might not be saved."
+
+## CURRENT VERSION OF IMAGE_SAVER
 @contextmanager
 def image_saver(dirpath, basename, clobber = False, verbose = True,
                 downsample = False, **kwargs):
@@ -484,68 +531,60 @@ def load_mnemonics(filename):
             label_data[label_index] = row
     
     return (label_order, label_data)
-        
+
+def key_by_field(fieldname):
+    def entry_key(entry):
+        return entry[fieldname]
+    return entry_key
+
 ## Parses gff file for features
-def load_gff_data(gff_filename, sort=True):
+def load_gff_data(gff_filename):
     '''
     Expects data in GFF format (1-indexed locations):
     CHROM<tab>source<tab>feature<tab>START<tab>END<tab>score<tab>STRAND
     chrom, start, end, and strand are required
     strand can be '+'/'-' or '.', but not both in the same file
-    
-    File may be gzip'd, but if so, must have .gz as the extension
-    
-    Returns gffdata
-    gffdata: a dict
+
+    Returns tssdata
+    tssdata: a dict
       key: string chromosome name (e.g. "chr13")
       val: a list of dicts (ordered by the start index, ascending)
-        key: "start", "end", "strand", "source"
+        key: "start", "end", or "strand"
         val: the associated data item, if it exists
              string for strand
              int (zero-indexed) for start and end (exclusive)
     '''
     data = defaultdict(list)
     stranded = None
-    with maybe_gzip_open(gff_filename) as infile:
+    with open(gff_filename) as infile:
         for line in infile:
-            # Ignore comments
-            if line.startswith("#"): continue
+            tokens = line.strip().split("\t")
+            chrom = tokens[0]
 
-            # Parse tokens from GFF line
+            name = tokens[2]
+            start = int(tokens[3]) - 1  # Make zero-indexed
+            # Make zero-indexed and exclusive (these cancel out)
+            end = int(tokens[4])
+
             try:
-                fields = []
-                tokens = line.strip().split("\t")
+                strand = tokens[6]
+            except IndexError:
+                strand = "."
                 
-                chrom = tokens[0]
-                fields["source"] = tokens[1]
-                fields["name"] = tokens[2]
-                fields["start"] = int(tokens[3]) - 1  # Make zero-indexed
-                # Make zero-indexed and exclusive (these cancel out)
-                fields["end"] = int(tokens[4])
-
-                try:
-                    strand = tokens[6]
-                except IndexError:
-                    strand = "."
+            if strand == "+" or strand == "-":
+                assert stranded or stranded is None
+                stranded = True
+            else:
+                assert not stranded  # Don't have both +/- and .
+                strand = "."  # N/A
+                stranded = False
                 
-                if strand == "+" or strand == "-":
-                    assert stranded or stranded is None
-                    stranded = True
-                else:
-                    assert not stranded  # Don't have both +/- and .
-                    strand = "."  # N/A
-                    stranded = False
-                    
-                fields["strand"] = strand
-                
-                data[chrom].append(fields)
-            except (IndexError, ValueError):
-                die("Error parsing fields from feature line:\n\t%s" % line)
-
-    if sort:
-        # Sort features by ascending start
-        for chrom_features in data.itervalues():
-            chrom_features.sort(key=itemgetter("start"))
+            feature = dict(name=name, start=start, end=end, strand=strand)
+            data[chrom].append(feature)
+            
+    # Sort features by ascending start        
+    for chrom_features in data.itervalues():
+        chrom_features.sort(key=key_by_field("start"))
         
     return data
 
@@ -598,7 +637,7 @@ def load_segmentation(filename, checknames=True):
             
     # Sort segments within each chromosome by start index
     for segments in data.itervalues():
-        segments.sort(key=itemgetter(0))
+        segments.sort()
         
     # convert lists of tuples to array
     chromosomes = dict((chrom, array(segments))
