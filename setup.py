@@ -27,7 +27,7 @@ long_description = "\n".join(doclines[2:])
 url = "http://noble.gs.washington.edu/proj/segtools/%s/" % name.lower()
 download_url = "%s%s-%s.tar.gz" % (url, name, __version__)
 
-dependency_links = ["http://noble.gs.washington.edu/~mmh1/software/genomedata/",
+dependency_links = ["http://noble.gs.washington.edu/proj/genomedata/",
                     "http://pypi.python.org/packages/source/p/path.py/path-2.2.zip"]
 
 classifiers = ["Natural Language :: English",
