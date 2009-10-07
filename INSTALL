@@ -15,5 +15,5 @@ Prerequisites to this installation guide:
 Installation has been simplified with the install.py script.
 
 1) Download and run the install.py script:
-   wget http://encodestatistics.org/svn/segmentation_validation/segtools/trunk/install.py
+   wget http://noble.gs.washington.edu/proj/segtools/install.py
    python install.py

@@ -8,6 +8,4 @@ Additional analyses:
 
 Overall:
 
-* Get setuptools to autoinstall NumPy
-* Get setuptools to autoinstall PyTables
 * Add ability to analyze multiple segmentations at once => run it on the cluster
