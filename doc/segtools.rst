@@ -1,11 +1,14 @@
-======================
-Segtools documentation
-======================
+================================
+Segtools |version| documentation
+================================
 :Author: Orion Buske <orion.buske at gmail dot com>
 :Organization: University of Washington
 :Address: Department of Genome Sciences, PO Box 355065, 
           Seattle, WA 98195-5065, United States of America
 :Copyright: 2009 Orion Buske
+:Last updated: |today| 
+
+.. currentmodule:: segtools
 
 Description
 ===========
@@ -27,16 +30,16 @@ A simple, interactive script_ has been created to install segtools
 (and most dependencies) on any Linux platform. Installation is as simple
 as downloading and running this script! For instance::
    
-   wget http://encodestatistics.org/svn/segmentation_validation/segtools/trunk/install.py
+   wget http://noble.gs.washington.edu/proj/segtools/install.py
    python install.py
 
-.. _script: http://encodestatistics.org/svn/segmentation_validation/
-   segtools/trunk/install.py
+.. _script: http://noble.gs.washington.edu/proj/segtools/install.py
 
-.. note::
-   R is not yet installed by this script, but is required to run segtools.
-   Please have R installed, with R_LIBS set appropriately prior to 
-   installing segtools
+.. note:: 
+   The following are prerequisites:
+          
+   - Python 2.5.1+
+   - Zlib
 
 
 Usage
@@ -50,34 +53,31 @@ run straight from python if desired (though this is not yet documented).
 
 .. _`BED format`: http://genome.ucsc.edu/FAQ/FAQformat#format1
 
-The following modules are currently available:
+The following commands are currently available:
     
-:feature-aggregation_: 
-      Analyzes the relative occurrance of each segment
-      label around the provided genomic features.
-:label-transition_: 
+:program:`segtools-feature-aggregation`
+      Analyzes the relative occurrance of each segment label 
+      around the provided genomic features.
+:program:`segtools-label-transition`
       Analyses the transitions between segment labels and
       the structure of their interaction.
-:length-distribution_: 
+:program:`segtools-length-distribution`
       Analyzes the distribution of segment lengths
       and their coverage of the genome for each segment label.
-:signal-distribution_: 
+:program:`segtools-signal-distribution`
       Analyzes the distribution of genomic signal 
       tracks for each segment label.
-:nucleotide-frequency_: 
+:program:`segtools-nucleotide-frequency`
       Analyzes the frequencies of nucleotides and
       dinucleotides in segments of each label.
-:overlap_: 
+:program:`segtools-overlap`
       Analyzes the frequency with which each segment label overlaps
       features of various types.
-:html-report_: 
+:program:`segtools-html-report`
       Combines the output of the other modules and generates
       an html report for viewing.
 
-These modules can be run from the command line by prepending ``segtools-``
-to the module name, such as::
-
-   segtools-length-distribution --help
+All the above commands respond to ``-h`` and ``--help``.
 
 Each module generates:
 
@@ -96,8 +96,10 @@ Modules
 =======
 
 
-feature-aggregation
--------------------
+:mod:`.feature_aggregation`
+---------------------------
+
+.. module:: segtools.feature_aggregation
 
 This modules aggregates segmentation data around features, generating
 a histogram for each segmentation label that shows the frequency of
@@ -158,13 +160,17 @@ Command-line usage summary
                          many evenly-spaced bins [default: 25]
 
 
-html-report
------------
+:mod:`.html`
+-------------------
+
+.. module:: segtools.html
 
 This module is intended to be run after other segtools modules. It searches
 the local (or provided) directory for ``div`` files produced by the
 other segtools modules and compiles the data into an HTML report for 
 review.
+
+.. program:: segtools-html-report
 
 Command-line usage summary
 ..........................
@@ -194,8 +200,10 @@ The ``BEDFILE`` argument and :option:`--mnemonic-file` option
 should be the same as used to run the other segtools modules.
 
 
-label-transition
-----------------
+:mod:`.label_transition`
+------------------------
+
+.. module:: segtools.label_transition
 
 Provides command-line and package entry points for analyzing the observed
 segmentation label transitions in the given BED-formatted segmentation.
@@ -207,6 +215,7 @@ probabilities and generates several output files:
   - a heatmap of the matrix
   - a graph of a thresholded form of the transition matrix
 
+.. program:: segtools-label-transition
 
 Command-line usage summary
 ..........................
@@ -253,12 +262,15 @@ Command-line usage summary
                          transitions in the BEDFILE. The BEDFILE will not be 
                          used
 
-length-distribution
--------------------
+:mod:`.length_distribution`
+---------------------------
+
+.. module:: segtools.length_distribution
 
 Provides command-line and package entry points for analyzing the segment
 length distribution in a provided BED-formatted segmentation.
 
+.. program:: segtools-length-distribution
 
 Command-line usage summary
 ..........................
@@ -285,11 +297,15 @@ Command-line usage summary
 
 
 
-nucleotide-frequency
---------------------
+:mod:`.nucleotide_frequency`
+----------------------------
+
+.. module:: segtools.nucleotide_frequency
 
 Provides command-line and package entry points for analyzing nucleotide
 and dinucleotide frequencies for each segmentation label.
+
+.. program:: segtools-nucleotide-frequency
 
 Command-line usage summary
 ..........................
@@ -315,8 +331,10 @@ Command-line usage summary
                          exist) [default: nucleotide_frequency]
 
 
-overlap
--------
+:mod:`.overlap`
+---------------
+
+.. module:: segtools.overlap
 
 Evaluates the overlap between two BED files, based upon a specification 
 that can be found here__.
@@ -324,6 +342,7 @@ that can be found here__.
 __ http://encodewiki.ucsc.edu/EncodeDCC/index.php/
    Overlap_analysis_tool_specification
 
+.. program:: segtools-overlap
 
 Command-line usage summary
 ..........................
@@ -395,12 +414,15 @@ Command-line usage summary
      --subregion-fraction=SUBREGION_FRACTION
                          The subregion_fraction tu use with GSC [default: 0.5]
 
-signal-distribution
--------------------
+:mod:`.signal_distribution`
+---------------------------
+
+.. module:: segtools.signal_distribution
 
 Provides command-line and package entry points for analyzing the signal
 distribution over tracks and labels.
 
+.. program:: segtools-signal-distribution
 
 Command-line usage summary
 ..........................

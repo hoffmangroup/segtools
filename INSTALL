@@ -11,11 +11,6 @@ Installation
 Prerequisites to this installation guide:
     Python 2.5.1+
     Zlib
-    R 2.7+ (compiled with --enable-R-shlib)
-    The following R packages (installed in R with install.packages):
-        lattice
-        RColorBrewer
-        latticeExtra
 
 Installation has been simplified with the install.py script.
 

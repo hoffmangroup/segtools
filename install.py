@@ -794,7 +794,7 @@ def main(args=sys.argv[1:]):
         hdf5_dir = prompt_install_hdf5(arch_home)
         if hdf5_dir:
             print >>sys.stderr, ("\nPyTables uses the environment variable"
-                                 " HDF5DIR to locate HDF5.")
+                                 " HDF5_DIR to locate HDF5.")
             prompt_set_env(shell, "HDF5_DIR", hdf5_dir)
 
         prompt_install_numpy()
@@ -825,10 +825,18 @@ def get_R_version():
     """Returns R version as a string or None if not found or installed."""
     try:
         cmd = Popen(["R", "--version"], stdout=PIPE, stderr=PIPE)
-        text = cmd.stdout.readlines()[0].strip()
-        matched = re.search("R version ([.0-9a-zA-Z]*) .*", text)
+        resp = cmd.stdout.readlines()[0].strip()
+        matched = re.search("R version ([.0-9a-zA-Z]*) .*", res)
         if matched:
-            # R Version found!
+            # R Version found! Check compilation configuration
+            print >>sys.stderr, ("found!\nSearching for R library"
+                                 " configuration..."),
+            cmd = Popen(["R", "CMD", "config", "--cppflags"],
+                        stdout=PIPE, stderr=PIPE)
+            resp = cmd.stdout.readlines()[0].strip()
+            if resp == "R was not built as a library":
+                return None
+
             return matched.group(1)
         else:
             return None
