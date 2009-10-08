@@ -435,7 +435,7 @@ def load_gtf_data(gtf_filename):
     #   start is 0-indexed, end is non-inclusive (BED)
     genedict = defaultdict(list)
     geneid_col = 0
-    with open(gtf_filename) as ifp:
+    with maybe_gzip_open(gtf_filename) as ifp:
         for line in ifp:
             # Ignore comment lines
             if line.startswith("#"): continue
