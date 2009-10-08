@@ -592,9 +592,9 @@ def load_segmentation(filename, checknames=True):
 
     # Create reverse dict for return
     labels = dict((val, key) for key, val in label_dict.iteritems())
-    print >>sys.stderr, ""
+    print >>sys.stderr, "\nMapping names to integers"
     for key, label in labels.iteritems():
-        print >>sys.stderr, "%d -> \"%s\"" % (key, label)
+        print >>sys.stderr, "\"%s\" -> %d" % (label, key)
             
     # Sort segments within each chromosome by start index
     for segments in data.itervalues():

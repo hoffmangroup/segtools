@@ -24,6 +24,7 @@ import os
 import sys
 
 from collections import defaultdict
+from functools import partial
 from operator import itemgetter
 from rpy2.robjects import r, numpy2ri
 
@@ -78,8 +79,7 @@ GENE_COMPONENTS = EXON_COMPONENTS + CODING_COMPONENTS
 EXON_COMPONENT = "exon"
 CDS_COMPONENT = "CDS"
 MIN_EXONS = 1
-MIN_CDSS = 1  # Must have at least 1 coding exon
-
+MIN_CDSS = 0
 
 # Default parameter values
 FLANK_BINS = 500  
@@ -198,7 +198,9 @@ def get_component_bins(components=[], flank_bins=FLANK_BINS,
         elif component in GENE_COMPONENTS:
             if "intron" in component:
                 bins = intron_bins
-            elif "exon" in component or "UTR" in component or "CDS" in component:
+            elif "exon" in component or \
+                    "UTR" in component or \
+                    "CDS" in component:
                 # All UTR components that don't contain "intron" are exons
                 bins = exon_bins
             else:
@@ -227,6 +229,16 @@ def feature_field_values(features, field="name"):
 
 
 def preprocess_entries(entries):
+    """Convert list of gene feature entries to processed gene data.
+
+    If multiple transcripts are found, only the longest is taken.
+    
+    :param entries: each entry is (chrom, start, end, strand, component, source)
+                    and all entries should correspond to the same gene_id
+    :type entries: list of 6-tuples
+    :returns: chrom, strand, source, list(exons), list(cds's)
+    
+    """
     # Remove list of gene features and preprocess
     #   (extracting constant strand, chrom, source)
     # Returns gene info and list of exons and CDSs
@@ -244,18 +256,19 @@ def preprocess_entries(entries):
         if gene_strand is None:
             gene_strand = strand
         elif gene_strand != strand:
-            die("Found gene features on more than one strand: [%s, %s]" %
-                (gene_strand, strand))
+            die("Found gene features on more than one strand: [%s, %s]\n%s" %
+                (gene_strand, strand, str(entries)))
         if gene_chrom is None:
             gene_chrom = chrom
         elif gene_chrom != chrom:
-            die("Found gene features on more than one chromosome: [%s, %s]" %
-                (gene_chrom, chrom))
+            die("Found gene features on more than one chromosome: [%s, %s]\n%s" %
+                (gene_chrom, chrom, str(entries)))
         if gene_source is None:
             gene_source = source
         elif gene_source != source:
-            die("Found gene features from more than one source: [%s, %s]" %
-                (gene_source, source))
+            print >>sys.stderr, ("Found gene features from more than one"
+                                 "source: [%s, %s]\n%s" %
+                                 (gene_source, source, str(entries)))
             
         partial_entry = (start, end)
         if component == EXON_COMPONENT:
@@ -264,20 +277,22 @@ def preprocess_entries(entries):
             cdss.append(partial_entry)
     return gene_chrom, gene_strand, gene_source, exons, cdss
 
-def interpret_features_as_gene(entries):
+def interpret_features_as_gene(entries, min_exons=MIN_EXONS, min_cdss=MIN_CDSS):
     """Returns a set of gene-model entries based upon the given entries.
 
     Interprets the given set of entries in terms of an idealized gene model
     with 5' and 3' UTRs, initial, internal, and terminal exons and introns.
 
-    Returns a new set of entries based upon this gene model
-    or None if the entries don't fit the model.
+    :param entries: see preprocess_entries for a description
+    :returns: a new set of entries based upon this gene model
+              or None if the entries don't fit the model.
     """
 
-    gene_chrom, gene_strand, gene_source, exons, cdss = preprocess_entries(entries)
+    gene_chrom, gene_strand, gene_source, exons, cdss = \
+        preprocess_entries(entries)
             
-    # ... removing gene if without a start_codon feature or enough exons
-    if len(exons) < MIN_EXONS or len(cdss) < MIN_CDSS:
+    # ... removing gene if without a coding exon or enough exons
+    if len(exons) < min_exons or len(cdss) < min_cdss:
         return None
     
     exons.sort()
@@ -297,8 +312,6 @@ def interpret_features_as_gene(entries):
         introns.reverse()
         cdss.reverse()
         
-    assert MIN_CDSS >= 1
-
     features = []
     # Add gene features to new list, renaming components
     #   according to an idealized gene model
@@ -327,6 +340,11 @@ def interpret_features_as_gene(entries):
     features.append(make_feature(SPLICE_COMPONENTS[5], *exons[-1]))
 
 
+    # If there were no CDS's, then there is no point in dealing with UTR/CDS
+    #   regions, so skip all that.
+    if len(cdss) == 0:
+        return features
+    
     # Binds local variable gene_strand to strand-correct
     def upstream(x, y):
         """Returns true if x starts before (is 5') of y, false otherwise"""
@@ -406,8 +424,50 @@ def interpret_features_as_gene(entries):
        
     return features
 
-def load_gtf_data(gtf_filename):
-    """Loads the gtf file in terms of idealized gene features.
+def get_transcript_length(entries):
+    """Returns the length of the transcript.
+
+    Assumes entries are all for the same transcript
+    
+    :param entries: each entry is (chrom, start, end, strand, component, source)
+                    and all entries should correspond to the same gene_id
+    :type entries: list of 6-tuples
+    :rtype: integer or None
+    
+    """
+    min_start = None
+    max_end = None
+    for entry in entries:
+        (chrom, start, end, strand, component, source) = entry
+        if component == EXON_COMPONENT:
+            if min_start is None or start < min_start:
+                min_start = start
+            if max_end is None or end > max_end:
+                max_end = end
+
+    if min_start is None or max_end is None:
+        return None
+    else:
+        return max_end - min_start
+            
+def get_longest_transcript(transcript_dict):
+    """Return the longest transcript in the dict.
+
+    :type transcript_dict: transcript_id -> entries
+    :returns: tuple of (transcript_id, entries) for the longest transcript
+              or None if there were no transcripts.
+    """
+    max_length = 0
+    longest = None
+    for id, entries in transcript_dict.iteritems():
+        length = get_transcript_length(entries)
+        if length > max_length:
+            max_length = length
+            longest = (id, entries)
+    return longest
+
+def load_gtf_data(gtf_filename, min_exons=MIN_EXONS, min_cdss=MIN_CDSS):
+    """Load the gtf file in terms of idealized gene features.
 
     Parses the given feature file and replaces feature names from:
       CDS
@@ -431,52 +491,85 @@ def load_gtf_data(gtf_filename):
     exon or do not contain a start codon) are skipped.
     """
     # Start with establishing a dict:
-    #   geneid -> (chrom, start, end, strand, component)
+    #   gene_id -> dict(transcript_id -> (chrom, start, end, strand, component))
     #   start is 0-indexed, end is non-inclusive (BED)
-    genedict = defaultdict(list)
-    geneid_col = 0
+    gene_dict = defaultdict(partial(defaultdict, list))
+    gene_id_col = 0
+    transcript_id_col = 1
     with maybe_gzip_open(gtf_filename) as ifp:
         for line in ifp:
             # Ignore comment lines
             if line.startswith("#"): continue
             
             # Parse tokens from GTF line
-            tokens = line.strip().split("\t")
-            chrom = tokens[0]
-            source = tokens[1]
+            try:
+                tokens = line.strip().split("\t")
+                chrom = tokens[0]
+                source = tokens[1]
+            except ValueError:
+                die("Error parsing chrom (field 1) or source (field 2)"
+                    " from GTF line: %s" % line)
             try:
                 start = int(tokens[3]) - 1
                 end = int(tokens[4])
             except ValueError:
-                die("Error parsing start (field 4) or end (field 5) from GTF line: %s" % line)
+                die("Error parsing start (field 4) or end (field 5)"
+                    " from GTF line: %s" % line)
             strand = tokens[6]
             if strand != "+" and strand != "-":
-                die("Expected +/- strand, but found: %s in GTF line: %s" % (strand, line))
+                die("Expected +/- strand, but found: %s in GTF line:"
+                    " %s" % (strand, line))
             component = tokens[2]
                 
-            properties = tokens[8].split(";")
-            if not properties[geneid_col].startswith("gene_id"):
-                die("Expected gene_id to be first property in field 9 of GTF line: %s" % line)
-            
-            geneid = properties[geneid_col].split()[1].strip('"')
+            properties = tokens[8].split("; ")
+            if not properties[gene_id_col].startswith("gene_id"):
+                # Try to find the gene_id column
+                gene_id_col = None
+                for col_offset, prop in enumerate(properties):
+                    if prop.startswith("gene_id"):
+                        gene_id_col = col_offset
+
+                if gene_id_col is None:
+                    die("Could not find the gene_id column in GTF line: %s" %
+                        line)
+            gene_id = properties[gene_id_col].split()[1].strip('"')
+
+            if not properties[transcript_id_col].startswith("transcript_id"):
+                # Try to find the transcript_id column
+                transcript_id_col = None
+                for col_offset, prop in enumerate(properties):
+                    if prop.startswith("transcript_id"):
+                        transcript_id_col = col_offset
+
+                if transcript_id_col is None:
+                    die("Could not find the transcript_id column in"
+                        " GTF line: %s" % line)
+            transcript_id = properties[transcript_id_col].split()[1].strip('"')
 
             # Add feature to dict
             entry = (chrom, start, end, strand, component, source)
-            genedict[geneid].append(entry)
+            gene_dict[gene_id][transcript_id].append(entry)
 
     # Eventually create feature dict: chrom -> list(features)
     data = defaultdict(list)
-    for geneid, entries in genedict.iteritems():
-        entries = interpret_features_as_gene(entries)
-        if entries is not None:
+    for gene_id, transcript_dict in gene_dict.iteritems():
+
+        # Select only longest transcript
+        transcript_id, transcript = get_longest_transcript(transcript_dict)
+        gene_model = interpret_features_as_gene(transcript,
+                                                min_exons=min_exons,
+                                                min_cdss=min_cdss)
+
+        if gene_model is not None:
             # Add features to a normal, chrom-based feature dict
-            for entry in entries:
-                #print entry[4], "\t", entry[1:3], entry[3]
-                chrom, start, end, strand, component, source=entry
+            for gene_part in gene_model:
+#                 print str(gene_part)
+                chrom, start, end, strand, component, source = gene_part
                 feature = dict(start=start, end=end, strand=strand,
                                name=component, source=source)
                 data[chrom].append(feature)
-            #raw_input()
+                
+#         raw_input()
 
     # Sort features by ascending start        
     for chrom_features in data.itervalues():
@@ -509,13 +602,22 @@ def calc_aggregation(segmentation, mode, features, factors, components=[],
     else:
         for component in components:
             assert component in component_bins
+
+    if nofactor:
+        assert len(factors) == 1
             
     labels = segmentation.labels
 
     print >>sys.stderr, "\tFactors: %s" % factors
     print >>sys.stderr, "\tComponents and bins:"
     for component in components:
-        print >>sys.stderr, "\t\t%s: %d" % (component, component_bins[component])
+        print >>sys.stderr, "\t\t",
+        # Try to substitute number of bins in first
+        try:
+            print >>sys.stderr, component % component_bins[component]
+        except TypeError:
+            print >>sys.stderr, "%s: %d" % (component,
+                                            component_bins[component])
 
     # Number of features aggregated over at each position for each factor
     # and component
@@ -571,7 +673,10 @@ def calc_aggregation(segmentation, mode, features, factors, components=[],
                     feature["start"] > segmentation_end:
                 continue  # Feature outside segmentation
 
-            factor = get_feature_factor(feature, mode)
+            if nofactor:
+                factor = factors[0]
+            else:
+                factor = get_feature_factor(feature, mode)
 
             # Spread internal bins throughout feature
             component_windows = calc_feature_windows(feature, mode, components,
@@ -696,6 +801,7 @@ def validate(bedfilename, featurefilename, dirpath,
              intron_bins=INTRON_BINS, exon_bins=EXON_BINS,
              nofactor=False, mode=DEFAULT_MODE, clobber=False,
              quick=False, replot=False, noplot=False,
+             min_exons=MIN_EXONS, min_cdss=MIN_CDSS,
              mnemonicfilename=None):
     setup_directory(dirpath)
     segmentation = load_segmentation(bedfilename)
@@ -704,27 +810,25 @@ def validate(bedfilename, featurefilename, dirpath,
 
     print >>sys.stderr, "Using file %s" % featurefilename
     if mode == "gene":
-        load_func = load_gtf_data
+        features = load_gtf_data(featurefilename,
+                                 min_exons=min_exons,
+                                 min_cdss=min_cdss)
     else:
-        load_func = load_gff_data
-    features = load_func(featurefilename)
+        features = load_gff_data(featurefilename)
     assert features is not None
 
     if nofactor:
         factors = ["factor"]
     
     if mode == GENE_MODE:
-        factors = feature_field_values(features, "source")
         components = GENE_COMPONENTS
         if not nofactor:
             factors = feature_field_values(features, "source")
     elif mode == REGION_MODE:
-        factors = feature_field_values(features, "name")
         components = REGION_COMPONENTS
         if not nofactor:
             factors = feature_field_values(features, "name")
     elif mode == POINT_MODE:
-        factors = feature_field_values(features, "name")
         components = POINT_COMPONENTS
         if not nofactor:
             factors = feature_field_values(features, "name")
@@ -806,7 +910,7 @@ def parse_options(args):
                      help="Do not separate data into different factors")
     parser.add_option_group(group)
 
-    group = OptionGroup(parser, "Aggregation options")
+    group = OptionGroup(parser, "Main aggregation options")
     group.add_option("-m", "--mode", choices=MODES, 
                      dest="mode", type="choice", default=DEFAULT_MODE,
                      help="one of: "+str(MODES)+", --gene not implemented"
@@ -820,16 +924,27 @@ def parse_options(args):
                      help="If --mode=region, aggregate over each internal"
                      "feature using this many evenly-spaced bins"
                      " [default: %default]")
+    parser.add_option_group(group)
+    
+    group = OptionGroup(parser, "Gene aggregation options")
     group.add_option("-i", "--intron-bins", type="int", 
                      dest="intronbins", default=INTRON_BINS,
-                     help="If --mode=gene, Aggregate over each intron"
+                     help="Aggregate over each intron"
                      "using this many evenly-spaced bins"
                      " [default: %default]")
     group.add_option("-e", "--exon-bins", type="int", 
                      dest="exonbins", default=EXON_BINS,
-                     help="If --mode=gene, Aggregate over each exon"
+                     help="Aggregate over each exon"
                      "using this many evenly-spaced bins"
                      " [default: %default]")
+    group.add_option("--min-exons", type="int", 
+                     dest="min_exons", default=MIN_EXONS,
+                     help="Only consider genes with at least this many exons"
+                     " [default: %default]")
+    group.add_option("--min-coding-exons", type="int", 
+                     dest="min_cdss", default=MIN_CDSS,
+                     help="Only consider genes with at least this many coding"
+                     " exon [default: %default]")
     parser.add_option_group(group)
     
     (options, args) = parser.parse_args(args)
@@ -854,6 +969,7 @@ def main(args=sys.argv[1:]):
              clobber=options.clobber, quick=options.quick,
              replot=options.replot, noplot=options.noplot,
              nofactor=options.nofactor, mode=options.mode,
+             min_exons=options.min_exons, min_cdss=options.min_cdss,
              mnemonicfilename=options.mnemonicfilename)
         
 if __name__ == "__main__":
