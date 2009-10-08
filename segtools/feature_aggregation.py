@@ -24,10 +24,11 @@ import os
 import sys
 
 from collections import defaultdict
+from operator import itemgetter
 from rpy2.robjects import r, numpy2ri
 
 # XXX: Do this without the kludgy constants
-from .common import die, fill_array, get_ordered_labels, image_saver, key_by_field, load_genome, load_gff_data, load_segmentation, make_tabfilename, map_mnemonics, map_segments, r_source, SEGMENT_START_COL, SEGMENT_END_COL, setup_directory, tab_saver
+from .common import die, fill_array, get_ordered_labels, image_saver, load_genome, load_gff_data, load_segmentation, make_tabfilename, map_mnemonics, map_segments, maybe_gzip_open, r_source, SEGMENT_START_COL, SEGMENT_END_COL, setup_directory, tab_saver
 
 from .html import list2html, save_html_div
 
@@ -436,6 +437,9 @@ def load_gtf_data(gtf_filename):
     geneid_col = 0
     with open(gtf_filename) as ifp:
         for line in ifp:
+            # Ignore comment lines
+            if line.startswith("#"): continue
+            
             # Parse tokens from GTF line
             tokens = line.strip().split("\t")
             chrom = tokens[0]
@@ -476,7 +480,7 @@ def load_gtf_data(gtf_filename):
 
     # Sort features by ascending start        
     for chrom_features in data.itervalues():
-        chrom_features.sort(key=key_by_field("start"))
+        chrom_features.sort(key=itemgetter("start"))
         
     return data
     
@@ -490,12 +494,14 @@ def load_gtf_data(gtf_filename):
 ##     flanking regions before the 1st and after the last component in the list
 ##     Each feature's component entry must match one of these exactly
 ## component_bins is a dict: component -> number of bins for that component
+## If nofactor: all factors found are treated as only factor in factors
 ## Returns:
 ##   factors: a list of the factors (groups) aggregated over
 ##   counts: dict(label_key -> dict(feature -> dict(component -> histogram)))
-##   component_counts: an array of the number of factors with valid labels at each bin pos
+##   component_counts: an array of the number of factors with valid
+##     labels at each bin pos
 def calc_aggregation(segmentation, mode, features, factors, components=[],
-                     component_bins=None, quick=False):
+                     component_bins=None, quick=False, nofactor=False):
     assert len(factors) > 0
 
     if component_bins is None:
@@ -677,19 +683,20 @@ def save_html(dirpath, featurefilename, mode, num_features, factors,
     
 def print_array(arr, tag="", type="%d"):
     fstring = "%%s:  %s, %s, ..., %s, ..., %s, %s" % tuple([type]*5)
-    print fstring % (tag,
-                     arr[0],
-                     arr[1],
-                     arr[int(arr.shape[0] / 2)],
-                     arr[-2],
-                     arr[-1])
+    print >>sys.stderr, fstring % (tag,
+                                   arr[0],
+                                   arr[1],
+                                   arr[int(arr.shape[0] / 2)],
+                                   arr[-2],
+                                   arr[-1])
     
 ## Package entry point
 def validate(bedfilename, featurefilename, dirpath,
              flank_bins=FLANK_BINS, region_bins=REGION_BINS,
              intron_bins=INTRON_BINS, exon_bins=EXON_BINS,
-             mode=DEFAULT_MODE, clobber=False, quick=False,
-             replot=False, noplot=False, mnemonicfilename=None):
+             nofactor=False, mode=DEFAULT_MODE, clobber=False,
+             quick=False, replot=False, noplot=False,
+             mnemonicfilename=None):
     setup_directory(dirpath)
     segmentation = load_segmentation(bedfilename)
     
@@ -702,16 +709,25 @@ def validate(bedfilename, featurefilename, dirpath,
         load_func = load_gff_data
     features = load_func(featurefilename)
     assert features is not None
-        
+
+    if nofactor:
+        factors = ["factor"]
+    
     if mode == GENE_MODE:
         factors = feature_field_values(features, "source")
         components = GENE_COMPONENTS
+        if not nofactor:
+            factors = feature_field_values(features, "source")
     elif mode == REGION_MODE:
         factors = feature_field_values(features, "name")
         components = REGION_COMPONENTS
+        if not nofactor:
+            factors = feature_field_values(features, "name")
     elif mode == POINT_MODE:
         factors = feature_field_values(features, "name")
         components = POINT_COMPONENTS
+        if not nofactor:
+            factors = feature_field_values(features, "name")
 
     labels = segmentation.labels
     mnemonics = map_mnemonics(labels, mnemonicfilename)
@@ -730,7 +746,8 @@ def validate(bedfilename, featurefilename, dirpath,
         
         res = calc_aggregation(segmentation, mode=mode, features=features,
                                factors=factors, components=components,
-                               component_bins=component_bins, quick=quick)
+                               component_bins=component_bins, quick=quick,
+                               nofactor=nofactor)
         counts, label_counts, component_counts, counted_features = res
         for factor in factors:
             for component in components:
@@ -771,19 +788,22 @@ def parse_options(args):
 
     group = OptionGroup(parser, "Flags")
     group.add_option("--clobber", action="store_true",
-                      dest="clobber", default=False,
-                      help="Overwrite existing output files if the specified"
-                      " directory already exists.")
+                     dest="clobber", default=False,
+                     help="Overwrite existing output files if the specified"
+                     " directory already exists.")
     group.add_option("--quick", action="store_true", 
-                      dest="quick", default=False,
-                      help="Compute values only for one chromosome.")
+                     dest="quick", default=False,
+                     help="Compute values only for one chromosome.")
     group.add_option("--replot", action="store_true", 
-                      dest="replot", default=False,
-                      help="Load data from output tab files and"
-                      " regenerate plots instead of recomputing data")
+                     dest="replot", default=False,
+                     help="Load data from output tab files and"
+                     " regenerate plots instead of recomputing data")
     group.add_option("--noplot", action="store_true", 
-                      dest="noplot", default=False,
-                      help="Do not generate plots")
+                     dest="noplot", default=False,
+                     help="Do not generate plots")
+    group.add_option("--no-factor", action="store_true", 
+                     dest="nofactor", default=False,
+                     help="Do not separate data into different factors")
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Aggregation options")
@@ -833,7 +853,7 @@ def main(args=sys.argv[1:]):
              intron_bins=options.intronbins, exon_bins=options.exonbins,
              clobber=options.clobber, quick=options.quick,
              replot=options.replot, noplot=options.noplot,
-             mode=options.mode,
+             nofactor=options.nofactor, mode=options.mode,
              mnemonicfilename=options.mnemonicfilename)
         
 if __name__ == "__main__":
