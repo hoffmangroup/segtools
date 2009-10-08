@@ -17,6 +17,7 @@ code.
 ####################### BEGIN COMMON CODE HEADER #####################
 
 import os
+import pkg_resources
 import sys
 
 from distutils.spawn import find_executable
@@ -24,7 +25,7 @@ from distutils.version import LooseVersion, StrictVersion
 from urllib import urlretrieve
 from site import addsitedir
 from string import Template
-from subprocess import PIPE, Popen
+from subprocess import call, PIPE, Popen
 
 assert sys.version_info >= (2, 4)
 
@@ -62,13 +63,13 @@ cd $filebase
 ./configure --prefix=$dir
 make
 make install
+cd ..
 rm -f $file
 """
 
 ####################### END COMMON CODE HEADER #####################
 
 
-import pkg_resources
 import re
 
 MIN_R_VERSION = "2.8"
@@ -90,6 +91,7 @@ cd $filebase
 ./configure --prefix=$dir --enable-R-shlib
 make
 make install
+cd ..
 rm -f $file
 """
 
@@ -101,7 +103,7 @@ class DependencyError(Exception):
 
 class InstallationError(Exception):
     pass
-
+        
 class ShellManager(object):
     """Class to manage details of shells.
 
@@ -162,7 +164,7 @@ class ShellManager(object):
                 self._out = open(os.path.expanduser(self.file), "a")
         
         cmd = self._env_format % (variable, value)
-        print >>self._out, "\n%s  # Added by install script\n" % cmd
+        print >>self._out, "\n%s  # Added by install script" % cmd
             
     def add_to_rc_env(self, variable, value):
         """Prepend the value to the variable in the shell rc file (or stdout)
@@ -224,7 +226,7 @@ def get_default_arch_home():
         
     return os.path.expanduser("~/arch/%s" % arch)
 
-def setup_python_home(arch_home = None):
+def setup_python_home(arch_home=None):
     if arch_home is None:
         arch_home = get_default_arch_home()
         
@@ -233,13 +235,14 @@ def setup_python_home(arch_home = None):
     python_home = fix_path(prompt_user(query, default_python_home))
     make_dir(python_home)
     addsitedir(python_home)  # Load already-installed packages/eggs
+    reload(pkg_resources)  # Update working set
     return python_home, default_python_home
 
 def get_default_python_home(arch_home):
     python_version = sys.version[:3]
     return os.path.join(arch_home, "lib", "python%s" % python_version)
 
-def setup_script_home(arch_home = None):
+def setup_script_home(arch_home=None):
     if arch_home is None:
         arch_home = get_default_arch_home()
         
@@ -248,6 +251,21 @@ def setup_script_home(arch_home = None):
     script_home = fix_path(prompt_user(query, default_script_home))
     make_dir(script_home)
     return script_home, default_script_home
+
+def setup_hdf5_installation(shell, arch_home):
+    hdf5_dir = prompt_install_hdf5(arch_home)
+    if hdf5_dir:
+        print >>sys.stderr, ("\nPyTables uses the environment variable"
+                             " HDF5_DIR to locate HDF5.")
+        prompt_set_env(shell, "HDF5_DIR", hdf5_dir)
+        bin_path = os.path.join(hdf5_dir, "bin")
+        include_path = os.path.join(hdf5_dir, "include")
+        lib_path = os.path.join(hdf5_dir, "lib")
+        prompt_add_to_env(shell, "PATH", bin_path)
+        prompt_add_to_env(shell, "C_INCLUDE_PATH", include_path)
+        prompt_add_to_env(shell, "LIBRARY_PATH", lib_path)
+        prompt_add_to_env(shell, "LD_LIBRARY_PATH", lib_path)
+    return hdf5_dir
 
 def prompt_add_to_env(shell, variable, value):
     if shell.in_env(variable, value):
@@ -415,6 +433,7 @@ def prompt_install_numpy(min_version=MIN_NUMPY_VERSION):
 
 def install_hdf5(arch_home, *args, **kwargs):
     hdf5_dir = prompt_install_path("HDF5", arch_home)
+    make_dir(hdf5_dir)
     install_dir = install_script("HDF5", hdf5_dir, HDF5_INSTALL_SCRIPT,
                                  url=HDF5_URL)
     return install_dir
@@ -463,9 +482,7 @@ def _installer(progname, install_func, version_func=None,
                 print >>sys.stderr, "%s successfully installed." % progname
             else:
                 print >>sys.stderr, "%s not installed." % progname
-
             return success
-        
     return False
 
 def _abort_skip_install(func, *args, **kwargs):
@@ -547,9 +564,9 @@ def easy_install(progname, min_version=None):
         else:
             raise InstallationError()
     
-    cmd = "easy_install %s" % progname.lower()
+    cmd = ["easy_install", progname.lower()]
     if min_version is not None:  # Add version requirement
-        cmd += ' "%s>=%s"' % (progname, min_version)
+        cmd.append('"%s>=%s"' % (progname, min_version))
 
     if os.path.isdir(progname):
         print >>sys.stderr, ("\nWarning: installation may fail because"
@@ -557,8 +574,7 @@ def easy_install(progname, min_version=None):
                              " current path.") % progname
 
     print >>sys.stderr, ">> %s" % cmd
-    proc = Popen(cmd, shell=True, stdout=None, stderr=None)
-    code = proc.wait()
+    code = call(cmd, stdout=None, stderr=None)
 
     if code != 0:
         print >>sys.stderr, "Error occured installing %s" % progname
@@ -635,13 +651,16 @@ def install_script(progname, prog_dir, script, **kwargs):
 
 
 ########################## PROGRAM TESTING ######################
-def prompt_test_packages(*args, **kwargs):
+def prompt_test_packages(python_home, *args, **kwargs):
     """Run each dependency's unit tests and if they fail, prompt reinstall
     
     XXX: implement this for more than pytables (but numpy always fails)
     
     """
     # Start by making sure everything is up to date loaded into sys.path
+    if python_home:
+        addsitedir(python_home)
+        
     print >>sys.stderr, "\n"
     try:
         prompt_test_pytables(*args, **kwargs)
@@ -790,27 +809,23 @@ def main(args=sys.argv[1:]):
         prompt_create_cfg(arch_home, python_home, default_python_home,
                           script_home, default_script_home)
             
-        hdf5_dir = prompt_install_hdf5(arch_home)
-        if hdf5_dir:
-            print >>sys.stderr, ("\nPyTables uses the environment variable"
-                                 " HDF5_DIR to locate HDF5.")
-            prompt_set_env(shell, "HDF5_DIR", hdf5_dir)
-
+        hdf5_dir = setup_hdf5_installation(shell, arch_home)
+            
         prompt_install_numpy()
 
         prompt_install_R(arch_home)
         
         prompt_install_rpy2()
 
-        # Done installing eggs
-        addsitedir(python_home)  # Get any new packages/eggs in this directory
-
+        # Next step may need just-installed eggs, so update site list
+        addsitedir(python_home)
+        
         prompt_install_R_libs(pkgs=R_PACKAGES, repo=CRAN_REPO)
         
         prompt_install_segtools()
 
         # DONE: Test package installations?
-        prompt_test_packages()
+        prompt_test_packages(python_home)
 
         print >>sys.stderr, "\n=========== Installation complete ============="
         print >>sys.stderr, ("* Source your ~/.*rc file to update your"
@@ -917,24 +932,52 @@ def prompt_install_segtools(min_version=MIN_SEGTOOLS_VERSION):
                       min_version=min_version)
 
 def install_R(arch_home, *args, **kwargs):
-    #hdf5_dir = prompt_install_path("HDF5", arch_home)
-    install_dir = install_script("R", arch_home, R_INSTALL_SCRIPT,
-                                 url=R_URL)
-    return install_dir
+    """Install R to arch_home.
+
+    Set R_PROFILE_USER to /dev/null for the installation,
+    else, ~/.Rprofile code might crash, causing installation to fail/
+
+    """
+    if "R_PROFILE_USER" in os.environ:
+        old = os.environ["R_PROFILE_USER"]
+        os.environ["R_PROFILE_USER"] = "/dev/null"
+    else:
+        old = None
+
+    try:
+        install_dir = install_script("R", arch_home, R_INSTALL_SCRIPT,
+                                     url=R_URL)
+        return install_dir
+    finally:
+        if old is not None:
+            os.environ["R_PROFILE_USER"] = old
 
 def install_rpy2(*args, **kwargs):
     return easy_install("rpy2")
 
 def install_R_libs(pkgs=R_PACKAGES, repo=CRAN_REPO, *args, **kwargs):
-    # Start by loading in all eggs that have been installed since script start
+    """Install R libs using CRAN.
+
+    Temporary unsets DISPLAY to try to not open X-window for ssh-ers.
+    
+    """
+    if "DISPLAY" in os.environ:
+        old = os.environ["DISPLAY"]
+        del os.environ["DISPLAY"]
+    else:
+        old = None
     try:
-        from rpy2.robjects import r, numpy2ri
-        # numpy2ri imported for side-effects
-        from numpy import array
-        
-        r["install.packages"](array(pkgs), dep=True)
-    except ImportError:
-        raise InstallationError("rpy2 required to install R libs!")
+        try:
+            from rpy2.robjects import r, numpy2ri
+            # numpy2ri imported for side-effects
+            from numpy import array
+            
+            r["install.packages"](array(pkgs), dep=True)
+        except ImportError:
+            raise InstallationError("rpy2 required to install R libs!")
+    finally:
+        if old is not None:
+            os.environ["DISPLAY"] = old
 
 def install_segtools(min_version=MIN_SEGTOOLS_VERSION, *args, **kwargs):
     return easy_install("segtools", min_version=min_version)

@@ -16,7 +16,6 @@ code.
 
 ${COMMON_CODE_HEADER}
 
-import pkg_resources
 import re
 
 MIN_R_VERSION = "2.8"
@@ -38,6 +37,7 @@ cd $filebase
 ./configure --prefix=$dir --enable-R-shlib
 make
 make install
+cd ..
 rm -f $file
 """
 
@@ -66,27 +66,23 @@ def main(args=sys.argv[1:]):
         prompt_create_cfg(arch_home, python_home, default_python_home,
                           script_home, default_script_home)
             
-        hdf5_dir = prompt_install_hdf5(arch_home)
-        if hdf5_dir:
-            print >>sys.stderr, ("\nPyTables uses the environment variable"
-                                 " HDF5_DIR to locate HDF5.")
-            prompt_set_env(shell, "HDF5_DIR", hdf5_dir)
-
+        hdf5_dir = setup_hdf5_installation(shell, arch_home)
+            
         prompt_install_numpy()
 
         prompt_install_R(arch_home)
         
         prompt_install_rpy2()
 
-        # Done installing eggs
-        addsitedir(python_home)  # Get any new packages/eggs in this directory
-
+        # Next step may need just-installed eggs, so update site list
+        addsitedir(python_home)
+        
         prompt_install_R_libs(pkgs=R_PACKAGES, repo=CRAN_REPO)
         
         prompt_install_segtools()
 
         # DONE: Test package installations?
-        prompt_test_packages()
+        prompt_test_packages(python_home)
 
         print >>sys.stderr, "\n=========== Installation complete ============="
         print >>sys.stderr, ("* Source your ~/.*rc file to update your"
@@ -193,24 +189,52 @@ def prompt_install_segtools(min_version=MIN_SEGTOOLS_VERSION):
                       min_version=min_version)
 
 def install_R(arch_home, *args, **kwargs):
-    #hdf5_dir = prompt_install_path("HDF5", arch_home)
-    install_dir = install_script("R", arch_home, R_INSTALL_SCRIPT,
-                                 url=R_URL)
-    return install_dir
+    """Install R to arch_home.
+
+    Set R_PROFILE_USER to /dev/null for the installation,
+    else, ~/.Rprofile code might crash, causing installation to fail/
+
+    """
+    if "R_PROFILE_USER" in os.environ:
+        old = os.environ["R_PROFILE_USER"]
+        os.environ["R_PROFILE_USER"] = "/dev/null"
+    else:
+        old = None
+
+    try:
+        install_dir = install_script("R", arch_home, R_INSTALL_SCRIPT,
+                                     url=R_URL)
+        return install_dir
+    finally:
+        if old is not None:
+            os.environ["R_PROFILE_USER"] = old
 
 def install_rpy2(*args, **kwargs):
     return easy_install("rpy2")
 
 def install_R_libs(pkgs=R_PACKAGES, repo=CRAN_REPO, *args, **kwargs):
-    # Start by loading in all eggs that have been installed since script start
+    """Install R libs using CRAN.
+
+    Temporary unsets DISPLAY to try to not open X-window for ssh-ers.
+    
+    """
+    if "DISPLAY" in os.environ:
+        old = os.environ["DISPLAY"]
+        del os.environ["DISPLAY"]
+    else:
+        old = None
     try:
-        from rpy2.robjects import r, numpy2ri
-        # numpy2ri imported for side-effects
-        from numpy import array
-        
-        r["install.packages"](array(pkgs), dep=True)
-    except ImportError:
-        raise InstallationError("rpy2 required to install R libs!")
+        try:
+            from rpy2.robjects import r, numpy2ri
+            # numpy2ri imported for side-effects
+            from numpy import array
+            
+            r["install.packages"](array(pkgs), dep=True)
+        except ImportError:
+            raise InstallationError("rpy2 required to install R libs!")
+    finally:
+        if old is not None:
+            os.environ["DISPLAY"] = old
 
 def install_segtools(min_version=MIN_SEGTOOLS_VERSION, *args, **kwargs):
     return easy_install("segtools", min_version=min_version)
