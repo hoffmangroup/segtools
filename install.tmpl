@@ -10,7 +10,7 @@ This script is designed to be downloaded and run independently, and
 will guide the process of downloading and installing all other source
 code.
 
-(c) 2009: Orion Buske <orion.buske@gmail.com>
+(c) 2009: Orion Buske <stasis@u.washington.edu>
 
 """
 
@@ -104,12 +104,15 @@ def get_R_version():
         matched = re.search("R version ([.0-9a-zA-Z]*) .*", resp)
         if matched:
             # R Version found! Check compilation configuration
-            print >>sys.stderr, ("found!\nSearching for R library"
-                                 " configuration..."),
+            print >>sys.stderr, "found!"
             cmd = Popen(["R", "CMD", "config", "--cppflags"],
                         stdout=PIPE, stderr=PIPE)
             resp = cmd.stdout.readlines()[0].strip()
             if resp == "R was not built as a library":
+                print >>sys.stderr, ("You already have R installed as a"
+                                     " program, but in order to work with"
+                                     " segtools, it must be installed as"
+                                     " a library.\nR library"),
                 return None
 
             return matched.group(1)

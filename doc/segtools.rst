@@ -1,7 +1,7 @@
 ================================
 Segtools |version| documentation
 ================================
-:Author: Orion Buske <orion.buske at gmail dot com>
+:Author: Orion Buske <stasis at u dot washington dot edu>
 :Organization: University of Washington
 :Address: Department of Genome Sciences, PO Box 355065, 
           Seattle, WA 98195-5065, United States of America
