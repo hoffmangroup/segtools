@@ -35,7 +35,7 @@ except NameError:
 
 PKG_R = os.extsep.join([PKG, "R"])
 PKG_RESOURCE = os.extsep.join([PKG, "resources"])
-    
+
 from .bed import read_native
 
 EXT_GZ = "gz"
@@ -80,7 +80,7 @@ class Segmentation(object):
     labels: a dict
       key: int ("label_key")  (a unique id)
       val: printable (str or int)  (what's in the actual BED file)
-      
+    
     tracks: a list of track names that were used to obtain the segmentation
     segtool: the tool that was used to obtain this segmentation (e.g. segway)  
     """
@@ -108,29 +108,29 @@ class OutputMasker:
         pass  # Mask output
     def restore(self):
         return self._stream
-        
+
 ## Wrapper for gff/gtf feature data
 # class Feature(object):
 #     def __init__(self, line=None, tokens=None):
 #         assert (line or tokens) and not (line and tokens)
 #         if tokens is None:
 #             tokens = line.strip().split("\t")
-            
+
 #         self.__dict__ = dict(zip(FEATURE_FIELDS, tokens))
-            
+
 #         # Make zero-based, exclusive end:
 #         #   http://genome.ucsc.edu/FAQ/FAQformat#format3
 #         self.start = int(self.start) - 1
 #         self.end = int(self.end)
-        
-        
+
+
 ## UTILITY FUNCTIONS
-        
+
 ## Die with error message
 def die(msg="Unexpected error"):
     print >> sys.stderr, "\nERROR: %s\n" % msg
     sys.exit(1)
-        
+
 def make_filename(dirpath, basename, ext):
     return os.path.join(dirpath, os.extsep.join([basename, ext]))
 
@@ -153,7 +153,7 @@ def make_id(modulename, dirpath):
 def check_clobber(filename, clobber):
     if (not clobber) and os.path.isfile(filename):
         die("Output file: %s already exists! Use --clobber to overwrite!" % filename)
-        
+
 def gzip_open(*args, **kwargs):
     return closing(_gzip_open(*args, **kwargs))
 
@@ -162,7 +162,7 @@ def maybe_gzip_open(filename, *args, **kwargs):
         return gzip_open(filename, *args, **kwargs)
     else:
         return open(filename, *args, **kwargs)
-    
+
 def fill_array(scalar, shape, dtype=None, *args, **kwargs):
     if dtype is None:
         dtype = array(scalar).dtype
@@ -191,7 +191,7 @@ def template_substitute(filename):
     Simplify import resource strings in the package
     """
     return Template(template_string(filename)).substitute
-        
+
 @contextmanager
 def tab_saver(dirpath, basename, fieldnames, comment=None,
               clobber=False, header=True, verbose=True):
@@ -200,7 +200,7 @@ def tab_saver(dirpath, basename, fieldnames, comment=None,
     """
     if verbose:
         print >>sys.stderr, "Saving tab file...",
-        
+
     outfilename = make_tabfilename(dirpath, basename)
     check_clobber(outfilename, clobber)
     with open(outfilename, "w") as outfile:
@@ -212,7 +212,7 @@ def tab_saver(dirpath, basename, fieldnames, comment=None,
                 print >> outfile, "# %s" % comment
         yield DictWriter(outfile, fieldnames,
                          extrasaction="ignore", header=header)
-        
+
     if verbose:
         print >>sys.stderr, "done"
 
@@ -231,7 +231,7 @@ def image_saver(dirpath, basename, clobber = False, verbose = True,
 
     if verbose:
         print >>sys.stderr, "Creating images...",
-        
+
     try:
         png_filename = make_pngfilename(dirpath, basename)
         r.png(png_filename, **kwargs)
@@ -239,9 +239,9 @@ def image_saver(dirpath, basename, clobber = False, verbose = True,
         r["dev.control"]("enable")
     except rinterface.RRuntimeError:
         die('Image creation failed.\nIf unable to start PNG device, try setting (export/setenv) variable DISPLAY to ":1" from the (bash/c) shell before re-running validation.')
-        
+
     yield  # Wait for plot
-    
+
     # Use R routine to create all the other images (pdf, slide, etc)
     try:
         r["dev.print.images"](basename = basename, dirname = dirpath,
@@ -274,15 +274,15 @@ def parse_bed_header(line):
 ## Maps label_keys over segments
 def map_segments(segments, labels, chrom_size):
     """
-    converts a segment mapping into label_keys at every nucleotide position 
+    converts a segment mapping into label_keys at every nucleotide position
         in the chromosome
-        
-    e.g.  segment labeled 0 at position [0,4) followed by 
+    
+    e.g.  segment labeled 0 at position [0,4) followed by
           segment labeled 1 at position [4,7) gets converted into:
           0000111
-    """  
+    """
     segments_dtype = segments.dtype  # MA: the data type of segments
-    segments_dtype_max = iinfo(segments_dtype).max # sentinel value		
+    segments_dtype_max = iinfo(segments_dtype).max  # sentinel value
     # MA: the maximum value supported by the type
     assert segments_dtype_max not in labels.keys()
 
@@ -513,7 +513,7 @@ def load_gff_data(gff_filename, sort=True):
 
             # Parse tokens from GFF line
             try:
-                fields = []
+                fields = {}
                 tokens = line.strip().split("\t")
                 
                 chrom = tokens[0]

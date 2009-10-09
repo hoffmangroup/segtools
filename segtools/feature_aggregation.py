@@ -82,7 +82,7 @@ MIN_EXONS = 1
 MIN_CDSS = 0
 
 # Default parameter values
-FLANK_BINS = 500  
+FLANK_BINS = 500
 REGION_BINS = 50
 INTRON_BINS = 50
 EXON_BINS = 25
@@ -109,7 +109,7 @@ def get_feature_factor(feature, mode):
         return feature["source"]
     else:
         return feature["name"]
-        
+
 
 ## Returns a dict of component -> window (list of base indices)
 def calc_feature_windows(feature, mode, components, component_bins):
@@ -119,7 +119,7 @@ def calc_feature_windows(feature, mode, components, component_bins):
     strand = feature["strand"]
     length = end - start
     assert length > 0
-    
+
     # Include flanks by default
     num_5p_bins = component_bins[FLANK_5P]
     num_3p_bins = component_bins[FLANK_3P]
@@ -141,7 +141,7 @@ def calc_feature_windows(feature, mode, components, component_bins):
         num_internal_bins = component_bins[component]
     except KeyError:
         num_internal_bins = 0
-        
+
     if num_internal_bins > length:
         #print >> sys.stderr, "Warning: %d %s bins > %d bases" % (num_internal_bins, component, length)
         num_internal_bins = 0
@@ -152,7 +152,7 @@ def calc_feature_windows(feature, mode, components, component_bins):
     for i in range(0, num_internal_bins):
         # Round to nearest bin
         # XXX: This probably isn't quite right in every case, but it's very close
-        internal_bins.append(int(start + ((i + 1)*spacing) + 0.5)) 
+        internal_bins.append(int(start + ((i + 1)*spacing) + 0.5))
 
     bins_5p = []
     bins_3p = []
@@ -166,7 +166,7 @@ def calc_feature_windows(feature, mode, components, component_bins):
             bins_5p.append(start - num_5p_bins + i)
         for i in range(0, num_3p_bins):
             bins_3p.append(end + i)
-            
+
     if strand == "-":  # Flip for negative strand
         bins_5p = reversed(bins_5p)
         internal_bins = reversed(internal_bins)
@@ -183,7 +183,7 @@ def calc_feature_windows(feature, mode, components, component_bins):
     #for key, val in locals().iteritems():
     #    print >>sys.stderr, "%s : %s" % (key, val)
     #sys.exit(1)
-    
+
     return windows
 
 # Returns a dict: component -> number of bins for that component
@@ -207,11 +207,11 @@ def get_component_bins(components=[], flank_bins=FLANK_BINS,
                 bins = region_bins
         else:
             bins = region_bins
-            
+
         component_bins[component] = bins
-        
+
     return component_bins
-    
+
 
 ## Given a list of features, returns:
 ##   A list of the values that occur for that field
@@ -247,7 +247,7 @@ def preprocess_entries(entries):
     gene_source = None
     exons = []
     cdss = []
-    
+
     for entry in entries:
         #print entry[4], "\t", entry[1:3], entry[3]
         chrom, start, end, strand, component, source = entry
@@ -269,7 +269,7 @@ def preprocess_entries(entries):
             print >>sys.stderr, ("Found gene features from more than one"
                                  "source: [%s, %s]\n%s" %
                                  (gene_source, source, str(entries)))
-            
+
         partial_entry = (start, end)
         if component == EXON_COMPONENT:
             exons.append(partial_entry)
@@ -290,11 +290,11 @@ def interpret_features_as_gene(entries, min_exons=MIN_EXONS, min_cdss=MIN_CDSS):
 
     gene_chrom, gene_strand, gene_source, exons, cdss = \
         preprocess_entries(entries)
-            
+
     # ... removing gene if without a coding exon or enough exons
     if len(exons) < min_exons or len(cdss) < min_cdss:
         return None
-    
+
     exons.sort()
     cdss.sort()
 
@@ -305,13 +305,13 @@ def interpret_features_as_gene(entries, min_exons=MIN_EXONS, min_cdss=MIN_CDSS):
         if prev_end is not None:
             introns.append((prev_end, exon_start))
         prev_end = exon_end
-    
+
     # Flip directions for '-' strand
     if gene_strand == "-":
         exons.reverse()
         introns.reverse()
         cdss.reverse()
-        
+
     features = []
     # Add gene features to new list, renaming components
     #   according to an idealized gene model
@@ -344,7 +344,7 @@ def interpret_features_as_gene(entries, min_exons=MIN_EXONS, min_cdss=MIN_CDSS):
     #   regions, so skip all that.
     if len(cdss) == 0:
         return features
-    
+
     # Binds local variable gene_strand to strand-correct
     def upstream(x, y):
         """Returns true if x starts before (is 5') of y, false otherwise"""
@@ -383,7 +383,7 @@ def interpret_features_as_gene(entries, min_exons=MIN_EXONS, min_cdss=MIN_CDSS):
         # Add if exon was in UTR and has positive length
         if utr_list is not None and exon_start < exon_end:
             utr_list.append((exon_start, exon_end))  # Append tuple
-        
+
     for intron in introns:
         if upstream(intron, first_cds):
             UTR5p_introns.append(intron)
@@ -421,7 +421,7 @@ def interpret_features_as_gene(entries, min_exons=MIN_EXONS, min_cdss=MIN_CDSS):
     # terminal 3' UTR
     if len(UTR3p_exons) > 0:
         features.append(make_feature(CODING_COMPONENTS[9], *UTR3p_exons[-1]))
-       
+
     return features
 
 def get_transcript_length(entries):
@@ -449,7 +449,7 @@ def get_transcript_length(entries):
         return None
     else:
         return max_end - min_start
-            
+
 def get_longest_transcript(transcript_dict):
     """Return the longest transcript in the dict.
 
@@ -500,7 +500,7 @@ def load_gtf_data(gtf_filename, min_exons=MIN_EXONS, min_cdss=MIN_CDSS):
         for line in ifp:
             # Ignore comment lines
             if line.startswith("#"): continue
-            
+
             # Parse tokens from GTF line
             try:
                 tokens = line.strip().split("\t")
@@ -520,7 +520,7 @@ def load_gtf_data(gtf_filename, min_exons=MIN_EXONS, min_cdss=MIN_CDSS):
                 die("Expected +/- strand, but found: %s in GTF line:"
                     " %s" % (strand, line))
             component = tokens[2]
-                
+
             properties = tokens[8].split("; ")
             if not properties[gene_id_col].startswith("gene_id"):
                 # Try to find the gene_id column

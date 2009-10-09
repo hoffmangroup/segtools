@@ -1,4 +1,4 @@
-# requires common.R
+## requires common.R
 
 library(plyr)
 library(reshape)
@@ -17,21 +17,20 @@ relabel.matrix <- function(mat, mnemonics = NULL,
     row.order <- 1:nrow(mat)
     col.order <- 1:ncol(mat)
     if (relabel.rows) {
-      # Substitute label names (assume default labels are named)
+      ## Substitute label names (assume default labels are named)
       rownames(mat) <- mnemonics.frame$new[match(0:(nrow(mat)-1), 
-                                         mnemonics.frame$old)]
+                                                 mnemonics.frame$old)]
       row.order <- mnemonics.frame$old + 1
     }
     if (relabel.cols) {
       colnames(mat) <- mnemonics.frame$new[match(0:(ncol(mat)-1), 
-                                           mnemonics.frame$old)]
+                                                 mnemonics.frame$old)]
       col.order <- mnemonics.frame$old + 1
     }
-
-    # Reorder
+    ## Reorder
     mat <- mat[row.order, col.order]
   } else {
-    # Default names
+    ## Default names
     rownames(mat) <- as.character(0:(nrow(mat)-1))
     colnames(mat) <- as.character(0:(ncol(mat)-1))
   }
@@ -70,14 +69,14 @@ ddgram.legend <- function(dd.row, dd.col, row.ord, col.ord)
 {
   legend <-
     list(right = list(fun = dendrogramGrob,
-                      args = list(x = dd.row, 
-                                  ord = row.ord,
-                                  side = "right",
-                                  size = 10)),
+           args = list(x = dd.row, 
+             ord = row.ord,
+             side = "right",
+             size = 10)),
          top = list(fun = dendrogramGrob,
-                    args = list(x = dd.col, 
-                                ord = col.ord,
-                                side = "top")))
+           args = list(x = dd.col, 
+             ord = col.ord,
+             side = "top")))
   legend
 }
 
@@ -93,15 +92,15 @@ levelplot.transition <-
            legend = if (ddgram) ddgram.legend(dd.row, dd.col, row.ord, col.ord)
                     else list(),
            palette = colorRampPalette(rev(brewer.pal(11, "PiYG")),
-                                      interpolate = "spline", 
-                                      space = "Lab")(100),
+             interpolate = "spline", 
+             space = "Lab")(100),
            ...)
 {
-  # Looking at reciprocal probabilities for this run
+  ## Looking at reciprocal probabilities for this run
   if (asymmetry) {
     data <- matrix.asymmetry(data)
   }
-
+  
   if (ddgram) {
     dd.row <- as.dendrogram(hclust(dist(data)))
     row.ord <- order.dendrogram(dd.row)
@@ -111,14 +110,14 @@ levelplot.transition <-
     row.ord <- nrow(data):1
     col.ord <- 1:ncol(data)
   }
-
+  
   colorkey <-
     if (ddgram) {
       list(space = "left")
     } else {
       list(space = "right")
     }
-
+  
   par(oma=c(1, 1, 1, 1))  # Add a margin
   levelplot(t(data[row.ord, col.ord]),
             aspect = aspect,
@@ -145,19 +144,19 @@ plot.transition <- function(filename, mnemonics=NULL, ...)
 num.gmtk.labels <- function(filename)
 {
   lines <- readLines(filename)
-
+  
   start <- grep("^seg_seg", lines)
   con <- textConnection(lines[start + 2])
   num_labels <- as.numeric(scan(con, what = "numeric", n = 1, quiet = TRUE))
   close(con)
-
+  
   num_labels
 }
 
 read.gmtk.transition <- function(filename, mnemonics = NULL, ...)
 {
   lines <- readLines(filename)
-
+  
   start <- grep("^seg_seg", lines) + 3
   con <- textConnection(lines[start - 1])
   dims <- as.numeric(scan(con, what = "numeric", n = 2, quiet = TRUE))
@@ -178,17 +177,17 @@ read.gmtk.params <- function(filename, normalize = TRUE, mnemonics = NULL,
                              cov = FALSE, ...) {
   data <- parse.track.params(filename)  
   data$label <- factor(data$label)
-
+  
   if (length(mnemonics) > 0) {
     data$label <- relabel.factor(data$label, mnemonics)
   }
-
+  
   data <- rename.tracks(data)
   data.melt <- melt.params(data)
-
+  
   res <- covar2sd(data.melt)
   if (normalize) res <- normalize.params(res, cov = cov) 
-
+  
   res
 }
 
@@ -196,14 +195,14 @@ read.labeled.params <- function(filename, mnemonics = NULL, ...)
 {
   params <- read.gmtk.params(filename, mnemonics = mnemonics, ...)
   if (is.null(mnemonics)) {
-    # Generate our own mnemonics
+    ## Generate our own mnemonics
     mnemonics <- generate.param.mnemonics(params)
-    # Copied from relabel.matrix (didn't work because this is 3D array)
+    ## Copied from relabel.matrix (didn't work because this is 3D array)
     mnemonics.frame <- data.frame(old = as.integer(as.character(mnemonics[,1])),
                                   new = as.character(mnemonics[,2]))
     params.labeled <- params
     colnames(params.labeled) <- mnemonics.frame$new[match(0:(ncol(params)-1), 
-                                         mnemonics.frame$old)]
+                                                          mnemonics.frame$old)]
     col.order <- mnemonics.frame$old + 1
     params.labeled[,col.order,]
   } else {
@@ -213,7 +212,7 @@ read.labeled.params <- function(filename, mnemonics = NULL, ...)
 
 hclust.params <- function(params) {
   params.mean <- t(params[,,"mean"])
-
+  
   hclust(dist(params.mean))
 }
 
@@ -221,20 +220,20 @@ seq.0based <- function(x) {
   seq(0, x - 1)
 }
 
-# If filename is specified, outputs mnemonics to a file and returns filename
-# Else, returns mnemonic data.frame
+## If filename is specified, outputs mnemonics to a file and returns filename
+## Else, returns mnemonic data.frame
 generate.param.mnemonics <- function(params, filename = NULL)
 {
   hclust.col <- hclust.params(params)
-
+  
   stems <- (cutree(hclust.col, h = 1.0) - 1)[hclust.col$order]
   stems.reorder <- as.integer(factor(stems, levels = unique(stems))) - 1
-
+  
   stem.starts <- c(0, which(diff(stems.reorder) == 1), length(stems.reorder))
   leaves <- do.call(c, lapply(diff(stem.starts), seq.0based))
   stems.leaves <- paste(stems.reorder, leaves, sep = ".")
 
-  # Before: hclust.col$labels[hclust.col$order], After: stems.leaves
+  ## Before: hclust.col$labels[hclust.col$order], After: stems.leaves
   mnemonics <- data.frame(index = with(hclust.col, labels[order]),
                           mnemonic = stems.leaves, stringsAsFactors = FALSE)
 
@@ -242,7 +241,6 @@ generate.param.mnemonics <- function(params, filename = NULL)
   {
     write.table(mnemonics, file = filename, quote = FALSE, 
                 col.names = TRUE, row.names = FALSE, sep = "\t")
-
     filename
   } else {
     mnemonics
@@ -257,8 +255,8 @@ abbr.tracknames <- function(tracknames) {
   which.duplicated <- which(assaynames %in% duplicated.assaynames)
   assaynames[which.duplicated] <- tracknames[which.duplicated]
 
-  # for failures, try eliminating cell type (middle) only
-  # XXX: duplicative
+  ## for failures, try eliminating cell type (middle) only
+  ## XXX: duplicative
   assaynames <- gsub("[_.][^_.]+[_.]", ".", assaynames)
   duplicated.assaynames <- assaynames[duplicated(assaynames)]
   which.duplicated <- which(assaynames %in% duplicated.assaynames)
@@ -275,7 +273,7 @@ rename.tracks <- function(params) {
 }
 
 covar2sd <- function(params) {
-  # Convert covar to sd
+  ## Convert covar to sd
   params[, , "covar"] <- sqrt(params[, , "covar"])
   dimnames(params)$param <- sub("covar", "sd", dimnames(params)$param)
 
@@ -283,14 +281,14 @@ covar2sd <- function(params) {
 }
 
 normalize.params <- function(params, cov = FALSE) {
-  # Normalize mean
+  ## Normalize mean
   mean <- params[, , "mean"]
   mean.range <- t(apply(mean, 1, range))
   mean.min <- mean.range[, 1]
   mean.max <- mean.range[, 2]
   params[, , "mean"] <- (mean - mean.min) / (mean.max - mean.min) 
 
-  # Make sd into coefficient of variation (capped at 1)
+  ## Make sd into coefficient of variation (capped at 1)
   sds <- params[, , "sd"]
   if (cov) { 
     sds <- sds / rowMeans(mean)
@@ -338,7 +336,7 @@ parse.track.params <- function(filename) {
                        col.names = c("param", "label", "trackname", "val"))
   close(anonfile)
 
-  # replicate covar for other seg labels
+  ## replicate covar for other seg labels
   params.covar <- subset(params, param == "covar")
   copy.covar <- function(label) {
     res <- params.covar
@@ -373,8 +371,8 @@ panel.params <-
     z.high[z.high > 1] <- 1
   }
 
-  #zcol.low <- level.colors(z.low, at = at, ...)
-  #zcol.high <- level.colors(z.high, at = at, ...)
+  ##zcol.low <- level.colors(z.low, at = at, ...)
+  ##zcol.high <- level.colors(z.high, at = at, ...)
   zcol <- level.colors(z, at = at, ...)
   for (i in seq(along = z))
   {
