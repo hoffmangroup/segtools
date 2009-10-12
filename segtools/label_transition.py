@@ -40,7 +40,7 @@ from subprocess import call
 from rpy2.robjects import r, rinterface, numpy2ri
 
 # XXX: Do this without the kludgy constants
-from .common import check_clobber, die, get_ordered_labels, image_saver, load_segmentation, load_genome, make_dotfilename, make_filename, make_pdffilename, make_pngfilename, make_psfilename, make_namebase_summary, make_tabfilename, map_mnemonics, OutputMasker, r_source, SEGMENT_START_COL, SEGMENT_END_COL, SEGMENT_LABEL_KEY_COL, setup_directory, tab_saver
+from .common import check_clobber, die, get_ordered_labels, image_saver, load_segmentation, load_genome, make_dotfilename, make_filename, make_pdffilename, make_pngfilename, make_namebase_summary, make_tabfilename, map_mnemonics, OutputMasker, r_source, SEGMENT_START_COL, SEGMENT_END_COL, SEGMENT_LABEL_KEY_COL, setup_directory, tab_saver
 
 from .html import save_html_div
 
@@ -203,8 +203,6 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
     check_clobber(pngfilename, clobber)
     pdffilename = make_pdffilename(dirpath, NAMEBASE_GRAPH)
     check_clobber(pdffilename, clobber)
-    psfilename = make_psfilename(dirpath, NAMEBASE_GRAPH)
-    check_clobber(psfilename, clobber)
 
     # Replace labels with mnemonic labels, if mnemonics are given
     ordered_keys, labels = get_ordered_labels(labels, mnemonics)
@@ -246,18 +244,14 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
         print >>sys.stderr, "Failed to draw png graph"
 
     try:
-        G.draw(psfilename)
-        try:
-            # Try to convert ps to pdf
-            cmd = ["ps2pdf", psfilename, pdffilename]
-            code = call(cmd)
-            if code != 0:
-                raise Exception()
-        except:
-            print >>sys.stderr, ("Failed to draw pdf graph:"
-                                 " could not find ps2pdf")
-    except:
-        print >>sys.stderr, "Failed to draw ps and pdf graphs"
+        # Try to generate pdf from dot
+        cmd = " ".join(["neato", "-Tps2", dotfilename, "|",
+                        "ps2pdf", "-", pdffilename])
+        code = call(cmd, shell=True)
+        if code != 0:
+            raise Exception()
+    except Exception, e:
+        print >>sys.stderr, "Failed to draw pdf graph: %s" % str(e)
 
     print >>sys.stderr, "done"
 
