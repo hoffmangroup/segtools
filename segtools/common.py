@@ -43,6 +43,7 @@ EXT_PDF = "pdf"
 EXT_PNG = "png"
 EXT_TAB = "tab"
 EXT_DOT = "dot"
+EXT_PS = "ps"
 EXT_HTML = "html"
 EXT_DIV = "div"
 EXT_SLIDE = os.extsep.join(["slide", EXT_PNG])
@@ -139,6 +140,7 @@ make_htmlfilename = partial(make_filename, ext=EXT_HTML)
 make_divfilename = partial(make_filename, ext=EXT_DIV)
 make_pngfilename = partial(make_filename, ext=EXT_PNG)
 make_pdffilename = partial(make_filename, ext=EXT_PDF)
+make_psfilename = partial(make_filename, ext=EXT_PS)
 make_thumbfilename = partial(make_filename, ext=EXT_THUMB)
 make_slidefilename = partial(make_filename, ext=EXT_SLIDE)
 make_summaryfilename = partial(make_filename, ext=EXT_SUMMARY)

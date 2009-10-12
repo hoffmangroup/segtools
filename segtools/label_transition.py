@@ -36,10 +36,11 @@ import sys
 from contextlib import contextmanager
 from functools import partial
 from numpy import array, empty, sort, where, zeros
+from subprocess import call
 from rpy2.robjects import r, rinterface, numpy2ri
 
 # XXX: Do this without the kludgy constants
-from .common import check_clobber, die, get_ordered_labels, image_saver, load_segmentation, load_genome, make_dotfilename, make_filename, make_pdffilename, make_pngfilename, make_namebase_summary, make_tabfilename, map_mnemonics, OutputMasker, r_source, SEGMENT_START_COL, SEGMENT_END_COL, SEGMENT_LABEL_KEY_COL, setup_directory, tab_saver
+from .common import check_clobber, die, get_ordered_labels, image_saver, load_segmentation, load_genome, make_dotfilename, make_filename, make_pdffilename, make_pngfilename, make_psfilename, make_namebase_summary, make_tabfilename, map_mnemonics, OutputMasker, r_source, SEGMENT_START_COL, SEGMENT_END_COL, SEGMENT_LABEL_KEY_COL, setup_directory, tab_saver
 
 from .html import save_html_div
 
@@ -202,10 +203,12 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
     check_clobber(pngfilename, clobber)
     pdffilename = make_pdffilename(dirpath, NAMEBASE_GRAPH)
     check_clobber(pdffilename, clobber)
+    psfilename = make_psfilename(dirpath, NAMEBASE_GRAPH)
+    check_clobber(psfilename, clobber)
 
     # Replace labels with mnemonic labels, if mnemonics are given
     ordered_keys, labels = get_ordered_labels(labels, mnemonics)
-    
+
     # Threshold in order dependent upon flag
     if q_thresh > 0:
         quantile = r['matrix.find_quantile'](probs, q_thresh)[0]
@@ -214,12 +217,12 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
     elif p_thresh > 0:
         print >>sys.stderr, "Removing edges below %.4f" % p_thresh
         probs[probs < p_thresh] = 0
-        
+
     # Create graph out of non-zero edges
     G = pgv.AGraph(strict=False, directed=True)
 
     rows, cols = where(probs > 0)
-        
+
     max_val = probs.max()
     min_val = probs[probs > 0].min()
     weights = (probs - min_val)/(max_val-min_val) + BASE_WEIGHT
@@ -232,7 +235,7 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
 
     G.write(dotfilename)
 
-    print >>sys.stderr, "Drawing graph...",
+    print >>sys.stderr, "Drawing graphs...",
     # Mask obnoxious font errors
     sys.stderr = OutputMasker(sys.stderr)
     G.layout()
@@ -241,12 +244,21 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
         G.draw(pngfilename)
     except:
         print >>sys.stderr, "Failed to draw png graph"
-        
+
     try:
-        G.draw(pdffilename)
+        G.draw(psfilename)
+        try:
+            # Try to convert ps to pdf
+            cmd = ["ps2pdf", psfilename, pdffilename]
+            code = call(cmd)
+            if code != 0:
+                raise Exception()
+        except:
+            print >>sys.stderr, ("Failed to draw pdf graph:"
+                                 " could not find ps2pdf")
     except:
-        print >>sys.stderr, "Failed to draw pdf graph"
-        
+        print >>sys.stderr, "Failed to draw ps and pdf graphs"
+
     print >>sys.stderr, "done"
 
 def create_mnemonic_file(gmtk_file, dirpath, clobber=False, namebase = None):
