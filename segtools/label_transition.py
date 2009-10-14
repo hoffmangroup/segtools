@@ -77,7 +77,7 @@ def calc_transitions(segmentation):
     counts = zeros((len(labels), len(labels)), dtype="int")
     for segments in segmentation.chromosomes.itervalues():
         # Inch along rows, looking at all pairs
-	row_it = iter(segments)
+        row_it = iter(segments)
         row1 = None
         for row2 in row_it:
             if row1 is not None:  # Skip first loop
@@ -88,14 +88,19 @@ def calc_transitions(segmentation):
                     counts[label_key1, label_key2] += 1
                     if label_key1 == label_key2:
                         if self_transition_count == 0:
-                            print >>sys.stderr, "WARNING: unexpected self-transition %s -> %s\n\tRow 1: %s\n\tRow 2: %s" % (labels[label_key1], labels[label_key2], row1, row2)
+                            print >>sys.stderr, \
+                                ("WARNING: unexpected self-transition"
+                                 "%s -> %s\n\tRow 1: %s\n\tRow 2: %s" % \
+                                (labels[label_key1], labels[label_key2],
+                                 row1, row2))
                         self_transition_count += 1
 
             row1 = row2  # Inch forward
-            
+
     if self_transition_count > 0:
-        print >>sys.stderr, "WARNING: %d self-transitions observed" % self_transition_count
-        
+        print >>sys.stderr, "WARNING: %d self-transitions observed" % \
+            self_transition_count
+
     # Row-normalize to turn counts into probabilities
     probs = empty(counts.shape, dtype='double')
     for i, row in enumerate(counts):
@@ -106,7 +111,7 @@ def calc_transitions(segmentation):
 
 def save_tab(labels, probs, dirpath, clobber=False):
     ordered_keys, labels = get_ordered_labels(labels)
-    
+
     # Get fieldnames in order
     fieldnames = list(labels[key] for key in ordered_keys)
     with tab_saver(dirpath, NAMEBASE, fieldnames,
@@ -135,7 +140,7 @@ def save_summary_tab(labels, probs, dirpath, mnemonics=None, clobber=False):
 
 def save_html(dirpath, p_thresh, q_thresh, clobber=False):
     extra_namebases = {"graph": NAMEBASE_GRAPH}
-    
+
     if p_thresh > 0:
         thresh = "P > %s" % p_thresh
     elif q_thresh > 0:
@@ -152,7 +157,7 @@ def save_plot(dirpath, ddgram=False, clobber=False, mnemonics=[],
     tabfilename = make_tabfilename(dirpath, NAMEBASE)
     if not os.path.isfile(tabfilename):
         die("Unable to find tab file: %s" % tabfilename)
-        
+
     with image_saver(dirpath, NAMEBASE,
                      height=PNG_SIZE,
                      width=PNG_SIZE,
@@ -167,9 +172,9 @@ def plot_gmtk_transitions(filename, dirpath, clobber=False, verbose=False,
     """Plots transition probabilities from gmtk params file.
     """
     assert filename is not None and os.path.isfile(filename)
-    
+
     start_R()
-    
+
     # Plot transition probabilies
     with image_saver(dirpath, NAMEBASE,
                      height=PNG_SIZE,
@@ -189,14 +194,15 @@ def plot_gmtk_transitions(filename, dirpath, clobber=False, verbose=False,
                                      mnemonics=mnemonics))
 
 def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
-               clobber=False, mnemonics=[]):
+               clobber=False, mnemonics=[], fontname="Helvetica"):
     assert labels is not None and probs is not None
     try:
         import pygraphviz as pgv
     except ImportError:
-        print >>sys.stderr, "Unable to load PyGraphviz library. Skipping transition graph"
+        print >>sys.stderr, ("Unable to load PyGraphviz library."
+                             " Skipping transition graph")
         return
-    
+
     dotfilename = make_dotfilename(dirpath, NAMEBASE_GRAPH)
     check_clobber(dotfilename, clobber)
     pngfilename = make_pngfilename(dirpath, NAMEBASE_GRAPH)
@@ -217,7 +223,7 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
         probs[probs < p_thresh] = 0
 
     # Create graph out of non-zero edges
-    G = pgv.AGraph(strict=False, directed=True)
+    G = pgv.AGraph(strict=False, directed=True, fontname=fontname)
 
     rows, cols = where(probs > 0)
 
@@ -271,7 +277,7 @@ def create_mnemonic_file(gmtk_file, dirpath, clobber=False, namebase = None):
             namebase = gmtk_filebase
 
     mnemonic_base = os.extsep.join([namebase, "mnemonics"])
-    
+
     filename = make_tabfilename(dirpath, mnemonic_base)
     check_clobber(filename, clobber)
 
@@ -283,16 +289,17 @@ def create_mnemonic_file(gmtk_file, dirpath, clobber=False, namebase = None):
         print >>sys.stderr, "Generated mnemonic file: %s" % mnemonicfilename
         return mnemonicfilename
     except rinterface.RRuntimeError:
-        print >>sys.stderr, "ERROR: Failed to create mnemonic file. Continuing without mnemonics."
+        print >>sys.stderr, ("ERROR: Failed to create mnemonic file."
+                             " Continuing without mnemonics.")
         return None
-    
+
 def get_num_gmtk_labels(gmtk_file):
     """Load number of labels from gmtk params file."""
     start_R()
-    
+
     num_labels = int(r["num.gmtk.labels"](gmtk_file)[0])
     return num_labels
-    
+
 def get_default_labels(num_labels):
     """Generate default labels (0 through num_labels-1)"""
     return dict([(val, str(val)) for val in range(0, num_labels)])
@@ -308,7 +315,7 @@ def load_gmtk_transitions(gmtk_file):
     # Rpy automatically transposes, so need to transpose it back
     probs = array(r_data, dtype="double").transpose()
     return probs
-    
+
 
 ## Package entry point
 def validate_gmtk(gmtk_file, dirpath, ddgram=False, p_thresh=P_THRESH,
@@ -331,7 +338,7 @@ def validate_gmtk(gmtk_file, dirpath, ddgram=False, p_thresh=P_THRESH,
     if not noplot:
         plot_gmtk_transitions(gmtk_file, dirpath, mnemonics=mnemonics,
                               clobber=clobber)
-    
+
     if not nograph:
         probs = load_gmtk_transitions(gmtk_file)
         save_graph(labels, probs, dirpath, clobber=clobber,
@@ -339,7 +346,7 @@ def validate_gmtk(gmtk_file, dirpath, ddgram=False, p_thresh=P_THRESH,
 
     save_html(dirpath, p_thresh=p_thresh, q_thresh=q_thresh,
               clobber=clobber)
-    
+
 ## Package entry point
 def validate(bedfilename, dirpath, ddgram=False, p_thresh=P_THRESH,
              q_thresh=Q_THRESH, noplot=False, nograph=False,
@@ -348,10 +355,10 @@ def validate(bedfilename, dirpath, ddgram=False, p_thresh=P_THRESH,
 
     segmentation = load_segmentation(bedfilename)
     assert segmentation is not None
-    
+
     # Calculate transition probabilities for each label
     labels, probs = calc_transitions(segmentation)
-        
+
     mnemonics = map_mnemonics(labels, mnemonicfilename)
     save_summary_tab(labels, probs, dirpath,
                      clobber=clobber, mnemonics=mnemonics)
@@ -359,7 +366,7 @@ def validate(bedfilename, dirpath, ddgram=False, p_thresh=P_THRESH,
     if not noplot:
         save_plot(dirpath, ddgram=ddgram,
                   clobber=clobber, mnemonics=mnemonics)
-            
+
     if not nograph:
         save_graph(labels, probs, dirpath, clobber=clobber,
                    p_thresh=p_thresh, q_thresh=q_thresh, mnemonics=mnemonics)
@@ -373,26 +380,26 @@ def parse_options(args):
     usage = "%prog [OPTIONS] BEDFILE"
     version = "%%prog %s" % __version__
     parser = OptionParser(usage=usage, version=version)
-    
+
     parser.add_option("--clobber", action="store_true",
                       dest="clobber", default=False,
                       help="Overwrite existing output files if the specified"
                       " directory already exists.")
-    parser.add_option("--noplot", action="store_true", 
+    parser.add_option("--noplot", action="store_true",
                       dest="noplot", default=False,
                       help="Do not generate transition plots")
-    parser.add_option("--nograph", action="store_true", 
+    parser.add_option("--nograph", action="store_true",
                       dest="nograph", default=False,
                       help="Do not generate transition graph")
     parser.add_option("--mnemonic-file", dest="mnemonic_file",
                       default=None,
                       help="If specified, labels will be shown using"
                       " mnemonics found in this file")
-    parser.add_option("-o", "--outdir", 
+    parser.add_option("-o", "--outdir",
                       dest="outdir", default="%s" % MODULE,
                       help="File output directory (will be created"
                       " if it does not exist) [default: %default]")
-    
+
     group = OptionGroup(parser, "Transition frequency plot options")
     group.add_option("--dd", "--dendrogram", dest="ddgram",
                      default=False, action="store_true",
@@ -431,9 +438,9 @@ def parse_options(args):
         parser.error("Quantile threshold should be in range [0, 1]")
     if options.p_thresh < 0 or options.p_thresh > 1:
         parser.error("Probability threshold should be in range [0, 1]")
-    
+
     return (options, args)
-    
+
 ## Command-line entry point
 def main(args=sys.argv[1:]):
     (options, args) = parse_options(args)
@@ -444,7 +451,7 @@ def main(args=sys.argv[1:]):
                       clobber=options.clobber, noplot=options.noplot,
                       nograph=options.nograph,
                       mnemonicfilename=options.mnemonic_file)
-        
+
     else:
         bedfilename=args[0]
         validate(bedfilename, options.outdir, ddgram=options.ddgram,
@@ -452,6 +459,6 @@ def main(args=sys.argv[1:]):
                  clobber=options.clobber, noplot=options.noplot,
                  nograph=options.nograph,
                  mnemonicfilename=options.mnemonic_file)
-        
+
 if __name__ == "__main__":
     sys.exit(main())

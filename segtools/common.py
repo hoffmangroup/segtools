@@ -152,7 +152,8 @@ def make_id(modulename, dirpath):
 
 def check_clobber(filename, clobber):
     if (not clobber) and os.path.isfile(filename):
-        die("Output file: %s already exists! Use --clobber to overwrite!" % filename)
+        die("Output file: %s already exists! Use --clobber to overwrite!" % \
+                filename)
 
 def gzip_open(*args, **kwargs):
     return closing(_gzip_open(*args, **kwargs))
@@ -217,8 +218,8 @@ def tab_saver(dirpath, basename, fieldnames, comment=None,
         print >>sys.stderr, "done"
 
 @contextmanager
-def image_saver(dirpath, basename, clobber = False, verbose = True,
-                downsample = False, **kwargs):
+def image_saver(dirpath, basename, clobber=False, verbose=True,
+                downsample=False, **kwargs):
     """
     Generator to save an R plot to both png and pdf with only one plot
     Yields to caller to plot, then saves images
@@ -238,14 +239,16 @@ def image_saver(dirpath, basename, clobber = False, verbose = True,
         png_device = r["dev.cur"]()
         r["dev.control"]("enable")
     except rinterface.RRuntimeError:
-        die('Image creation failed.\nIf unable to start PNG device, try setting (export/setenv) variable DISPLAY to ":1" from the (bash/c) shell before re-running validation.')
+        die('Image creation failed.\nIf unable to start PNG device, try'
+            ' setting (export/setenv) variable DISPLAY to ":1" from the'
+            ' (bash/c) shell before re-running validation.')
 
     yield  # Wait for plot
 
     # Use R routine to create all the other images (pdf, slide, etc)
     try:
-        r["dev.print.images"](basename = basename, dirname = dirpath,
-                              downsample = downsample, **kwargs)
+        r["dev.print.images"](basename=basename, dirname=dirpath,
+                              downsample=downsample, **kwargs)
         r["dev.off"](png_device)
     except rinterface.RRuntimeError:
         print >> sys.stderr, 'ERROR: Images might not have been saved!'
@@ -304,7 +307,7 @@ def loop_segments_continuous(chromosome, segmentation, verbose=True):
         if verbose:
             print >>sys.stderr, "\t\tskipping: no data"
         raise StopIteration
-    
+
     supercontig_iter = chromosome.itercontinuous()
     supercontig = None
     supercontig_last_start = 0
@@ -328,17 +331,19 @@ def loop_segments_continuous(chromosome, segmentation, verbose=True):
                                              supercontig.end)
 
         if verbose and segment_i % 100 == 0:
-            print >>sys.stderr, "\r\t\t\tSegment %d / %d" % (segment_i, num_segments),
+            print >>sys.stderr, "\r\t\t\tSegment %d / %d" % \
+                (segment_i, num_segments),
             sys.stdout.flush()
-            
+
         if seg_end <= supercontig.start:
             continue  # Get next segment
 
         yield segment, continuous[seg_start:seg_end]
 
     if verbose:
-        print >>sys.stderr, "\r\t\t\tSegment %d / %d" % (segment_i, num_segments)
-        
+        print >>sys.stderr, "\r\t\t\tSegment %d / %d" % \
+            (segment_i, num_segments)
+
 
 ## Returns splice of continuous or sequece from supercontig within segment
 ## range. Datatype should be "continuous" or "sequence".
@@ -347,18 +352,19 @@ def loop_segments_continuous(chromosome, segmentation, verbose=True):
 def get_supercontig_splice(chromosome, start, end, datatype="continuous"):
     if datatype not in ("continuous", "sequence"):
         die("Unknown data type in 'get_supercontig_splice!")
-        
+
     # iterate through each supercontig
     saved = array([])
     for supercontig, continuous in chromosome.itercontinuous():
-        #print >>sys.stderr, "Examining supercontig [%d, %d]" % (supercontig.start, supercontig.end)
+        #print >>sys.stderr, "Examining supercontig [%d, %d]" % \
+        #    (supercontig.start, supercontig.end)
 
         # Select appropriate data stream
         if datatype == "continuous":
             data = continuous
         else:
             data = supercontig.seq
-            
+
         # XXX Make sure there are no OBOBS in indexing!
         if start >= supercontig.start and end <= supercontig.end:
             # Found supercontig that completely covers range
@@ -420,9 +426,9 @@ def get_ordered_labels(labels, mnemonics=[]):
                 partial_int_labels[label] = key
         ordered_keys = list(partial_int_labels[key]
                             for key in sorted(partial_int_labels.keys()))
-        
+
     return ordered_keys, labels
-    
+
 ## Maps the provided labels to mnemonics (or some other mnemonic file
 ##   field specified ready to be fed into R.
 ## Returns a numpy.array of strings with a row of [oldlabel, newlabel] for
@@ -431,7 +437,7 @@ def get_ordered_labels(labels, mnemonics=[]):
 def map_mnemonics(labels, mnemonicfilename, field="mnemonic"):
     if mnemonicfilename is None:
         return []
-    
+
     label_order, label_data = load_mnemonics(mnemonicfilename)
     str_labels = labels.values()
 
@@ -450,7 +456,7 @@ def map_mnemonics(labels, mnemonicfilename, field="mnemonic"):
             mnemonics.append([label, label])
 
     return array(mnemonics)
-            
+
 ## Loads segmentation label descriptions and mnemonics
 ##   from a tab-delimited file with a header row
 def load_mnemonics(filename):
@@ -473,7 +479,7 @@ def load_mnemonics(filename):
         return []
     elif not os.path.isfile(filename):
         die("Could not find mnemonic file: %s" % filename)
-        
+
     label_order = []
     label_data = {}
     with open(filename, "rU") as ifp:
@@ -482,9 +488,9 @@ def load_mnemonics(filename):
             label_index = row["index"]
             label_order.append(label_index)
             label_data[label_index] = row
-    
+
     return (label_order, label_data)
-        
+
 ## Parses gff file for features
 def load_gff_data(gff_filename, sort=True):
     '''
@@ -515,7 +521,7 @@ def load_gff_data(gff_filename, sort=True):
             try:
                 fields = {}
                 tokens = line.strip().split("\t")
-                
+
                 chrom = tokens[0]
                 fields["source"] = tokens[1]
                 fields["name"] = tokens[2]
@@ -527,7 +533,7 @@ def load_gff_data(gff_filename, sort=True):
                     strand = tokens[6]
                 except IndexError:
                     strand = "."
-                
+
                 if strand == "+" or strand == "-":
                     assert stranded or stranded is None
                     stranded = True
@@ -535,9 +541,9 @@ def load_gff_data(gff_filename, sort=True):
                     assert not stranded  # Don't have both +/- and .
                     strand = "."  # N/A
                     stranded = False
-                    
+
                 fields["strand"] = strand
-                
+
                 data[chrom].append(fields)
             except (IndexError, ValueError):
                 die("Error parsing fields from feature line:\n\t%s" % line)
@@ -546,7 +552,7 @@ def load_gff_data(gff_filename, sort=True):
         # Sort features by ascending start
         for chrom_features in data.itervalues():
             chrom_features.sort(key=itemgetter("start"))
-        
+
     return data
 
 def load_segmentation(filename, checknames=True):
@@ -559,10 +565,10 @@ def load_segmentation(filename, checknames=True):
     If there are some integer and some string labels, an error will be raised
       (unless checknames is False).
     """
-    
+
     print >>sys.stderr, "Loading segmentation...",
     sys.stdout.flush()
-    
+
     # first get the tracks that were used for this segmentation
     segtool, tracks = get_bed_metadata(filename)
 
@@ -581,12 +587,13 @@ def load_segmentation(filename, checknames=True):
                     except ValueError:
                         checknames = False
                         if len(label_dict) > 0:  # Previous int labels found
-                            die("Found both integer and string labels in BED file: %s" % filename)
+                            die("Found both integer and string labels in BED"
+                                "file: %s" % filename)
                 if not checknames:  # Sequential if's important
                     label_key = len(label_dict)
-                    
+
                 label_dict[label] = label_key
-                
+
             segment = (datum.chromStart, datum.chromEnd, label_key)
             data[datum.chrom].append(segment)
 
@@ -595,11 +602,11 @@ def load_segmentation(filename, checknames=True):
     print >>sys.stderr, "\nMapping names to integers"
     for key, label in labels.iteritems():
         print >>sys.stderr, "\"%s\" -> %d" % (label, key)
-            
+
     # Sort segments within each chromosome by start index
     for segments in data.itervalues():
         segments.sort(key=itemgetter(0))
-        
+
     # convert lists of tuples to array
     chromosomes = dict((chrom, array(segments))
                        for chrom, segments in data.iteritems())
@@ -613,7 +620,8 @@ def load_genome(genomedatadir):
     if genomedatadir is not None and os.path.isdir(genomedatadir):
         genome = Genome(genomedatadir)
         if not genome or genome is None:
-            die("Error: Unable to load genome data from directory: %s" % genomedatadir)
+            die("Error: Unable to load genome data from directory: %s" % \
+                    genomedatadir)
         else:
             return genome
     else:

@@ -9,22 +9,26 @@ lattice.options(default.theme = "theme.dark2",
 
 # Generate log labels
 at.log <- function(low.exp = 0, high.exp = 9) {
-  10^seq(from=low.exp, to=high.exp)
+  10^seq(from = low.exp, to = high.exp)
 }
 
 
 ## Generate axis label list for a reasonable axis
-at.pretty <- function(from=0, to=10, length=4, largest=FALSE) {
+at.pretty <- function(from = 0, to = 10, length = 4,
+                      largest = FALSE, trim = TRUE) {
   if (from == to) {
     list(from)
   } else {
-    # Trim sequence from 0-end
-    trim <- if (abs(from) < abs(to)) head else tail
-    at.seq <- trim(pretty(c(from, to), n=length, min.n=length), n=length)
-    trim <- if (abs(from) < abs(to)) tail else head
+    at.seq <- pretty(c(from, to), n = length, min.n = length)
+    if (trim) {
+      # Trim sequence from 0-end
+      trimmer <- if (abs(from) < abs(to)) head else tail
+      at.seq <- trimmer(at.seq, n = length)
+    }
+    trimmer <- if (abs(from) < abs(to)) tail else head
     if (largest) {
       # Get only largest value (by abs)
-      trim(at.seq, n=1)
+      trimmer(at.seq, n = 1)
     } else {
       at.seq
     }

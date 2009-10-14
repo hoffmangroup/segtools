@@ -143,7 +143,8 @@ def calc_feature_windows(feature, mode, components, component_bins):
         num_internal_bins = 0
 
     if num_internal_bins > length:
-        #print >> sys.stderr, "Warning: %d %s bins > %d bases" % (num_internal_bins, component, length)
+        #print >> sys.stderr, "Warning: %d %s bins > %d bases" % \
+            (num_internal_bins, component, length)
         num_internal_bins = 0
 
     # Calculate internal bin locations
@@ -732,7 +733,7 @@ def save_tab(labels, counts, components, component_bins,
                             component_name = component % component_bins[component]
                         except TypeError:
                             component_name = component
-                            
+
                         row = make_row(labels[label_key],
                                        factor,
                                        component_name,
@@ -765,7 +766,7 @@ def save_plot(dirpath, num_labels, mode, spacers=len(EXON_COMPONENTS),
                                      mnemonics=mnemonics,
                                      genemode=(mode == GENE_MODE),
                                      spacers=spacers))
-        
+
 #     with image_saver(dirpath, "%s.label_normalized" % NAMEBASE,
 #                      height=png_size,
 #                      width=png_size,
@@ -774,7 +775,7 @@ def save_plot(dirpath, num_labels, mode, spacers=len(EXON_COMPONENTS),
 #                                      normalize_labels=True,
 #                                      mnemonics=mnemonics,
 #                                      genemode=(mode == GENE_MODE)))
-    
+
 
 def save_html(dirpath, featurefilename, mode, num_features, factors,
               components, clobber=False):
@@ -785,7 +786,7 @@ def save_html(dirpath, featurefilename, mode, num_features, factors,
                   module=MODULE, featurefilename=featurebasename,
                   numfeatures=num_features, mode=mode, factorlist=factorlist,
                   title=title)
-    
+
 def print_array(arr, tag="", type="%d"):
     fstring = "%%s:  %s, %s, ..., %s, ..., %s, %s" % tuple([type]*5)
     print >>sys.stderr, fstring % (tag,
@@ -794,7 +795,7 @@ def print_array(arr, tag="", type="%d"):
                                    arr[int(arr.shape[0] / 2)],
                                    arr[-2],
                                    arr[-1])
-    
+
 ## Package entry point
 def validate(bedfilename, featurefilename, dirpath,
              flank_bins=FLANK_BINS, region_bins=REGION_BINS,
@@ -805,7 +806,7 @@ def validate(bedfilename, featurefilename, dirpath,
              mnemonicfilename=None):
     setup_directory(dirpath)
     segmentation = load_segmentation(bedfilename)
-    
+
     assert segmentation is not None
 
     print >>sys.stderr, "Using file %s" % featurefilename
@@ -819,7 +820,7 @@ def validate(bedfilename, featurefilename, dirpath,
 
     if nofactor:
         factors = ["factor"]
-    
+
     if mode == GENE_MODE:
         components = GENE_COMPONENTS
         if not nofactor:
@@ -842,12 +843,12 @@ def validate(bedfilename, featurefilename, dirpath,
     print >>sys.stderr, "\tAggregating over %d features" % num_features
 
     if not replot:
-        component_bins = get_component_bins(components, 
+        component_bins = get_component_bins(components,
                                             flank_bins=flank_bins,
                                             region_bins=region_bins,
                                             intron_bins=intron_bins,
                                             exon_bins=exon_bins)
-        
+
         res = calc_aggregation(segmentation, mode=mode, features=features,
                                factors=factors, components=components,
                                component_bins=component_bins, quick=quick,
@@ -857,7 +858,7 @@ def validate(bedfilename, featurefilename, dirpath,
             for component in components:
                 print_array(component_counts[factor][component],
                             tag=factor+":"+component+" counts")
-            
+
         save_tab(labels, counts, components, component_bins,
                  component_counts, label_counts,
                  counted_features, dirpath, clobber=clobber)
@@ -869,7 +870,7 @@ def validate(bedfilename, featurefilename, dirpath,
     save_html(dirpath, featurefilename, mode=mode, factors=factors,
               components=components, num_features=num_features,
               clobber=clobber)
-    
+
 def parse_options(args):
     from optparse import OptionParser, OptionGroup
 
@@ -884,7 +885,7 @@ def parse_options(args):
                       default=None,
                       help="If specified, labels will be shown using"
                       " mnemonics found in this file")
-    group.add_option("-o", "--outdir", 
+    group.add_option("-o", "--outdir",
                       dest="outdir", default="%s" % MODULE,
                       help="File output directory (will be created"
                       " if it does not exist) [default: %default]")
@@ -895,23 +896,23 @@ def parse_options(args):
                      dest="clobber", default=False,
                      help="Overwrite existing output files if the specified"
                      " directory already exists.")
-    group.add_option("--quick", action="store_true", 
+    group.add_option("--quick", action="store_true",
                      dest="quick", default=False,
                      help="Compute values only for one chromosome.")
-    group.add_option("--replot", action="store_true", 
+    group.add_option("--replot", action="store_true",
                      dest="replot", default=False,
                      help="Load data from output tab files and"
                      " regenerate plots instead of recomputing data")
-    group.add_option("--noplot", action="store_true", 
+    group.add_option("--noplot", action="store_true",
                      dest="noplot", default=False,
                      help="Do not generate plots")
-    group.add_option("--no-factor", action="store_true", 
+    group.add_option("--no-factor", action="store_true",
                      dest="nofactor", default=False,
                      help="Do not separate data into different factors")
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Main aggregation options")
-    group.add_option("-m", "--mode", choices=MODES, 
+    group.add_option("-m", "--mode", choices=MODES,
                      dest="mode", type="choice", default=DEFAULT_MODE,
                      help="one of: "+str(MODES)+", --gene not implemented"
                      " [default: %default]")
@@ -919,34 +920,34 @@ def parse_options(args):
                      dest="flankbins", type="int", default=FLANK_BINS,
                      help="Aggregate this many base pairs off each"
                      " end of feature or gene [default: %default]")
-    group.add_option("-r", "--region-bins", type="int", 
+    group.add_option("-r", "--region-bins", type="int",
                      dest="regionbins", default=REGION_BINS,
                      help="If --mode=region, aggregate over each internal"
                      "feature using this many evenly-spaced bins"
                      " [default: %default]")
     parser.add_option_group(group)
-    
+
     group = OptionGroup(parser, "Gene aggregation options")
-    group.add_option("-i", "--intron-bins", type="int", 
+    group.add_option("-i", "--intron-bins", type="int",
                      dest="intronbins", default=INTRON_BINS,
                      help="Aggregate over each intron"
                      "using this many evenly-spaced bins"
                      " [default: %default]")
-    group.add_option("-e", "--exon-bins", type="int", 
+    group.add_option("-e", "--exon-bins", type="int",
                      dest="exonbins", default=EXON_BINS,
                      help="Aggregate over each exon"
                      "using this many evenly-spaced bins"
                      " [default: %default]")
-    group.add_option("--min-exons", type="int", 
+    group.add_option("--min-exons", type="int",
                      dest="min_exons", default=MIN_EXONS,
                      help="Only consider genes with at least this many exons"
                      " [default: %default]")
-    group.add_option("--min-coding-exons", type="int", 
+    group.add_option("--min-coding-exons", type="int",
                      dest="min_cdss", default=MIN_CDSS,
                      help="Only consider genes with at least this many coding"
                      " exon [default: %default]")
     parser.add_option_group(group)
-    
+
     (options, args) = parser.parse_args(args)
 
     if len(args) < 2:
@@ -954,15 +955,15 @@ def parse_options(args):
 
     if options.noplot and options.replot:
         parser.error("noplot and replot are contradictory")
-        
+
     return (options, args)
-    
+
 ## Command-line entry point
 def main(args=sys.argv[1:]):
     (options, args) = parse_options(args)
     bedfilename = args[0]
     featurefilename = args[1]
-    
+
     validate(bedfilename, featurefilename, options.outdir,
              flank_bins=options.flankbins, region_bins=options.regionbins,
              intron_bins=options.intronbins, exon_bins=options.exonbins,
@@ -971,6 +972,6 @@ def main(args=sys.argv[1:]):
              nofactor=options.nofactor, mode=options.mode,
              min_exons=options.min_exons, min_cdss=options.min_cdss,
              mnemonicfilename=options.mnemonicfilename)
-        
+
 if __name__ == "__main__":
     sys.exit(main())

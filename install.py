@@ -21,7 +21,7 @@ import pkg_resources
 import sys
 
 from distutils.spawn import find_executable
-from distutils.version import LooseVersion, StrictVersion
+from distutils.version import LooseVersion
 from urllib import urlretrieve
 from site import addsitedir
 from string import Template
