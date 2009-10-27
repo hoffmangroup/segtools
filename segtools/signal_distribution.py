@@ -61,15 +61,16 @@ def remove_nans(numbers):
 
 ## Returns a dict of trackname -> tuples: (min, max), one for each trackname
 def seg_min_max(chromosome, segmentation, verbose=False):
-    #print >>sys.stderr, "Looking for min & max in chromosome ", chromosome.name, " for track ", track_index
+    #print >>sys.stderr, "Looking for min & max in chromosome ", \
+    #     chromosome.name, " for track ", track_index
     #print >>sys.stderr, "segmentation: ", segmentation.chromosomes
-    
+
     tracknames = chromosome.tracknames_continuous
     limits = dict([(trackname, (PINF, NINF)) for trackname in tracknames])
-    
+
     if chromosome.name not in segmentation.chromosomes.keys():
         return limits
-    
+
     for segment, continuous in \
             loop_segments_continuous(chromosome, segmentation,
                                      verbose=verbose):
@@ -77,19 +78,19 @@ def seg_min_max(chromosome, segmentation, verbose=False):
             for trackname in tracknames:
                 col_index = chromosome.index_continuous(trackname)
                 continuous_col = continuous[:, col_index]
-                
+
                 if len(continuous_col) != 0:
                     old_min, old_max = limits[trackname]
                     cur_min = nanmin(continuous_col, axis=0)
                     cur_max = nanmax(continuous_col, axis=0)
                     limits[trackname] = (min(old_min, cur_min),
                                          max(old_max, cur_max))
-                    
-    return limits        
 
-def get_num_tracks(genome):    
+    return limits
+
+def get_num_tracks(genome):
     # MA: this should really be part of the Genome class - TODO
-    for chromosome in genome:    
+    for chromosome in genome:
         tracknames = chromosome.tracknames_continuous
         return len(tracknames)
 
@@ -113,17 +114,18 @@ def load_track_ranges(genome, segmentation=None):
                 old_min, old_max = res[trackname]
                 cur_min, cur_max = limits
                 res[trackname] = (min(old_min, cur_min), max(old_max, cur_max))
-                #print >>sys.stderr, "Limits for %s: %s" % (trackname, res[trackname]) 
-        else: 
+                #print >>sys.stderr, "Limits for %s: %s" % \
+                #     (trackname, res[trackname])
+        else:
             tracknames = chromosome.tracknames_continuous
             for trackname in tracknames:
                 col_index = chromosome.index_continuous(trackname)
                 cur_min = chromosome.mins[col_index]
                 cur_max = chromosome.maxs[col_index]
-                        
+
                 old_min, old_max = res[trackname]
                 res[trackname] = (min(old_min, cur_min), max(old_max, cur_max))
-	
+
     # Cast out of defaultdict
     return dict(res)
 
@@ -144,12 +146,12 @@ def calc_histogram(genome, segmentation, num_bins=None,
     if num_bins is:
     - None: There will be a bin for every possible value
     - > 0: There will be this many bins
-      
+
     if group_labels is:
     - True: Group together all labels and only generate one histogram
       for the track over all labels
     - False: Generate a histogram for every track-label pair
-      
+
     if calc_ranges is:
     - False: use the precomputed ranges stored for the entire genome file
     - True: calculate the segmentation ranges across the entire input
@@ -158,10 +160,10 @@ def calc_histogram(genome, segmentation, num_bins=None,
       if either value is None, it is ignored
       if min/max is not None, it is used as a limit for all binning
       if both are specified, calc_ranges is ignored
-    
+
     if quick is:
     - True: the histogram is calculated for only the first chromosome
-    
+
     returns a dict
 
     if group_labels:
@@ -184,7 +186,7 @@ def calc_histogram(genome, segmentation, num_bins=None,
     else:
         # Lookup ranges in genomedata
         track_ranges = load_track_ranges(genome)
-        
+
     # Override ranges as necessary
     value_min, value_max = value_range
     for trackname, track_range in track_ranges.iteritems():
@@ -200,7 +202,6 @@ def calc_histogram(genome, segmentation, num_bins=None,
     if len(tracks) == 0:
         die("Trying to calculate histogram for no tracks")
 
-        
     # Calculate bins for each track
     if num_bins is None:  # Have a bin for every possible integer value
         track_bins = dict([(trackname,
@@ -211,7 +212,6 @@ def calc_histogram(genome, segmentation, num_bins=None,
         assert num_bins > 0
         track_bins = dict([(trackname, num_bins) for trackname in tracks])
 
-        
     # key: trackname
     # val: histogram_func: a function that generates a histogram from data
     #                      with uniform bins within a track
@@ -225,11 +225,11 @@ def calc_histogram(genome, segmentation, num_bins=None,
     # functools.partial(func[, *args][, **keywords])
     #   Returns a new partial object which when called will behave like func
     #   called with args and keywords.
-    
+
     labels = segmentation.labels
     if group_labels:  # Pretend there is just one "all" label
         labels = dict([(-1, "all")])
-        
+
     # Return dictionary: see function docstring for specification
     # Now for every label and for every trackname
     #   there's a histogram array of the right boundary and frequency
@@ -238,10 +238,11 @@ def calc_histogram(genome, segmentation, num_bins=None,
                                 for trackname, histogram_func
                                 in histogram_funcs.iteritems()))
                for label_key in labels)
-    
+
     print >>sys.stderr, "Generating signal distribution histograms"
     num_tracks = len(tracks)
     num_labels = len(labels)
+    num_seg_dps = 0  # Number of non-NaN data points in segmentation tracks
     for chromosome in genome:
         chrom = chromosome.name
         print >>sys.stderr, "\t%s" % chrom
@@ -255,34 +256,40 @@ def calc_histogram(genome, segmentation, num_bins=None,
             else:
                 seg_label_key = segment[SEGMENT_LABEL_KEY_COL]
                 cur_res = res[seg_label_key]
-                
+
             # Iterate through each track
             for trackname, histogram_func in histogram_funcs.iteritems():
                 # col_index is the index of the trackname
                 #   (if 5 tracks, it can be 0, 1, 2, 3 or 4)
                 col_index = chromosome.index_continuous(trackname)
-                
+
                 # continuous_col is the "intensity"
                 #   (continuous number) from the data track
                 # len(supercontig_map) = len(continuous_col)
                 #   because they are for the same segment
                 continuous_col = continuous_seg[:, col_index]
-                
-                # Remove the NaN's, otherwise the numpy.histogram function 
-                #   gets confused and misses some of the data 
+
+                # Remove the NaN's, otherwise the numpy.histogram function
+                #   gets confused and misses some of the data
                 cur_col_nonan = remove_nans(continuous_col)
-                
+
+                # Keep track of number of real data values processed
+                if trackname in segmentation.tracks:
+                    num_seg_dps += cur_col_nonan.shape[0]
+
                 # Edges is a list containing the left edge of every bin,
                 #   hist is the frequency for every bin
                 # This calls numpy.histogram
                 hist, edges = histogram_func(cur_col_nonan)
-                
+
                 res_trackname = cur_res[trackname]
-                
+
                 assert (res_trackname[1] == edges).all()
                 res_trackname[0] += hist
         if quick: break  # 1 chromosome
-    return res
+
+    print "Read %s non-NaN data values from segmentation tracks" % num_seg_dps
+    return res, num_seg_dps
 
 ## Saves the histogram data to a tab file
 def save_tab(labels, histogram, dirpath, clobber=False, group_labels=False,
@@ -330,34 +337,36 @@ def save_plot(num_tracks, num_labels, segtracks, dirpath,
         r.plot(r["plot.signal"](tabfilename, segtracks=segtracks,
                                 mnemonics=mnemonics, ecdf=ecdf))
 
-def save_html(dirpath, ecdf=False, clobber=False):
+def save_html(dirpath, seg_dps=None, ecdf=False, clobber=False):
     if ecdf:
         title = "%s (ECDF mode)" % HTML_TITLE
     else:
         title = HTML_TITLE
-        
+
+    if seg_dps is None:
+        seg_dps = "???"
+
     save_html_div(HTML_TEMPLATE_FILENAME, dirpath, NAMEBASE, clobber=clobber,
-                  module=MODULE, title=title)
-    
+                  module=MODULE, title=title, segdatapoints=seg_dps)
+
 ## Package entry point
 def validate(bedfilename, genomedatadir, dirpath, group_labels=False,
              clobber=False, calc_ranges=False,
              quick=False, replot=False, noplot=False,
              num_bins=NUM_BINS, value_range=(None, None),
              ecdf=False, mnemonicfilename=None):
-    
     setup_directory(dirpath)
     genome = load_genome(genomedatadir)
     segmentation = load_segmentation(bedfilename)
-    
+
     assert genome is not None
     assert segmentation is not None
-    
+
     mnemonics = map_mnemonics(segmentation.labels, mnemonicfilename)
     num_tracks = get_num_tracks(genome)  # All tracks (not just segtracks)
     segtracks = segmentation.tracks
     labels = segmentation.labels
-    
+
     if group_labels:
         num_bins = None  # Set bins automatically
         num_labels = 0  # Not using labels
@@ -365,15 +374,16 @@ def validate(bedfilename, genomedatadir, dirpath, group_labels=False,
     else:
         num_labels = len(labels)
         fieldnames = FIELDNAMES
-        
+
     if not replot:
         # Generate histogram and save tab and plot files
-        histogram = calc_histogram(genome, segmentation, num_bins=num_bins,
-                                   group_labels=group_labels,
-                                   calc_ranges=calc_ranges,
-                                   value_range=value_range,
-                                   quick=quick)
-    
+        histogram, seg_dps = calc_histogram(genome, segmentation,
+                                            num_bins=num_bins,
+                                            group_labels=group_labels,
+                                            calc_ranges=calc_ranges,
+                                            value_range=value_range,
+                                            quick=quick)
+
         save_tab(labels, histogram, dirpath, clobber=clobber,
                  group_labels=group_labels, fieldnames=fieldnames)
 
@@ -381,9 +391,10 @@ def validate(bedfilename, genomedatadir, dirpath, group_labels=False,
         save_plot(num_tracks, num_labels, segtracks, dirpath, clobber=clobber,
                   group_labels=group_labels, ecdf=ecdf, mnemonics=mnemonics)
 
-    save_html(dirpath, ecdf=ecdf, clobber=clobber)
-                
-            
+    if not replot and not noplot:
+        save_html(dirpath, seg_dps=seg_dps, ecdf=ecdf, clobber=clobber)
+
+
 def parse_options(args):
     from optparse import OptionParser, OptionGroup
 
@@ -396,31 +407,31 @@ def parse_options(args):
                      dest="clobber", default=False,
                      help="Overwrite existing output files if the specified"
                      " directory already exists.")
-    group.add_option("--quick", action="store_true", 
+    group.add_option("--quick", action="store_true",
                      dest="quick", default=False,
                      help="Compute values only for one chromosome.")
-    group.add_option("--replot", action="store_true", 
+    group.add_option("--replot", action="store_true",
                      dest="replot", default=False,
                      help="Load data from output tab files and"
                      " regenerate plots instead of recomputing data")
-    group.add_option("--noplot", action="store_true", 
+    group.add_option("--noplot", action="store_true",
                      dest="noplot", default=False,
                      help="Do not generate plots")
-    group.add_option("--group-labels", action="store_true", 
+    group.add_option("--group-labels", action="store_true",
                      dest="group_labels", default=False,
                      help="Group track distributions over all labels."
                      " BEDFILE will be ignored")
-    group.add_option("--ecdf", action="store_true", 
+    group.add_option("--ecdf", action="store_true",
                      dest="ecdf", default=False,
                      help="Plot empiracle cumulative density inside each panel"
                      " instead of a normal histogram (turns off log-y)")
-    group.add_option("--calc-ranges", action="store_true", 
+    group.add_option("--calc-ranges", action="store_true",
                      dest="calc_ranges", default=False,
                      help="Calculate ranges for distribution plots from"
                      " segmentation data (slower) instead of using whole"
                      " genome data (default).")
     parser.add_option_group(group)
-    
+
     group = OptionGroup(parser, "Histogram options")
     group.add_option("-n", "--num-bins", type="int",
                      dest="num_bins", default=NUM_BINS,
@@ -437,13 +448,13 @@ def parse_options(args):
                      " (overrides max from --calc-ranges)"
                      " (values above will be ignored)")
     parser.add_option_group(group)
-    
+
     group = OptionGroup(parser, "I/O options")
     group.add_option("--mnemonic-file", dest="mnemonicfilename",
                      default=None,
                      help="If specified, labels will be shown using"
                      " mnemonics found in this file")
-    group.add_option("-o", "--outdir", 
+    group.add_option("-o", "--outdir",
                      dest="outdir", default="%s" % MODULE,
                      help="File output directory (will be created"
                      " if it does not exist) [default: %default]")
@@ -453,12 +464,12 @@ def parse_options(args):
 
     if len(args) < 2:
         parser.error("Insufficient number of arguments")
-        
+
     if options.noplot and options.replot:
         parser.error("noplot and replot are contradictory")
-        
+
     return (options, args)
-    
+
 ## Command-line entry point
 def main(args=sys.argv[1:]):
     (options, args) = parse_options(args)
@@ -469,7 +480,7 @@ def main(args=sys.argv[1:]):
              clobber=options.clobber, quick=options.quick,
              calc_ranges=options.calc_ranges, replot=options.replot,
              noplot=options.noplot, num_bins=options.num_bins,
-             value_range=value_range, ecdf=options.ecdf, 
+             value_range=value_range, ecdf=options.ecdf,
              mnemonicfilename=options.mnemonicfilename)
 
 if __name__ == "__main__":
