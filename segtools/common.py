@@ -80,9 +80,9 @@ class Segmentation(object):
     labels: a dict
       key: int ("label_key")  (a unique id)
       val: printable (str or int)  (what's in the actual BED file)
-    
+
     tracks: a list of track names that were used to obtain the segmentation
-    segtool: the tool that was used to obtain this segmentation (e.g. segway)  
+    segtool: the tool that was used to obtain this segmentation (e.g. segway)
     """
 
     def __init__(self, chromosomes, labels, tracks, segtool):
@@ -279,7 +279,7 @@ def map_segments(segments, labels, chrom_size):
     """
     converts a segment mapping into label_keys at every nucleotide position
         in the chromosome
-    
+
     e.g.  segment labeled 0 at position [0,4) followed by
           segment labeled 1 at position [4,7) gets converted into:
           0000111
@@ -396,7 +396,8 @@ def setup_directory(dirname):
     else:
         # Require write and execute permissions on existing dir
         if not os.access(dirname, os.W_OK | os.X_OK):
-            die("Error: Output directory does not have appropriate permissions!")
+            die("Error: Output directory does not have appropriate"
+                " permissions!")
 
 ## Given labels and mnemonics, returns an ordered list of label_keys
 ##   and a new labels dict mapping label_keys to label strings
@@ -465,10 +466,10 @@ def load_mnemonics(filename):
                index    description    mnemonic
       e.g.     4    initiation (strong)    IS
     Returns a tuple of (label_order, label_data)
-    
+
     label_order: an ordered list of string label indices,
       corresponding to the preferred display order in plots
-      
+
     label_data: dict
       key: a string label index
       value: a dict with fields including "mnemonic" and "description",
@@ -498,9 +499,9 @@ def load_gff_data(gff_filename, sort=True):
     CHROM<tab>source<tab>feature<tab>START<tab>END<tab>score<tab>STRAND
     chrom, start, end, and strand are required
     strand can be '+'/'-' or '.', but not both in the same file
-    
+
     File may be gzip'd, but if so, must have .gz as the extension
-    
+
     Returns gffdata
     gffdata: a dict
       key: string chromosome name (e.g. "chr13")
