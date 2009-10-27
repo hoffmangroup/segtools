@@ -182,7 +182,7 @@ def make_genomebrowser_url(options, urltype):
     """
     url = GENOMEBROWSER_URL
     for k, v in options.iteritems():
-        url += " %s=%s " k, v
+        url += " %s=%s " % (k, v)
     url += " %sUrl=" % urltype
     return url
 
