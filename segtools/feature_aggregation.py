@@ -59,8 +59,8 @@ SPLICE_COMPONENTS = [
     "initial intron",
     "internal exons",
     "internal introns",
-    "terminal intron",
-    "terminal exon"]
+    "terminal exon",
+    "terminal intron"]
 CODING_COMPONENTS = [
     "initial 5' UTR",
     "5' UTR introns",
@@ -144,7 +144,7 @@ def calc_feature_windows(feature, mode, components, component_bins):
 
     if num_internal_bins > length:
         #print >> sys.stderr, "Warning: %d %s bins > %d bases" % \
-            (num_internal_bins, component, length)
+        #    (num_internal_bins, component, length)
         num_internal_bins = 0
 
     # Calculate internal bin locations
@@ -233,12 +233,12 @@ def preprocess_entries(entries):
     """Convert list of gene feature entries to processed gene data.
 
     If multiple transcripts are found, only the longest is taken.
-    
+
     :param entries: each entry is (chrom, start, end, strand, component, source)
                     and all entries should correspond to the same gene_id
     :type entries: list of 6-tuples
     :returns: chrom, strand, source, list(exons), list(cds's)
-    
+
     """
     # Remove list of gene features and preprocess
     #   (extracting constant strand, chrom, source)
@@ -262,8 +262,8 @@ def preprocess_entries(entries):
         if gene_chrom is None:
             gene_chrom = chrom
         elif gene_chrom != chrom:
-            die("Found gene features on more than one chromosome: [%s, %s]\n%s" %
-                (gene_chrom, chrom, str(entries)))
+            die("Found gene features on more than one chromosome:"
+                " [%s, %s]\n%s" % (gene_chrom, chrom, str(entries)))
         if gene_source is None:
             gene_source = source
         elif gene_source != source:
