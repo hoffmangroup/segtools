@@ -4,13 +4,35 @@
   </head>
   
   <body>
+    <script type="text/javascript">
+      function make_rel_path(filepath)
+      {
+      var re = /\/[^\/]*$$/;  // Turns to one $$ after python substitution
+      var url = document.URL;
+      var cur_dir = url.split(re)[0];
+      return cur_dir + "/" + filepath;
+      }
+
+      function print_genomebrowser_link(filepath)
+      {
+      url = "$genomebrowserurl" + make_rel_path(filepath)
+      document.write("<a href='"+url+"'>"+url+"</a>")
+      }
+    </script>
+
     <h1>Results of segtools (segmentation validation)</h1>
     <ul>
-      <li>Segmentation file: <code>$bedfilename</code>
+      <li>Segmentation file: 
+        <code>
+          $bedfilename
+          $otherbeds
+        </code>
+      </li>
       <li>Software used to obtain the segmentation: <code>$segtool</code></li>
       <li>Segmentation created using <code>$numsegtracks</code> tracks:</li>
         $segtracks
       <li>Segmentation file last modified: <code>$bedmtime</code></li>
+      $genomebrowserlink
       <br />
       <li>Modules run:
         $modules
