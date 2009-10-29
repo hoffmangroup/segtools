@@ -188,8 +188,9 @@ def make_genomebrowser_url(options, urltype):
 
 def form_html_header(bedfilename, modules, layeredbed=None, bigbed=None):
     segtool, segtracks = get_bed_metadata(bedfilename)
+    bedfilebase = os.path.basename(bedfilename)
     fields = {}
-    fields["bedfilename"] = os.path.basename(bedfilename)
+    fields["bedfilename"] = bedfilebase
     fields["numsegtracks"] = len(segtracks)
     fields["segtracks"] = list2html(segtracks, code=True)
     fields["segtool"] = segtool
@@ -216,7 +217,7 @@ def form_html_header(bedfilename, modules, layeredbed=None, bigbed=None):
 
     if layeredbed or bigbed:
         options = GENOMEBROWSER_OPTIONS
-        options["description"] = bedfilename
+        options["description"] = bedfilebase
         # Specify type (only) if using bigBed
         if bigbed:
             options["type"] = "bigBed"
