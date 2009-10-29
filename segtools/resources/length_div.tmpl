@@ -1,7 +1,10 @@
 <div class="module" id="$id">
   <h2><a href="#">^</a>  $title</h2>
   <ul>
-    <li> Length distribution:
+    <li> Length distribution:<br />
+         A density plot of the lengths of all the segments for each label
+         (outliers are circled). A sharp left cutoff is expected if a
+         minimum segment length was imposed during segmentation.
          <br />
          <a href="$slidefilename">
            <img src="$thumbfilename" />
@@ -12,7 +15,10 @@
          [ <a href="$pdffilename">PDF</a> ]
          [ <a href="$tabfilename">TAB</a> ]
     </li><br />
-    <li> Size distribution:
+    <li> Size distribution:<br />
+         The fraction, for each segment label, of the total number of bases 
+         and segments in the entire segmentation. The ratio of the base
+         fraction to the segment fraction is the mean segment length.
          <br />
          <a href="$sizesslidefilename">
            <img src="$sizesthumbfilename" />
@@ -22,7 +28,8 @@
          [ <a href="$sizesslidefilename">SLIDE</a> ]
          [ <a href="$sizespdffilename">PDF</a> ]
     </li><br />
-    <li> Summary table: 
+    <li> Table summarizing other important properties:<br />
+         (such as number of segments and bases for each label)
          <br />
          $table
          <br />

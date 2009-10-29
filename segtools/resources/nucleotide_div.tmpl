@@ -1,7 +1,10 @@
 <div class="module" id="$id">
   <h2><a href="#">^</a>  $title</h2>
   <ul>
-    <li> Dinucleotide frequency (normalized by label) (symmetric dinucleotides have been adjusted):
+    <li> Dinucleotide frequency:<br />
+         The frequencies have been normalized by label and symmetric 
+         dinucleotide frequencies have been adjusted to compensate
+         for their bias.
          <br />
          <a href="$slidefilename">
            <img src="$thumbfilename" />
@@ -12,7 +15,9 @@
          [ <a href="$pdffilename">PDF</a> ]
          [ <a href="$tabfilename">TAB</a> ]
     </li><br />
-    <li> Nucleotides and dinucleotides frequencies over the segmentation:
+    <li> Nucleotides and dinucleotides frequencies over the segmentation:<br />
+         The data for dinucleotides is the same as displayed in the plot above.
+         Ambiguous nucleotides are represented by a "?".
          <br />
          $table
          <br />
