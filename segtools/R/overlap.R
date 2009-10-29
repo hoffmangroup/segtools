@@ -158,7 +158,7 @@ xyplot.overlap <-
            small.cex = 2.0,
            large.cex = 2.4,
            as.table = TRUE,
-           aspect = "fill",
+           aspect = "iso",
            auto.key = FALSE, #list(space = "right"),
            xlab = list("False positive rate (FP / (FP + TN))", cex = large.cex),
            ylab = list("True positive rate (TP / (TP + FN))", cex = large.cex),
@@ -224,55 +224,51 @@ read.pvalues <-
 }
 
 panel.pvalues <-
-  function(x, y, groups, subscripts, reference, ...)
+  function(x, y, groups, subscripts, reference = 0.01,
+           scale.fun = function(...){...}, ...)
 {
-  # Plot p-value == 0.01
-  panel.abline(c(0.01, 0), reference = TRUE, ...)
-
-  panel.levelplot(x, y, groups = groups, subscripts = subscripts, ...)
+  ref.x <- scale.fun(reference)
+  panel.refline(v = ref.x, ...)
+  panel.axis(side = "bottom", at = c(ref.x), outside = TRUE,
+             labels = c(paste("p = ", as.character(reference))))
+  special = is.infinite(x)
+  panel.abline(h = y[special], lwd = 2, lty = 3, ...)
+  
+  panel.barchart(x, y, groups = groups, subscripts = subscripts,
+                 stacked = FALSE, ...)
 }
 
-levelplot.pvalues <-
-  function(x = log10(value) ~ variable + label,
-           data, 
-           min.val = 1e-6,
-           scales = list(x = list(rot = 90), 
-                         z = list(log = TRUE)),
-           aspect = "iso",
+barchart.pvalues <-
+  function(data,
+           x = reorder(label, value) ~ value,
            as.table = TRUE,
-           main = "Overlap significance [log10(p-value)]",
+           main = "Approximate significance of overlap",
            panel = panel.pvalues,
-           xlab = "Feature class",
+           xlab = "-log10(p-value)",
            ylab = "Segment label",
-           ..., 
-           palette = colorRampPalette(rev(brewer.pal(11, "RdBu")),
-             interpolate = "spline", space = "Lab")(100))
+           reference = 0.01,
+           scale.fun = function(...) { -log10(...) },
+           ...)
 {
   data.melted <- melt(data, id.vars="label")
-
-  # Reverse label ordering for plotting
-  data.melted$label <- factor(data.melted$label, 
-                              levels=rev(levels(data.melted$label)))
-
-  # Truncate small values
-  data.melted$value[data.melted$value < min.val] <- min.val
-
-  levelplot(x = x,
-            data = data.melted,
-            scales = scales,
-            aspect = aspect,
-            as.table = as.table,
-            cuts = 99,
-            col.regions = palette,
-            main = main,
-            xlab = xlab,
-            ylab = ylab)
+  data.melted$value <- scale.fun(data.melted$value)
+  xyplot(x = x,
+         data = data.melted,
+         groups = variable,
+         panel = panel,
+         as.table = as.table,
+         reference = reference,
+         main = main,
+         scale.fun = scale.fun,
+         xlab = xlab,
+         ylab = ylab,
+         par.settings = list(clip = list(panel = "off")),
+         ...)
 }
 
 plot.overlap.pvalues <- 
   function(tabfile, mnemonics = NULL, ...)
 {
   pvalues <- read.pvalues(tabfile, mnemonics = mnemonics)
- 
-  levelplot.pvalues(data = pvalues, ...)
+  barchart.pvalues(pvalues, ...)
 }
