@@ -68,7 +68,7 @@ def calc_overlap(subseg, qryseg, quick=False, by=BY_DEFAULT,
         min_overlap = None
         min_overlap_fraction = float(min_overlap_fraction)
         assert min_overlap_fraction >= 0 and min_overlap_fraction <= 1
-    
+
     sub_labels = subseg.labels
     qry_labels = qryseg.labels
     # Make sure reserved column names aren't used
@@ -77,7 +77,7 @@ def calc_overlap(subseg, qryseg, quick=False, by=BY_DEFAULT,
             die("SUBJECTFILE uses reserved group name: %s" % col_label)
         elif col_label in qry_labels.values():
             die("QUERYFILE uses reserved group name: %s" % col_label)
-            
+
     counts = zeros((len(sub_labels), len(qry_labels)), dtype="int")
     totals = zeros(len(sub_labels), dtype="int")
     nones = zeros(len(sub_labels), dtype="int")
@@ -103,7 +103,7 @@ def calc_overlap(subseg, qryseg, quick=False, by=BY_DEFAULT,
         # Keep track of the number of segments of each group that are currently
         #   in range of the current segment
         qrygroup_counts = zeros(len(qry_labels), dtype="int")
-        
+
         for sub_segment in subseg.chromosomes[chrom]:
             substart = sub_segment[SEGMENT_START_COL]
             subend = sub_segment[SEGMENT_END_COL]
@@ -117,20 +117,26 @@ def calc_overlap(subseg, qryseg, quick=False, by=BY_DEFAULT,
                 min_overlap_bp = min_overlap
 
             # High_index is just above top of range around subsegment
-            while not high_stop and high_qry_segment[SEGMENT_START_COL] <= sub_segment[SEGMENT_END_COL] - min_overlap:               
+            while not high_stop and \
+                    high_qry_segment[SEGMENT_START_COL] <= \
+                    sub_segment[SEGMENT_END_COL] - min_overlap:
                 try:
-                    qrygroup_counts[high_qry_segment[SEGMENT_LABEL_KEY_COL]] += 1
+                    qrygroup_counts[
+                        high_qry_segment[SEGMENT_LABEL_KEY_COL]] += 1
                     high_qry_segment = high_qry_segment_iter.next()
                     high_index += 1
                 except StopIteration:
                     high_index = len(qry_segments)
                     high_stop = True
                     break
-                
+
             # Low_index is bottom of range around subsegment
-            while not low_stop and low_qry_segment[SEGMENT_END_COL] - min_overlap < sub_segment[SEGMENT_START_COL]:
+            while not low_stop and \
+                    low_qry_segment[SEGMENT_END_COL] - \
+                    min_overlap < sub_segment[SEGMENT_START_COL]:
                 try:
-                    qrygroup_counts[low_qry_segment[SEGMENT_LABEL_KEY_COL]] -= 1
+                    qrygroup_counts[
+                        low_qry_segment[SEGMENT_LABEL_KEY_COL]] -= 1
                     low_qry_segment = low_qry_segment_iter.next()
                     low_index += 1
                 except StopIteration:
@@ -153,13 +159,13 @@ def calc_overlap(subseg, qryseg, quick=False, by=BY_DEFAULT,
             # At least one segment overlaps, so calculate overlap
             range_segments = qry_segments[low_index:high_index, :]
             label_col = range_segments[:, SEGMENT_LABEL_KEY_COL]
-                
+
             if by == "segments":
                 # Add 1 to count for each group currently in range
                 groups_in_range = (qrygroup_counts > 0)
                 assert groups_in_range.sum() != 0
                 counts[sublabelkey] += groups_in_range
- 
+
             elif by == "bases":
                 # Keep track of total covered by all labels
                 covered = zeros(sublength, dtype="bool")
@@ -175,7 +181,7 @@ def calc_overlap(subseg, qryseg, quick=False, by=BY_DEFAULT,
                         cov_end = max(cov_start + (qryend - qrystart),
                                       sublength)
                         label_covered[cov_start:cov_end]=True
-                        
+
                     # Add the number of bases covered by this segment
                     counts[sublabelkey][qrylabelkey] += label_covered.sum()
                     covered = logical_or(covered, label_covered)
@@ -211,18 +217,18 @@ def split_bed_regions(filename, labels, lengths):
             name = datum.name
             if not lengths.has_key( chName ):
                 continue
-            
+
             shifted_feature = lengths[chName].intersection(feature) 
             # if there is no intersection, there is nothing else to do
             if shifted_feature == None: continue
-            else: 
+            else:
                 try:
                     chrom_dict[name][chName].add(shifted_feature)
                 # This assumes that, if the region name is not present
                 # in the lengths file, then we want to ignore it
                 except KeyError:
                     pass
-                
+
     return chrom_dict
 
 def parse_file_regions(parser, filename, labels, lengths):
@@ -245,27 +251,31 @@ def calc_significance(seg_labels, feature_labels, bedfilename,
 
     If GSC is not in the user's PYTHONPATH or the user failed to provide a
     region file for GSC, skip this part of validation and move on.
-    
+
     Returns a nested dictionary mapping label-feature pairs to p_values:
       dict ( seg_label_key -> dict ( feature_label_key -> p_value ) )
     """
     try:
         import block_bootstrap
     except ImportError:
-        print >> sys.stderr, "GSC not on PYTHONPATH. Skipping significance statistics."
+        print >> sys.stderr, "GSC not on PYTHONPATH. \
+Skipping significance statistics."
         return None
     else:
         print >>sys.stderr, "Found GSC"
 
-    from block_bootstrap import marginal_bp_overlap_stat, marginal_resample_region_overlap_stat, output
+    from block_bootstrap import marginal_bp_overlap_stat, \
+        marginal_resample_region_overlap_stat, output
     block_bootstrap.output = OutputMasker()  # Block GSC stdout output
     from encode import parse_bed_file, parse_lengths_file
-        
+
     if regionfilename is None:
-        print >> sys.stderr, "A region file must be specified to use GSC. Skipping significance statistics."
+        print >> sys.stderr, "A region file must be specified to use GSC. \
+Skipping significance statistics."
         return None
     elif not os.path.isfile(regionfilename):
-        print >> sys.stderr, "Could not locate region file: %s. Skipping significance statistics." % regionfilename
+        print >> sys.stderr, "Could not locate region file: %s. \
+Skipping significance statistics." % regionfilename
         return None
     else:
         print >>sys.stderr, "Using region file: %s" % regionfilename
@@ -278,7 +288,7 @@ def calc_significance(seg_labels, feature_labels, bedfilename,
     print >>sys.stderr, "done"
 
     # Preprocess both input BED files, splitting by labels
-    
+
     # Parse segmentation BED file, once for each label
     print >>sys.stderr, "Parsing segmentation by label...",
     sys.stdout.flush()
@@ -286,7 +296,7 @@ def calc_significance(seg_labels, feature_labels, bedfilename,
     #seg_regions = parse_file_regions(parse_bed_file, bedfilename,
     #                                 seg_labels, lengths)
     print >>sys.stderr, "done"
-    
+
     # Parse feature BED file, once for each label
     print >>sys.stderr, "Parsing features by label...",
     sys.stdout.flush()
@@ -312,37 +322,39 @@ def calc_significance(seg_labels, feature_labels, bedfilename,
                         region_fraction, subregion_fraction, num_samples)
                 elif by == "bases":
                     z, p = marginal_bp_overlap_stat(
-                        seg_regions[seg_label], feature_regions[feature_label], 
+                        seg_regions[seg_label], feature_regions[feature_label],
                         region_fraction, num_samples)
                 else:
-                    print >> sys.stderr, "Unrecognized mode: %s. Skipping significance testing." % by
+                    print >> sys.stderr, "Unrecognized mode: %s.\
+ Skipping significance testing." % by
                     return None
-                    
+
             except Exception, e:
-                print >> sys.stderr, "GSC raised the following exception: %s.\nSkipping significance testing." % e
+                print >> sys.stderr, "GSC raised the following exception:\
+ %s.\nSkipping significance testing." % e
                 return None
             finally:
                 sys.stdout = sys.stdout.restore()
-                
+
             p_values[seg_label_key][feature_label_key] = p
 
         if quick: break
 
     print >> sys.stderr, str(p_values)
     return p_values
-    
+
 def make_tab_row(row_labels, row_key, col_labels, col_ordered_keys,
                  data, nones=None, totals=None, formatstr="%d"):
     row = {ROW_NAME_COL : row_labels[row_key]}
     for col_key in col_ordered_keys:
         row[col_labels[col_key]] = formatstr % data[row_key][col_key]
-            
+
     if nones is not None:
         row[NONE_COL] = nones[row_key]
 
     if totals is not None:
         row[TOTAL_COL] = totals[row_key]
-        
+
     return row
 
 ## Saves the data to a tab file
@@ -350,9 +362,11 @@ def save_tab(dirpath, row_labels, col_labels, counts, totals, nones,
              namebase=NAMEBASE, clobber=False,
              mnemonic_rows=[], mnemonic_cols=[]):
     assert counts is not None and totals is not None and nones is not None
-    
-    row_ordered_keys, row_labels = get_ordered_labels(row_labels, mnemonic_rows)
-    col_ordered_keys, col_labels = get_ordered_labels(col_labels, mnemonic_cols)
+
+    row_ordered_keys, row_labels = get_ordered_labels(row_labels,
+                                                      mnemonic_rows)
+    col_ordered_keys, col_labels = get_ordered_labels(col_labels,
+                                                      mnemonic_cols)
 
     # Set up fieldnames based upon QUERYFILE groups
     fieldnames = list(col_labels[col_key] for col_key in col_ordered_keys)
@@ -366,13 +380,13 @@ def save_tab(dirpath, row_labels, col_labels, counts, totals, nones,
                                      col_ordered_keys, counts,
                                      nones, totals)
             count_saver.writerow(count_row)
-            
+
 ## Saves the significance data to a tab file
-def save_significance_tab(dirpath, seg_labels, feature_labels, p_values, 
+def save_significance_tab(dirpath, seg_labels, feature_labels, p_values,
              namebase=SIGNIFICANCE_NAMEBASE, clobber=False,
              mnemonics=[]):
     assert p_values is not None
-    
+
     row_ordered_keys, row_labels = get_ordered_labels(seg_labels, mnemonics)
     col_ordered_keys, col_labels = get_ordered_labels(feature_labels)
 
@@ -398,7 +412,7 @@ def save_plot(dirpath, num_panels, clobber=False, mnemonics=[]):
     panels_sqrt = math.sqrt(num_panels)
     width = math.ceil(panels_sqrt)
     height = math.floor(panels_sqrt)
-        
+
     # Plot data in file
     with image_saver(dirpath, NAMEBASE, clobber=clobber,
                      width=PNG_SIZE_PER_PANEL * width,
@@ -407,27 +421,28 @@ def save_plot(dirpath, num_panels, clobber=False, mnemonics=[]):
                                  dirpath=dirpath,
                                  basename=NAMEBASE,
                                  mnemonics=mnemonics))
-        
+
 def save_significance_plot(dirpath, clobber=False, mnemonics=[]):
     start_R()
-    
+
     tabfilename = make_tabfilename(dirpath, SIGNIFICANCE_NAMEBASE)
     if not os.path.isfile(tabfilename):
-        print >> sys.stderr, "Unable to find tab file: %s. Skipping significance plot." % tabfilename
+        print >> sys.stderr, "Unable to find tab file: %s. \
+Skipping significance plot." % tabfilename
         return
-        
+
     # Plot data in file
     with image_saver(dirpath, SIGNIFICANCE_NAMEBASE, clobber=clobber,
                      width=SIGNIFICANCE_PNG_SIZE,
                      height=SIGNIFICANCE_PNG_SIZE):
         r.plot(r["plot.overlap.pvalues"](tabfilename, mnemonics=mnemonics))
-                
+
 def save_html(dirpath, bedfilename, featurefilename, by, clobber=False):
     bedfilename = os.path.basename(bedfilename)
     featurebasename = os.path.basename(featurefilename)
 
     title = "%s (%s)" % (HTML_TITLE_BASE, featurebasename)
-    
+
     # Insert significance results if they were made
     tabfilename = make_tabfilename(dirpath, SIGNIFICANCE_NAMEBASE)
     if os.path.isfile(tabfilename):
@@ -436,7 +451,7 @@ def save_html(dirpath, bedfilename, featurefilename, by, clobber=False):
             SIGNIFICANCE_TEMPLATE_FILENAME)(files)
     else:
         significance = ""
-        
+
     save_html_div(HTML_TEMPLATE_FILENAME, dirpath, NAMEBASE, clobber=clobber,
                   title=title, forwardtablenamebase=FORWARD_NAMEBASE,
                   backwardtablenamebase=BACKWARD_NAMEBASE,
@@ -454,14 +469,14 @@ def validate(bedfilename, featurefilename, dirpath, regionfilename=None,
     setup_directory(dirpath)
     segmentation = load_segmentation(bedfilename, checknames=False)
     features = load_segmentation(featurefilename, checknames=False)
-    
+
     assert segmentation is not None
     assert features is not None
 
     seg_labels = segmentation.labels
     feature_labels = features.labels
     mnemonics = map_mnemonics(seg_labels, mnemonicfilename)
-    
+
     if not replot:
         # Overlap of segmentation with features (forward)
         print >>sys.stderr, "Measuring overlap of segmentation with features..."
@@ -471,7 +486,7 @@ def validate(bedfilename, featurefilename, dirpath, regionfilename=None,
         save_tab(dirpath, seg_labels, feature_labels, seg_counts,
                  seg_totals, seg_nones, namebase=FORWARD_NAMEBASE,
                  clobber=clobber, mnemonic_rows=mnemonics)  # Labels on rows
-        
+
         # Overlap of features with segmentation (backward)
         print >>sys.stderr, "Measuring overlap of features with segmentation..."
         feature_counts, feature_totals, feature_nones=calc_overlap(
@@ -482,7 +497,8 @@ def validate(bedfilename, featurefilename, dirpath, regionfilename=None,
                  clobber=clobber, mnemonic_cols=mnemonics)  # Labels on cols
 
         # GSC significance of forward overlap
-        print >>sys.stderr, "Measuring significance of overlap of segmentation with features..."
+        print >>sys.stderr, "Measuring significance of overlap \
+of segmentation with features..."
         p_values = calc_significance(seg_labels, feature_labels, bedfilename,
                                      featurefilename, regionfilename,
                                      num_samples=samples,
@@ -499,38 +515,44 @@ def validate(bedfilename, featurefilename, dirpath, regionfilename=None,
                   clobber=clobber, mnemonics=mnemonics)
         save_significance_plot(dirpath, clobber=clobber,
                                mnemonics=mnemonics)
-        
+
     print >>sys.stderr, "Saving HTML div...",
     sys.stdout.flush()  # Necessary to make sure html errors don't clobber print
     save_html(dirpath, bedfilename, featurefilename, by=by, clobber=clobber)
     print >>sys.stderr, "done"
-    
+
 def parse_options(args):
     from optparse import OptionParser, OptionGroup
 
     usage = "%prog [OPTIONS] BEDFILE FEATUREFILE"
-    description = "BEDFILE and FEATUREFILE should both be in BED3+ format (gzip'd okay). BEDFILE should correspond to a segmentation. Overlap analysis will be performed in both directions (BEDFILE as SUBJECTFILE and QUERYFILE). See for full specification: http://encodewiki.ucsc.edu/EncodeDCC/index.php/Overlap_analysis_tool_specification"
-    
+    description = "BEDFILE and FEATUREFILE should both be in BED3+ format \
+(gzip'd okay). BEDFILE should correspond to a segmentation. Overlap \
+analysis will be performed in both directions (BEDFILE as SUBJECTFILE \
+and QUERYFILE). See for full specification: \
+http://encodewiki.ucsc.edu/EncodeDCC/index.php/\
+Overlap_analysis_tool_specification"
+
     version = "%%prog %s" % __version__
-    parser = OptionParser(usage=usage, version=version, description=description)
+    parser = OptionParser(usage=usage, version=version,
+                          description=description)
 
     group = OptionGroup(parser, "Flags")
     group.add_option("--clobber", action="store_true",
                      dest="clobber", default=False,
                      help="Overwrite existing output files if the specified"
                      " directory already exists.")
-    group.add_option("--quick", action="store_true", 
+    group.add_option("--quick", action="store_true",
                      dest="quick", default=False,
                      help="Compute values only for one chromosome.")
-    group.add_option("--replot", action="store_true", 
+    group.add_option("--replot", action="store_true",
                      dest="replot", default=False,
                      help="Load data from output tab files and"
                      " regenerate plots instead of recomputing data")
-    group.add_option("--noplot", action="store_true", 
+    group.add_option("--noplot", action="store_true",
                      dest="noplot", default=False,
                      help="Do not generate plots")
     parser.add_option_group(group)
-    
+
     group = OptionGroup(parser, "Parameters")
     group.add_option("-b", "--by", choices=BY_CHOICES,
                      dest="by", type="choice", default=BY_DEFAULT,
@@ -569,7 +591,7 @@ def parse_options(args):
                      default=None,
                      help="If specified, labels will be shown using"
                      " mnemonics found in this file")
-    group.add_option("-o", "--outdir", 
+    group.add_option("-o", "--outdir",
                      dest="outdir", default="%s" % MODULE,
                      help="File output directory (will be created"
                      " if it does not exist) [default: %default]")
@@ -604,9 +626,9 @@ def parse_options(args):
     mof = options.min_overlap_fraction
     if mof is not None and (mof < 0 or mof > 1):
         parser.error("Min-overlap-fraction: %.3f out of range: [0, 1]" % mof)
-                       
+
     return (options, args)
-    
+
 ## Command-line entry point
 def main(args=sys.argv[1:]):
     (options, args) = parse_options(args)
@@ -620,8 +642,8 @@ def main(args=sys.argv[1:]):
              min_overlap_fraction=options.min_overlap_fraction,
              region_fraction=options.region_fraction,
              subregion_fraction=options.subregion_fraction,
-             mnemonicfilename=options.mnemonicfilename, 
+             mnemonicfilename=options.mnemonicfilename,
              replot=options.replot, noplot=options.noplot)
-        
+
 if __name__ == "__main__":
     sys.exit(main())
