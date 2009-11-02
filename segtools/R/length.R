@@ -21,7 +21,8 @@ expected.len <- function(prob.loop) {
 }
 
 panel.violinplot <-
-  function(x, y, ..., box.ratio, mark.prior = NULL, marks.posterior = NULL)
+  function(x, y, ..., box.ratio, mark.prior = NULL,
+           marks.posterior = NULL, rug = FALSE)
 {
   if (!is.null(mark.prior)) {
     log10.mark.prior <- log10(mark.prior)
@@ -44,8 +45,9 @@ panel.violinplot <-
 
   # Add remaining plots
   panel.bwplot(x, y, ..., box.ratio = 0)
-  panel.rug(x, NULL, ..., end = 0.01)
-
+  if (rug) {
+    panel.rug(x, NULL, ..., end = 0.01)
+  }
   if (!is.null(marks.posterior)) {
     log10.marks.posterior <- log10(marks.posterior)
     panel.points(log10.marks.posterior, seq_along(marks.posterior),

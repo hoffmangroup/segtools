@@ -48,6 +48,10 @@ labels.log <- function(...) {
   sapply(at.log(...), label.log)
 }
 
+read.mnemonics <- function(filename, stringsAsFactors = NULL, ...) {
+  read.delim(filename, stringsAsFactors = FALSE, ...)[, 1:2]
+}
+
 # Given a list of labels (e.g. levels(data$label)), returns a dataframe
 # with group and index fields, corresponding to the character and numeric 
 # components of each label.
