@@ -194,7 +194,8 @@ def plot_gmtk_transitions(filename, dirpath, clobber=False, verbose=False,
                                      mnemonics=mnemonics))
 
 def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
-               clobber=False, mnemonics=[], fontname="Helvetica"):
+               clobber=False, mnemonics=[], fontname="Helvetica",
+               lenient_thresh=True, gene_graph=False):
     assert labels is not None and probs is not None
     try:
         import pygraphviz as pgv
@@ -213,17 +214,23 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
     # Replace labels with mnemonic labels, if mnemonics are given
     ordered_keys, labels = get_ordered_labels(labels, mnemonics)
 
-    # Threshold in order dependent upon flag
+    # Threshold
     if q_thresh > 0:
         quantile = r['matrix.find_quantile'](probs, q_thresh)[0]
         print >>sys.stderr, "Removing edges below %.4f" % float(quantile)
         probs[probs < quantile] = 0
     elif p_thresh > 0:
-        print >>sys.stderr, "Removing edges below %.4f" % p_thresh
-        probs[probs < p_thresh] = 0
+        print >>sys.stderr, "Removing connections below %.4f" % p_thresh
+        if lenient_thresh:
+            row_wise_remove = (probs < p_thresh)
+            col_wise = probs / probs.sum(axis=0) # Col-normalize
+            col_wise_remove = (col_wise < p_thresh)
+            probs[row_wise_remove & col_wise_remove] = 0
+        else:
+            probs[probs < p_thresh] = 0
 
     # Create graph out of non-zero edges
-    G = pgv.AGraph(strict=False, directed=True, fontname=fontname)
+    G = pgv.AGraph(strict=False, directed=True)
 
     rows, cols = where(probs > 0)
 
@@ -237,13 +244,18 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
                    penwidth=str(EDGE_WEIGHT * weight),
                    arrowsize=str(ARROW_WEIGHT * weight))
 
+    if gene_graph:
+        G.node_attr.update(fontname=fontname, shape="plaintext")
+        ps_dir = os.path.join(os.path.split(dirpath)[0], "images")
+        for node in G.nodes():
+            node.attr["image"] = "%s/%s.ps" % (ps_dir, str(node))
+            node.attr["label"] = " "
+
     G.write(dotfilename)
 
     print >>sys.stderr, "Drawing graphs...",
-    # Mask obnoxious font errors
-    sys.stderr = OutputMasker(sys.stderr)
     G.layout()
-    sys.stderr = sys.stderr.restore()
+
     try:
         G.draw(pngfilename)
     except:
@@ -251,8 +263,13 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
 
     try:
         # Try to generate pdf from dot
-        cmd = " ".join(["neato", "-Tps2", dotfilename, "|",
-                        "ps2pdf", "-", pdffilename])
+        if gene_graph:
+            layout_prog = "dot"
+        else:
+            layout_prog = "neato"
+
+        cmd = " ".join([layout_prog, "-Tps2", dotfilename, "|",
+                        "ps2pdf", "-dAutoRotatePages=/None", "-", pdffilename])
         code = call(cmd, shell=True)
         if code != 0:
             raise Exception()
@@ -261,7 +278,7 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
 
     print >>sys.stderr, "done"
 
-def create_mnemonic_file(gmtk_file, dirpath, clobber=False, namebase = None):
+def create_mnemonic_file(gmtk_file, dirpath, clobber=False, namebase=None):
     """Generate a mnemonic file for GMTK params with R clustering code.
 
     Calls R code that writes mnemonics to a file.
@@ -320,7 +337,7 @@ def load_gmtk_transitions(gmtk_file):
 ## Package entry point
 def validate_gmtk(gmtk_file, dirpath, ddgram=False, p_thresh=P_THRESH,
                   q_thresh=Q_THRESH, noplot=False, nograph=False,
-                  clobber=False, mnemonicfilename=None):
+                  gene_graph=False, clobber=False, mnemonicfilename=None):
     setup_directory(dirpath)
 
     if not os.path.isfile(gmtk_file):
@@ -342,7 +359,8 @@ def validate_gmtk(gmtk_file, dirpath, ddgram=False, p_thresh=P_THRESH,
     if not nograph:
         probs = load_gmtk_transitions(gmtk_file)
         save_graph(labels, probs, dirpath, clobber=clobber,
-                   p_thresh=p_thresh, q_thresh=q_thresh, mnemonics=mnemonics)
+                   p_thresh=p_thresh, q_thresh=q_thresh,
+                   gene_graph=gene_graph, mnemonics=mnemonics)
 
     save_html(dirpath, p_thresh=p_thresh, q_thresh=q_thresh,
               clobber=clobber)
@@ -350,7 +368,7 @@ def validate_gmtk(gmtk_file, dirpath, ddgram=False, p_thresh=P_THRESH,
 ## Package entry point
 def validate(bedfilename, dirpath, ddgram=False, p_thresh=P_THRESH,
              q_thresh=Q_THRESH, noplot=False, nograph=False,
-             clobber=False, mnemonicfilename=None):
+             gene_graph=False, clobber=False, mnemonicfilename=None):
     setup_directory(dirpath)
 
     segmentation = load_segmentation(bedfilename)
@@ -369,7 +387,8 @@ def validate(bedfilename, dirpath, ddgram=False, p_thresh=P_THRESH,
 
     if not nograph:
         save_graph(labels, probs, dirpath, clobber=clobber,
-                   p_thresh=p_thresh, q_thresh=q_thresh, mnemonics=mnemonics)
+                   p_thresh=p_thresh, q_thresh=q_thresh,
+                   gene_graph=gene_graph, mnemonics=mnemonics)
 
     save_html(dirpath, p_thresh=p_thresh, q_thresh=q_thresh,
               clobber=clobber)
@@ -416,6 +435,11 @@ def parse_options(args):
                      type="float", default=Q_THRESH,
                      help="ignore transitions with probabilities below this"
                      " probability quantile [default: %default]")
+    group.add_option("-g", "--gene-graph", dest="gene_graph",
+                     default=False, action="store_true",
+                     help="Make each node of the graph a reference to a .ps"
+                     " image an \"image\" subdirectory. Currently, these .ps"
+                     " files need to be made separately.")
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Non-segmentation files")
@@ -449,7 +473,7 @@ def main(args=sys.argv[1:]):
         validate_gmtk(options.gmtk_file, options.outdir,
                       p_thresh=options.p_thresh, q_thresh=options.q_thresh,
                       clobber=options.clobber, noplot=options.noplot,
-                      nograph=options.nograph,
+                      nograph=options.nograph, gene_graph=options.gene_graph,
                       mnemonicfilename=options.mnemonic_file)
 
     else:
@@ -457,7 +481,7 @@ def main(args=sys.argv[1:]):
         validate(bedfilename, options.outdir, ddgram=options.ddgram,
                  p_thresh=options.p_thresh, q_thresh=options.q_thresh,
                  clobber=options.clobber, noplot=options.noplot,
-                 nograph=options.nograph,
+                 nograph=options.nograph, gene_graph=options.gene_graph,
                  mnemonicfilename=options.mnemonic_file)
 
 if __name__ == "__main__":
