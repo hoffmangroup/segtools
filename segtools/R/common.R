@@ -48,8 +48,10 @@ labels.log <- function(...) {
   sapply(at.log(...), label.log)
 }
 
-read.mnemonics <- function(filename, stringsAsFactors = NULL, ...) {
-  read.delim(filename, stringsAsFactors = FALSE, ...)[, 1:2]
+read.mnemonics <- function(filename, stringsAsFactors = NULL, colClasses = NULL,
+                           ...) {
+  read.delim(filename, stringsAsFactors = FALSE, colClasses = "character",
+             ...)[, 1:2]
 }
 
 # Given a list of labels (e.g. levels(data$label)), returns a dataframe
@@ -67,14 +69,13 @@ labels.classify <-
   for (i in 1:length(labels.parts)) {
     label <- labels.parts[[i]]
     if (length(label) > 1) {
-      # Splitting worked!
+      ## Splitting worked!
       labels.split[i, 1:2] <- label[1:2]
     } else {
-      # Splitting didn't work. Try treating like normal mnemonics (e.g. TF0)
+      ## Splitting didn't work. Try treating like normal mnemonics (e.g. TF0)
       match <- regexpr("[0-9]+$", label)
       match.len <- attributes(match)$match.length
-      matched <- (match.len > 0)
-      if (matched) {
+      if (match.len > 0) {
         labels.split[i, 1] <- substring(label, 1, match - 1)
         labels.split[i, 2] <- substring(label, match, nchar(label))
       } else {
@@ -115,7 +116,8 @@ relabel.factor <- function(field, mnemonics) {
 smart.factor.reorder <- function(field) {
   levels.raw <- levels(field)
   suppressWarnings(levels.int <- as.integer(levels.raw))
-  levels.valid <- is.finite(levels.int)
+  levels.valid <- (is.finite(levels.int) &
+                   as.character(levels.int) == as.character(levels.raw))
   levels.full <- c(sort(levels.int[levels.valid]), 
                    sort(levels.raw[!levels.valid]))
 
@@ -161,15 +163,15 @@ theme.slide <- function() {
  res <- theme.dark2()
 
  additions <-
-   list(axis.text = list(cex = 1.5),
+   list(axis.text = list(cex = 1.3),
         par.main.text = list(cex = 2),
         par.sub.text = list(cex = 2),
         layout.heights = list(axis.top = 1.5, axis.bottom = 1.25),
         layout.widths = list(axis.left = 1.25),
         add.text = list(cex = 1.5),
-        par.xlab.text = list(cex = 2),
-        par.ylab.text = list(cex = 2),
-        par.zlab.text = list(cex = 2))
+        par.xlab.text = list(cex = 1.5),
+        par.ylab.text = list(cex = 1.5),
+        par.zlab.text = list(cex = 1.5))
 
  modifyList(res, additions)
 }
@@ -272,7 +274,7 @@ dev.print.images <- function(basename, dirname,
     filename.pdf <-
       save.image(basename, "pdf", dirname, device.pdf,
                  width = width.pdf, height = height.pdf,
-                 useDingbats = FALSE, ...)
+                 useDingbats = FALSE, as.slide = TRUE, ...)
   }
 
   if (make.thumb) {
