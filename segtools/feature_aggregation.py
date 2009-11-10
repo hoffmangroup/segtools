@@ -336,9 +336,9 @@ def interpret_features_as_gene(entries, min_exons=MIN_EXONS, min_cdss=MIN_CDSS):
         features.append(make_feature(SPLICE_COMPONENTS[3], *intron))
     # last intron
     if len(introns) > 0:
-        features.append(make_feature(SPLICE_COMPONENTS[4], *introns[-1]))
+        features.append(make_feature(SPLICE_COMPONENTS[5], *introns[-1]))
     # last exon
-    features.append(make_feature(SPLICE_COMPONENTS[5], *exons[-1]))
+    features.append(make_feature(SPLICE_COMPONENTS[4], *exons[-1]))
 
 
     # If there were no CDS's, then there is no point in dealing with UTR/CDS
