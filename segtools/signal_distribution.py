@@ -16,6 +16,7 @@ MODULE="signal_distribution"
 __version__ = "$Revision$"
 
 
+import math
 import os
 import sys
 
@@ -23,23 +24,19 @@ from collections import defaultdict
 #from contextlib import contextmanager
 from itertools import repeat
 from functools import partial
-from numpy import array, concatenate, histogram, isfinite, nanmax, nanmin, \
-    NINF, PINF, where
+from numpy import array, histogram, isfinite, nanmax, nanmin, nansum, NINF, PINF
 from rpy2.robjects import r, numpy2ri
 
 # XXX: Do this without the kludgy constants
-from .common import die, fill_array, \
-    get_supercontig_splice, \
-    image_saver, LABEL_ALL, load_segmentation, load_genome, \
-    loop_segments_continuous, make_tabfilename, \
-    map_mnemonics, map_segments, r_source, \
-    SEGMENT_START_COL, SEGMENT_END_COL, SEGMENT_LABEL_KEY_COL, \
-    setup_directory, tab_saver
+from .common import die, image_saver, load_segmentation, load_genome, loop_segments_continuous, make_tabfilename, map_mnemonics, r_source, SEGMENT_LABEL_KEY_COL, setup_directory, tab_saver
 
 from .html import save_html_div
 
 FIELDNAMES = ["label", "trackname", "lower_edge", "count"]
 NAMEBASE = "%s" % MODULE
+
+FIELDNAMES_STATS = ["label", "trackname", "mean", "sd"]
+NAMEBASE_STATS = os.extsep.join([NAMEBASE, "stats"])
 
 HTML_TITLE = "Signal value distribution"
 HTML_TEMPLATE_FILENAME = "signal_div.tmpl"
@@ -128,15 +125,6 @@ def load_track_ranges(genome, segmentation=None):
 
     # Cast out of defaultdict
     return dict(res)
-
-# def print_array(tag, arr, type="%d"):
-#     fstring = "%%s:  %s, %s, ..., %s, ..., %s, %s" % tuple([type]*5)
-#     print fstring % (tag,
-#                      arr[0],
-#                      arr[1],
-#                      arr[int(arr.shape[0] / 2)],
-#                      arr[-2],
-#                      arr[-1])
 
 ## Computes a set of histograms, one for each track-label pair.
 def calc_histogram(genome, segmentation, num_bins=None,
@@ -243,6 +231,7 @@ def calc_histogram(genome, segmentation, num_bins=None,
     num_tracks = len(tracks)
     num_labels = len(labels)
     num_seg_dps = 0  # Number of non-NaN data points in segmentation tracks
+
     for chromosome in genome:
         chrom = chromosome.name
         print >>sys.stderr, "\t%s" % chrom
@@ -291,6 +280,34 @@ def calc_histogram(genome, segmentation, num_bins=None,
     print "Read %s non-NaN data values from segmentation tracks" % num_seg_dps
     return res, num_seg_dps
 
+def calc_stats(histogram):
+    """Calculate track statistics (mean, sd) for each label
+
+    histogram: the histogram returned by calc_histogram
+
+    Values are approximated from binned distributions
+    - mean is a lower-bound on the actual mean
+
+    Returns a dict: label_key -> dict( trackname -> {"mean", "sd", ...} )
+
+    """
+    stats = defaultdict(partial(defaultdict, dict))
+    for label_key, label_hist in histogram.iteritems():
+        for trackname, (hist, edges) in label_hist.iteritems():
+            cur_stat = stats[label_key][trackname]
+            n = nansum(hist)
+            if n == 0:
+                mean = 0
+                sd = 0
+            else:
+                mean = (hist * edges[:-1]).sum() / n
+                sd = (hist * (edges[:1] - mean)**2).sum() / (n - 1)
+
+            cur_stat["sd"] = sd
+            cur_stat["mean"] = mean
+
+    return stats
+
 ## Saves the histogram data to a tab file
 def save_tab(labels, histogram, dirpath, clobber=False, group_labels=False,
              namebase=NAMEBASE, fieldnames=FIELDNAMES):
@@ -300,6 +317,18 @@ def save_tab(labels, histogram, dirpath, clobber=False, group_labels=False,
             for trackname, (hist, edges) in label_histogram.iteritems():
                 for lower_edge, count in zip(edges, hist.tolist() + ["NA"]):
                     saver.writerow(locals())
+            if group_labels: return  # Only write grouped label
+
+## Saves the track stats to a tab file
+def save_stats_tab(labels, stats, dirpath, clobber=False, group_labels=False,
+                   namebase=NAMEBASE_STATS, fieldnames=FIELDNAMES_STATS):
+    with tab_saver(dirpath, namebase, fieldnames, clobber=clobber) as saver:
+        for label_key, label_stats in stats.iteritems():
+            label = labels[label_key]
+            for trackname, track_stats in label_stats.iteritems():
+                mean = track_stats["mean"]
+                sd = track_stats["sd"]
+                saver.writerow(locals())
             if group_labels: return  # Only write grouped label
 
 ## Plots the tab file data and saves the plots
@@ -326,6 +355,11 @@ def save_plot(num_tracks, num_labels, segtracks, dirpath,
         die("Unable to find tab file: %s" % tabfilename)
 
     print >>sys.stderr, "\tPlotting distributions from: %s" % tabfilename
+    if ecdf:
+        mode = "ecdf"
+    else:
+        mode = "normalized"
+
     # XXX: Figure out num_tracks and num_labels from file
     with image_saver(dirpath, basename,
                      width=PNG_BASE_WIDTH + \
@@ -335,7 +369,7 @@ def save_plot(num_tracks, num_labels, segtracks, dirpath,
                      clobber=clobber,
                      downsample=True):  # Speeds up plotting
         r.plot(r["plot.signal"](tabfilename, segtracks=segtracks,
-                                mnemonics=mnemonics, ecdf=ecdf))
+                                mnemonics=mnemonics, mode=mode))
 
 def save_html(dirpath, seg_dps=None, ecdf=False, clobber=False):
     if ecdf:
@@ -383,9 +417,11 @@ def validate(bedfilename, genomedatadir, dirpath, group_labels=False,
                                             calc_ranges=calc_ranges,
                                             value_range=value_range,
                                             quick=quick)
-
         save_tab(labels, histogram, dirpath, clobber=clobber,
                  group_labels=group_labels, fieldnames=fieldnames)
+        stats = calc_stats(histogram)
+        save_stats_tab(labels, stats, dirpath, clobber=clobber,
+                       group_labels=group_labels)
 
     if not noplot:
         save_plot(num_tracks, num_labels, segtracks, dirpath, clobber=clobber,

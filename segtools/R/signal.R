@@ -2,8 +2,9 @@
 
 library(lattice)
 library(latticeExtra)
+library(grid)
 
-read.signal <- function(filename, mnemonics=NULL, ...) {
+read.signal <- function(filename, mnemonics = NULL, ...) {
   res <- read.delim(filename, ...)
   res$label <- factor(res$label)    # adds a label attribute
 
@@ -17,17 +18,22 @@ read.signal <- function(filename, mnemonics=NULL, ...) {
   res
 }
 
-panel.histogram.precomp <- function(x, y, ecdf = FALSE, ref = FALSE, ...) {
-  if (ecdf) {
-    panel.ecdfplot(y, ref = FALSE, ...)
-  } else {
-    box.width <- diff(x[1:2])
-    x <- x + (box.width/2)
-    panel.barchart(x, y, box.width = box.width, ...)
-  }
+panel.histogram.ecdf <- function(x, y, ref = FALSE, ...) {
+  panel.ecdfplot(y, ref = FALSE, ...)
 }
 
-strip.highlight.segtracks <- function(segtracks, horizontal.outer=FALSE, ...) {
+panel.histogram.precomp <- function(x, y, ...) {
+  box.width <- diff(x[1:2])
+  x <- x + (box.width/2)
+  panel.barchart(x, y, box.width = box.width, ...)
+}
+
+panel.histogram.normalized <- function(x, y, type = NULL, ...) {
+  keep <- (is.finite(y) & y > 0)
+  panel.xyplot(x[keep], y[keep], type = c("l", "h"), ...)
+}
+
+strip.highlight.segtracks <- function(segtracks, horizontal.outer = FALSE, ...) {
   # Define custom strip function that highlights strips
   # when the trackname is in 'segtracks'
   strip.highlighter <- function(which.given,
@@ -38,77 +44,112 @@ strip.highlight.segtracks <- function(segtracks, horizontal.outer=FALSE, ...) {
                                 bg = NULL) {
 
     if (factor.levels[which.panel[which.given]] %in% segtracks) {
-      strip.default(which.given=which.given, which.panel=which.panel,
-	            factor.levels=factor.levels, ..., 
-                    horizontal=horizontal.outer, bg="yellow")
+      strip.default(which.given = which.given, which.panel = which.panel,
+	            factor.levels = factor.levels, ..., 
+                    horizontal = horizontal.outer, bg = "yellow")
     } else {
-      strip.default(which.given=which.given, which.panel=which.panel,
-      		    horizontal=horizontal.outer, 
-                    factor.levels=factor.levels, ...)
+      strip.default(which.given = which.given, which.panel = which.panel,
+      		    horizontal = horizontal.outer, 
+                    factor.levels = factor.levels, ...)
     }
   }
 
   strip.highlighter
 }
 
-
 ## Generates pretty scales for the data.
 ## layout is a 2-element vector: c(num_rows, num_cols) for the xyplot
-panel.scales <- function(data, layout, log.y = TRUE, ecdf = FALSE, ...) {
-  # Get the max x for each track
-  limits.x <- list()
-  at.x <- list()
-  for (track in levels(data$trackname)) {
-    track_subset <- subset(data, data$trackname == track)
-    max.x <- max(track_subset$lower_edge, na.rm=TRUE)
-    limits.x <- c(limits.x, list(c(0, max.x)))
-    at.x <- c(at.x, at.pretty(from=0, to=max.x, length=5, largest=TRUE))
-  }
+## tolerance - fraction of extreme value allowed to not be included in plot.
+panel.scales <- function(data, layout, log.y = TRUE, mode = "histogram",
+                         tolerance = 0.05, ...) {
 
-  if (ecdf) {
-    at.y <- c(0, 1)
-    labels.y <- c("0", "1")
+  scale.y = list(log = log.y,
+    tck = c(0, 1),
+    alternating = c(2, 0))
+  
+  ## Get the x and y axis limits depending on plot mode
+  if (mode == "ecdf") {
+    limits.x <- list()
+    at.x <- list()
+    for (track in levels(data$trackname)) {
+      track.subset <- subset(data, trackname == track)
+      max.x <- max(track.subset$lower_edge, na.rm = TRUE)
+      limits.x <- c(limits.x, list(c(0, max.x)))
+      at.x <- c(at.x, at.pretty(from = 0, to = max.x, length = 5, largest = TRUE))
+    }
+
+    scale.y$labels <- c("0", "1")
+    scale.y$limits <- c(0, 1)
+    scale.y$at <- c(0, 1)
     log.y <- FALSE
-    limits.y <- c(0, 1)
-  } else {
-    max.y <- max(data$count, na.rm=TRUE)
+  } else if (mode == "histogram") {
+    limits.x <- list()
+    at.x <- list()
+    for (track in levels(data$trackname)) {
+      track.subset <- subset(data, trackname == track)
+      max.x <- max(track.subset$lower_edge, na.rm = TRUE)
+      limits.x <- c(limits.x, list(c(0, max.x)))
+      at.x <- c(at.x, at.pretty(from = 0, to = max.x, length = 5, largest = TRUE))
+    }
+    
+    max.y <- max(data$count, na.rm = TRUE)
     high.exp <- floor(log10(max.y))
     min.y <- if (log.y) 1 else 0
     at.y <- c(min.y, 10^high.exp)
-    labels.y <- c(as.character(min.y), label.log(10^high.exp))
-    limits.y <- c(head(at.y, n = 1), tail(at.y, n = 1))
+    
+    scale.y$labels <- c(as.character(min.y), label.log(10^high.exp))
+    scale.y$limits <- c(head(at.y, n = 1), tail(at.y, n = 1))
+    scale.y$at <- at.y
+  } else if (mode == "normalized") {
+    limits.x <- list()
+    at.x <- list()
+    for (track in levels(data$trackname)) {
+      track.subset <- subset(data, trackname == track)
+      count.subset <- subset(track.subset, is.finite(count) & count > 0)
+      if (nrow(count.subset) == 0) {
+        min.x <- min(track.subset$lower_edge)
+        max.x <- max(track.subset$lower_edge)
+      } else {
+        ##min.y <- quantile(count.subset$count, probs = tolerance, na.rm = TRUE)
+        min.y <- max(count.subset$count, na.rm = TRUE) * tolerance
+        within.tolerance <- subset(count.subset, count >= min.y)
+        min.x <- min(within.tolerance$lower_edge)
+        max.x <- max(within.tolerance$lower_edge)
+      }
+      limits.x <- c(limits.x, list(c(min.x, max.x)))
+      at.x.pretty <- unlist(at.pretty(from = min.x, to = max.x, length = 10))
+      at.x <- c(at.x, list(c(0, tail(at.x.pretty, n = 1))))
+      print(paste(max(count.subset$lower_edge), " ---> ", max.x))
+    }
+    scale.y$log <- FALSE
   }
 
   scales = list(x = list(relation = "free",  # Allow x axes to vary
-                         limits = limits.x,
-                         at = c(rep(list(NULL), layout[2] * (layout[1] - 1)), 
-                                at.x),
-                         rot = 90
-                         ),
-                y = list(log = log.y,
-                         tck = c(0, 1),
-                         labels = labels.y,
-                         limits = limits.y,
-                         at = at.y,
-                         alternating = c(2, 0)
-                         ),
-                cex = 1,
-                ...)
+                  at = c(rep(list(NULL), layout[2] * (layout[1] - 1)), at.x),
+                  limits = limits.x,
+                  rot = 90),
+    y = scale.y,
+    cex = 1,
+    ...)
   
   scales
 }
 
+sum.nona <- function(..., na.rm = TRUE) {
+  sum(..., na.rm = na.rm)
+}
 
 # Generates a histogram from the precomputed histogram in 'data'
 xyplot.signal <-
-  function(x = count ~ lower_edge | trackname + label,  # formula, explained in the lattice book
+  function(data,
+           x = count ~ lower_edge | trackname + label,  # formula, explained in the lattice book
                 # ~ means "is modeled by", as in y ~ x
                 # So count is the y axis,  lower_edge is the x axis
                 # | means conditioned on
                 # So it makes a plot for every label and trackname
-           data,
            segtracks = NULL,  # List of tracks in segmentation
-           ecdf = FALSE,  # Plot an ecdf for each packet instead of a histogram
+           mode = "histogram",  # Mode determines display mode
+                                # Choice of histogram, ecdf, normalized
            text.cex = 1,
            par.settings = list(add.text = list(cex = text.cex),
                                layout.heights = list(axis.panel = axis.panel,
@@ -116,10 +157,15 @@ xyplot.signal <-
                                layout.widths = list(strip.left = strips.widths)
                                ),
            xlab = "Signal Value",
-           ylab = if (!ecdf) { if (log.y) "Counts (log10)" else "Counts" }
-                  else "Empirical cumulative density",
-           log.y = TRUE,
-           panel = panel.histogram.precomp, 
+           ylab = if (mode == "ecdf") "Empirical cumulative density"
+                  else if (mode == "normalized") "Fraction of bases"
+                  else if (log.y) "Number of bases (log10)"
+                  else "Number of bases",
+           log.y = FALSE,
+           panel = if (mode == "histogram") panel.histogram.precomp
+                   else if (mode == "ecdf") panel.histogram.ecdf
+                   else if (mode == "normalized") panel.histogram.normalized
+                   else stop(paste("Unrecognized mode: ", mode)),
            strip = strip.custom(horizontal = FALSE),
            strip.left = strip.custom(horizontal = TRUE),
            strip.height = 14,
@@ -144,24 +190,33 @@ xyplot.signal <-
     strip <- strip.highlight.segtracks(segtracks)
   }
 
-  # this computes the sum of the counts, for the "all" label
-  labelsums <- with(data, aggregate(count, list(trackname = trackname,
-                                                lower_edge = lower_edge),
-                                    sum))
-  names(labelsums) <- sub("^x$", "count", names(labelsums))
-  labelsums$label <- "all"
+  if (mode == "normalized") {
+    group.sums <- with(data,
+                       aggregate(count, list(trackname, label), sum.nona))$x
+    group.size <- with(data,
+                       aggregate(count, list(trackname, label), length))$x
+    data.divisor <- rep(group.sums, times = group.size)
+    zero.out <- cumsum(c(1, group.size[-length(group.size)]))
+    data.divisor[zero.out] <- NA
+    data$count <- data$count / data.divisor
+  }
 
-  #data.full <- data
-  data.full <- rbind(data, labelsums)
-  data.full$label <- relevel(data.full$label, ref = "all") 
+  # this computes the sum of the counts, for the "all" label
+  if (mode == "histogram" || mode == "ecdf") {
+    labelsums <- with(data, aggregate(count, list(trackname, lower_edge), sum))
+    names(labelsums) <- sub("^x$", "count", names(labelsums))
+    labelsums$label <- "all"
+    data.full <- rbind(data, labelsums)
+    data.full$label <- relevel(data.full$label, ref = "all") 
+  } else {
+    data.full <- data
+  }
 
   num_rows <- length(levels(data.full$label))
   num_cols <- length(levels(data.full$trackname))
   layout <- c(num_rows, num_cols)
 
-  # Can use just labelsums, since it should cover the same range
-  scales <- panel.scales(labelsums, layout, log.y = log.y, ecdf = ecdf)
-  #scales <- panel.scales(data.full, layout, log.y = log.y)
+  scales <- panel.scales(data.full, layout, log.y = log.y, mode = mode)
 
   # Remove space between panels (where axes were)
   axis.panel <- rep(c(0, 1), c(num_rows - 1, 1))
@@ -179,7 +234,6 @@ xyplot.signal <-
                     border = border,
                     horizontal = FALSE,
                     col = col,
-                    ecdf = ecdf, 
                     ...)
 
   trellis.outer <- useOuterStrips(trellis, strip = strip,
@@ -189,8 +243,8 @@ xyplot.signal <-
 }
 
 
-plot.signal <- function(filename, segtracks=NULL, mnemonics=NULL, ...) {
-  data <- read.signal(filename, mnemonics=mnemonics)
+plot.signal <- function(filename, segtracks = NULL, mnemonics = NULL, ...) {
+  data <- read.signal(filename, mnemonics = mnemonics)
 
-  xyplot.signal(data=data, segtrack=segtracks, ...)
+  xyplot.signal(data = data, segtrack = segtracks, ...)
 }
