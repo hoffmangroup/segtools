@@ -131,15 +131,28 @@ levelplot.transition <-
             ...)
 }
 
-plot.transition <- function(filename, mnemonics=NULL, ...) 
+plot.transition <- function(filename, mnemonics = NULL, ...) 
 {
-  data <- read.transition(filename, mnemonics=mnemonics)
-  
+  data <- read.transition(filename, mnemonics = mnemonics)
   levelplot.transition(data, ...)
 }
 
 
 ################## GMTK params ####################
+
+## File should have fields: label, trackname, mean, sd, ...
+read.params <- function(filename, mnemonics = NULL, ...)
+{
+  params <- read.delim(filename, ...)
+  params$label <- factor(params$label)
+  params$trackname <- factor(params$trackname)
+  
+  if (length(mnemonics) == 0) {
+    ## Generate our own mnemonics
+    mnemonics <- generate.param.mnemonics(params)
+  }
+  data$label <- relabel.factor(data$label, mnemonics)
+}
 
 num.gmtk.labels <- function(filename)
 {
@@ -191,6 +204,7 @@ read.gmtk.params <- function(filename, normalize = TRUE, mnemonics = NULL,
   res
 }
 
+## Read gmtk params and either use given mnemonics or generate some.
 read.labeled.params <- function(filename, mnemonics = NULL, ...)
 {
   params <- read.gmtk.params(filename, mnemonics = mnemonics, ...)
@@ -208,6 +222,24 @@ read.labeled.params <- function(filename, mnemonics = NULL, ...)
   } else {
     params
   }
+}
+
+read.observed.params <- function(filename, normalize = TRUE, mnemonics = NULL, 
+                                 cov = FALSE, ...) {
+  data <- parse.track.params(filename)  
+  data$label <- factor(data$label)
+  
+  if (length(mnemonics) > 0) {
+    data$label <- relabel.factor(data$label, mnemonics)
+  }
+  
+  data <- rename.tracks(data)
+  data.melt <- melt.params(data)
+  
+  res <- covar2sd(data.melt)
+  if (normalize) res <- normalize.params(res, cov = cov) 
+  
+  res
 }
 
 hclust.params <- function(params) {
@@ -294,7 +326,11 @@ normalize.params <- function(params, cov = FALSE) {
     sds <- sds / rowMeans(mean)
     sds[sds > 1] <- 1
   } else {  # Normalize same as mean
-    sds <- sds / (mean.max - mean.min)    
+    sds <- sds / (mean.max - mean.min)
+    # If any are over 1, scale all down
+    if (any(sds > 1)) {
+      sds <- sds / max(sds)
+    }
   }
   params[, , "sd"] <- sds
 
@@ -302,7 +338,7 @@ normalize.params <- function(params, cov = FALSE) {
 }
 
 melt.params <- function(data) {
-  params.melted <- melt(data)
+  params.melted <- melt(data, id.vars = c("label", "trackname", "param"))
   params.cast <- cast(params.melted, trackname ~ label ~ param)
 }
 
@@ -462,6 +498,8 @@ panel.params <-
   }
 }
 
+
+## params should be a 3D array with [,,"mean"] and [,,"sd"]
 levelplot.params <-
   function(params, 
            axis.cex = 1.0,
@@ -531,7 +569,15 @@ plot.gmtk.transition <-
 make.gmtk.mnemonic.file <- function(gmtk_file, filename, ...)
 {
   params <- read.gmtk.params(gmtk_file, ...)
-  filename <- generate.param.mnemonics(params, filename = filename, ...)
+  mnemonicfile <- generate.param.mnemonics(params, filename = filename, ...)
 
-  filename
+  mnemonicfile
+}
+
+make.mnemonic.file <- function(tabfilename, filename, ...)
+{
+  params <- read.observed.params(gmtk_file, ...)
+  mnemonicfile <- generate.param.mnemonics(params, filename = filename, ...)
+
+  mnemonicfile
 }
