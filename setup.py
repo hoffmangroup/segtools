@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-"""segtools: tools for interpreting and validating segmentations
+"""segtools: Tools for exploratory analysis of genomic segmentations
 
 LONG_DESCRIPTION
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.2"
 
 # Copyright 2008-2009 Michael M. Hoffman <mmh1@washington.edu>
 
@@ -53,7 +53,7 @@ setup(name=name,
       author="Michael Hoffman",
       author_email="mmh1@washington.edu",
       maintainer="Orion Buske",
-      maintainer_email="orion.buske@gmail.com",
+      maintainer_email="stasis@uw.edu",
       url=url,
       download_url=download_url,
       classifiers=classifiers,

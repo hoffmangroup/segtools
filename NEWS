@@ -1,6 +1,14 @@
+0.1.2:
+
+
+
 0.1.1:
 
-
+Improved all plots
+Improved GMTK support
+Improved HTML report and added explanations
+Bugs still exist in signal_distribution
+GTMK still not separated
 
 0.1.0:
 
