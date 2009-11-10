@@ -8,10 +8,11 @@ library(reshape)
 ############### OVERLAP ANALYSIS ##############
 
 read.overlap <- function(filename, mnemonics = NULL, ...,
-                         check.names = FALSE)
+                         colClasses = list(X = "character"))  # label column
 {
-  res <- read.delim(filename, ..., check.names = check.names)
-  colnames(res)[1] = "label"
+  res <- read.delim(filename, ..., colClasses = colClasses)
+  colnames(res)[1] <- "label"
+  # Order by file order
   res$label <- factor(res$label, levels = unique(res$label))
 
   if (length(mnemonics) > 0) {
@@ -155,8 +156,8 @@ write.stats <-
 xyplot.overlap <-
   function(x = tpr ~ fpr | factor, 
            data,
-           small.cex = 2.0,
-           large.cex = 2.4,
+           small.cex = 1.8,
+           large.cex = 2.0,
            as.table = TRUE,
            aspect = "iso",
            auto.key = FALSE, #list(space = "right"),
@@ -206,9 +207,10 @@ plot.overlap <-
 
 read.pvalues <- 
   function(filename, mnemonics = NULL,
-    ..., header = TRUE, check.names = FALSE)
+           ..., header = TRUE,
+           colClasses = list(X = "character")) # Label column
 {
-  res <- read.delim(filename, ..., header = header, check.names = check.names)
+  res <- read.delim(filename, ..., header = header, colClasses = colClasses)
   colnames(res)[1] = "label"
 
   # Order label factor by order in label col
@@ -224,45 +226,50 @@ read.pvalues <-
 }
 
 panel.pvalues <-
-  function(x, y, groups, subscripts, reference = 0.01,
-           scale.fun = function(...){...}, ...)
+  function(x, y, reference = 0.01, colors = NULL, ...)
 {
-  ref.x <- scale.fun(reference)
-  panel.refline(v = ref.x, ...)
-  panel.axis(side = "bottom", at = c(ref.x), outside = TRUE,
-             labels = c(paste("p = ", as.character(reference))))
+
+  ref.x <- log10(reference)
+  panel.refline(v = ref.x)
+  #panel.axis(side = "bottom", at = c(ref.x), outside = TRUE,
+  #           labels = c(paste("p = ", as.character(reference))))
   special = is.infinite(x)
-  panel.abline(h = y[special], lwd = 2, lty = 3, ...)
+  if (!is.null(colors)) {
+    col = colors[special]
+  } else {
+    col = NA
+  }
+  x[special] <- min(x[!special]) * 2
+  #panel.abline(x = c(-10, 1), h = y[special], col = col, lwd = 2, lty = 3, ...)
   
-  panel.barchart(x, y, groups = groups, subscripts = subscripts,
-                 stacked = FALSE, ...)
+  panel.barchart(x, y, stacked = FALSE, col = colors, ...)
 }
 
 barchart.pvalues <-
   function(data,
-           x = reorder(label, value) ~ value,
+           x = reorder(label, -value) ~ value,
            as.table = TRUE,
            main = "Approximate significance of overlap",
            panel = panel.pvalues,
-           xlab = "-log10(p-value)",
+           xlab = "p-value",
            ylab = "Segment label",
            reference = 0.01,
-           scale.fun = function(...) { -log10(...) },
+           colors = label.colors(data$label),
+           scales = list(x = list(log = TRUE)),
            ...)
 {
   data.melted <- melt(data, id.vars="label")
-  data.melted$value <- scale.fun(data.melted$value)
   xyplot(x = x,
          data = data.melted,
-         groups = variable,
          panel = panel,
          as.table = as.table,
          reference = reference,
          main = main,
-         scale.fun = scale.fun,
+         colors = colors,
+         scales = scales,
          xlab = xlab,
          ylab = ylab,
-         par.settings = list(clip = list(panel = "off")),
+         #par.settings = list(clip = list(panel = "off")),
          ...)
 }
 
