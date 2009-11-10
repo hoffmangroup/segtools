@@ -58,7 +58,8 @@ def segmentation_lengths(segmentation):
     for segments in segmentation.chromosomes.itervalues():
         for label_key in labels.iterkeys():
             # XXX: Do this without the kludgy constants
-            labeled_row_indexes = (segments[:, SEGMENT_LABEL_KEY_COL] == label_key)
+            labeled_row_indexes = (segments[:, SEGMENT_LABEL_KEY_COL] == \
+                                       label_key)
             labeled_rows = segments[labeled_row_indexes]
             lengths[label_key].append(labeled_rows[:, SEGMENT_END_COL] -
                                       labeled_rows[:, SEGMENT_START_COL])
@@ -113,7 +114,7 @@ def save_summary_tab(lengths, labels, num_bp, dirpath,
 def make_row(label, length):
     return {"label": label,
             "length": length}
-        
+
 def save_tab(lengths, labels, num_bp, dirpath, clobber=False):
     # fix order for iterating through dict; must be consistent
     label_keys = sorted(labels.keys())
@@ -126,7 +127,7 @@ def save_tab(lengths, labels, num_bp, dirpath, clobber=False):
     # the length
     labels_array = concatenate([[labels[label_key]] * len(lengths[label_key])
                                for label_key in label_keys])
-    
+
     with tab_saver(dirpath, NAMEBASE, FIELDNAMES, clobber=clobber) as saver:
         for label, length in zip(labels_array, lengths_array):
             row = make_row(label, length)
@@ -143,7 +144,8 @@ def save_plot(num_labels, dirpath, clobber=False, mnemonics=[]):
 
     with image_saver(dirpath, NAMEBASE,
                      width=PNG_WIDTH,
-                     height=num_labels * PNG_HEIGHT_PER_LABEL + PNG_HEIGHT_BASE,
+                     height=num_labels * PNG_HEIGHT_PER_LABEL + \
+                         PNG_HEIGHT_BASE,
                      clobber=clobber):
         r.plot(r["plot.length"](tabfilename, mnemonics=mnemonics))
 
@@ -174,9 +176,9 @@ def validate(bedfilename, dirpath, clobber=False, replot=False, noplot=False,
              mnemonicfilename=None):
     setup_directory(dirpath)
     segmentation = load_segmentation(bedfilename)
-    
+
     assert segmentation is not None
-    
+
     labels = segmentation.labels
     mnemonics = map_mnemonics(labels, mnemonicfilename)
 
@@ -192,23 +194,23 @@ def validate(bedfilename, dirpath, clobber=False, replot=False, noplot=False,
         save_size_plot(dirpath, clobber=clobber)
 
     save_html(dirpath, clobber=clobber)
-    
+
 def parse_options(args):
     from optparse import OptionParser
 
     usage = "%prog [OPTIONS] BEDFILE"
     version = "%%prog %s" % __version__
     parser = OptionParser(usage=usage, version=version)
-    
+
     parser.add_option("--clobber", action="store_true",
                       dest="clobber", default=False,
                       help="Overwrite existing output files if the specified"
                       " directory already exists.")
-    parser.add_option("--replot", action="store_true", 
+    parser.add_option("--replot", action="store_true",
                       dest="replot", default=False,
                       help="Load data from output tab files and"
                       " regenerate plots instead of recomputing data")
-    parser.add_option("--noplot", action="store_true", 
+    parser.add_option("--noplot", action="store_true",
                       dest="noplot", default=False,
                       help="Do not generate plots")
 
@@ -216,7 +218,7 @@ def parse_options(args):
                       default=None,
                       help="If specified, labels will be shown using"
                       " mnemonics found in this file")
-    parser.add_option("-o", "--outdir", 
+    parser.add_option("-o", "--outdir",
                       dest="outdir", default="%s" % MODULE,
                       help="File output directory (will be created"
                       " if it does not exist) [default: %default]")
@@ -228,9 +230,9 @@ def parse_options(args):
 
     if options.noplot and options.replot:
         parser.error("noplot and replot are contradictory")
-        
+
     return (options, args)
-    
+
 ## Command-line entry point
 def main(args=sys.argv[1:]):
     (options, args) = parse_options(args)
@@ -239,6 +241,6 @@ def main(args=sys.argv[1:]):
     validate(bedfilename, options.outdir, clobber=options.clobber,
              replot=options.replot, noplot=options.noplot,
              mnemonicfilename=options.mnemonicfilename)
-        
+
 if __name__ == "__main__":
     sys.exit(main())
