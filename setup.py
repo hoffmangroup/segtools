@@ -5,7 +5,7 @@
 LONG_DESCRIPTION
 """
 
-__version__ = "0.1.2"
+__version__ = "0.1.1"
 
 # Copyright 2008-2009 Michael M. Hoffman <mmh1@washington.edu>
 
@@ -24,11 +24,10 @@ doclines = __doc__.splitlines()
 name, short_description = doclines[0].split(": ")
 long_description = "\n".join(doclines[2:])
 
-url = "http://noble.gs.washington.edu/proj/segtools/%s/" % name.lower()
+url = "http://noble.gs.washington.edu/proj/%s/" % name.lower()
 download_url = "%s%s-%s.tar.gz" % (url, name, __version__)
 
-dependency_links = ["http://noble.gs.washington.edu/proj/genomedata/",
-                    "http://pypi.python.org/packages/source/p/path.py/path-2.2.zip"]
+dependency_links = ["http://pypi.python.org/packages/source/p/path.py/path-2.2.zip"]
 
 classifiers = ["Natural Language :: English",
                "Programming Language :: Python"]
