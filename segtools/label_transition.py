@@ -435,7 +435,7 @@ def parse_options(args):
                      type="float", default=Q_THRESH,
                      help="ignore transitions with probabilities below this"
                      " probability quantile [default: %default]")
-    group.add_option("-g", "--gene-graph", dest="gene_graph",
+    group.add_option("--gene-graph", dest="gene_graph",
                      default=False, action="store_true",
                      help="Make each node of the graph a reference to a .ps"
                      " image an \"image\" subdirectory. Currently, these .ps"
@@ -443,12 +443,11 @@ def parse_options(args):
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Non-segmentation files")
-    parser.add_option("--gmtk-params", dest="gmtk_file",
-                      default=None,
+    group.add_option("-g", "--gmtk-params", dest="gmtk_file", default=None,
                       help="If specified, parameters in the given GMTK"
                       " file will be used to generate plots instead of the"
                       " observed transitions in the BEDFILE. The BEDFILE"
-                      " will not be used")
+                      " will not be used and is not required.")
     parser.add_option_group(group)
 
     (options, args) = parser.parse_args(args)
