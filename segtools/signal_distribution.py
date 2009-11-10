@@ -358,7 +358,7 @@ def save_plot(num_tracks, num_labels, segtracks, dirpath,
     if ecdf:
         mode = "ecdf"
     else:
-        mode = "normalized"
+        mode = "histogram"
 
     # XXX: Figure out num_tracks and num_labels from file
     with image_saver(dirpath, basename,

@@ -339,7 +339,6 @@ Skipping significance statistics." % regionfilename
 
         if quick: break
 
-    print >> sys.stderr, str(p_values)
     return p_values
 
 def make_tab_row(row_labels, row_key, col_labels, col_ordered_keys,
