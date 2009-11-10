@@ -33,14 +33,12 @@ import os
 import sys
 
 
-from contextlib import contextmanager
-from functools import partial
-from numpy import array, empty, sort, where, zeros
+from numpy import array, empty, where, zeros
 from subprocess import call
 from rpy2.robjects import r, rinterface, numpy2ri
 
 # XXX: Do this without the kludgy constants
-from .common import check_clobber, die, get_ordered_labels, image_saver, load_segmentation, load_genome, make_dotfilename, make_filename, make_pdffilename, make_pngfilename, make_namebase_summary, make_tabfilename, map_mnemonics, OutputMasker, r_source, SEGMENT_START_COL, SEGMENT_END_COL, SEGMENT_LABEL_KEY_COL, setup_directory, tab_saver
+from .common import check_clobber, die, get_ordered_labels, image_saver, load_segmentation, make_dotfilename, make_pdffilename, make_pngfilename, make_namebase_summary, make_tabfilename, map_mnemonics, r_source, SEGMENT_START_COL, SEGMENT_END_COL, SEGMENT_LABEL_KEY_COL, setup_directory, tab_saver
 
 from .html import save_html_div
 

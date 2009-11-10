@@ -18,9 +18,8 @@ import math
 import os
 import sys
 
-from collections import defaultdict
 from math import ceil
-from numpy import invert, logical_or, minimum, where, zeros
+from numpy import invert, logical_or, zeros
 from rpy2.robjects import r, numpy2ri
 
 # XXX: Do this without the kludgy constants
@@ -265,9 +264,9 @@ Skipping significance statistics."
         print >>sys.stderr, "Found GSC"
 
     from block_bootstrap import marginal_bp_overlap_stat, \
-        marginal_resample_region_overlap_stat, output
+        marginal_resample_region_overlap_stat
     block_bootstrap.output = OutputMasker()  # Block GSC stdout output
-    from encode import parse_bed_file, parse_lengths_file
+    from encode import parse_lengths_file
 
     if regionfilename is None:
         print >> sys.stderr, "A region file must be specified to use GSC. \

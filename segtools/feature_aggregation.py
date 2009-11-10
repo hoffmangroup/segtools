@@ -29,7 +29,7 @@ from operator import itemgetter
 from rpy2.robjects import r, numpy2ri
 
 # XXX: Do this without the kludgy constants
-from .common import die, fill_array, get_ordered_labels, image_saver, load_genome, load_gff_data, load_segmentation, make_tabfilename, map_mnemonics, map_segments, maybe_gzip_open, r_source, SEGMENT_START_COL, SEGMENT_END_COL, setup_directory, tab_saver
+from .common import die, fill_array, image_saver, load_gff_data, load_segmentation, make_tabfilename, map_mnemonics, map_segments, maybe_gzip_open, r_source, SEGMENT_START_COL, SEGMENT_END_COL, setup_directory, tab_saver
 
 from .html import list2html, save_html_div
 

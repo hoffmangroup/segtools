@@ -16,8 +16,8 @@ import os
 import sys
 
 from collections import defaultdict
-from numpy import array, zeros
-from rpy2.robjects import r, rinterface, numpy2ri
+from numpy import zeros
+from rpy2.robjects import r, numpy2ri
 
 # XXX: Do this without the kludgy constants
 from .common import die, get_ordered_labels, get_supercontig_splice, \

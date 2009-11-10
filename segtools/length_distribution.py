@@ -19,11 +19,11 @@ import os
 import sys
 
 from collections import defaultdict
-from numpy import array, concatenate, median
+from numpy import concatenate, median
 from rpy2.robjects import r, numpy2ri
 
 # XXX: Do this without the kludgy constants
-from .common import die, get_ordered_labels, image_saver, LABEL_ALL, load_segmentation, make_htmlfilename, make_namebase_summary, make_pngfilename, make_tabfilename, make_thumbfilename, map_mnemonics, r_source, SEGMENT_START_COL, SEGMENT_END_COL, SEGMENT_LABEL_KEY_COL, setup_directory, tab_saver
+from .common import die, get_ordered_labels, image_saver, LABEL_ALL, load_segmentation, make_namebase_summary, make_tabfilename, map_mnemonics, r_source, SEGMENT_START_COL, SEGMENT_END_COL, SEGMENT_LABEL_KEY_COL, setup_directory, tab_saver
 
 from .html import save_html_div
 

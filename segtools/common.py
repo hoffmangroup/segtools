@@ -20,7 +20,7 @@ from contextlib import closing, contextmanager
 from functools import partial
 from genomedata import Genome
 from gzip import open as _gzip_open
-from numpy import array, empty, iinfo
+from numpy import array, concatenate, empty, iinfo
 from operator import itemgetter
 from pkg_resources import resource_filename, resource_string
 from string import Template
