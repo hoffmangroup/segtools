@@ -114,13 +114,13 @@ panel.segment.sizes <-
 
 barchart.segment.sizes <- 
   function(data, 
-           x = frac.bp + frac.segs ~ reorder(label, frac.segs),
+           x = reorder(label, -(frac.segs + frac.bp)) ~ frac.bp + frac.segs,
            main = NULL, #"Segment sizes",
-           xlab = "Segmentation label",
-           ylab = "Fraction of segmentation",
+           xlab = "Fraction of segmentation",
+           ylab = "Segment label",
            panel = panel.segment.sizes,
            as.table = TRUE,
-           ylim = c(0, max.y),
+           xlim = c(0, max.frac),
            col = c("red", "blue"),
            auto.key = list(space = "top", 
                            columns = 2, 
@@ -131,7 +131,7 @@ barchart.segment.sizes <-
            ...)
 {
   
-  max.y <- min(c(1, 1.05 * max(c(data$frac.bp, data$frac.segs))))
+  max.frac <- min(c(1, 1.05 * max(c(data$frac.bp, data$frac.segs))))
 
   barchart(x = x, 
            data = data,
@@ -140,7 +140,7 @@ barchart.segment.sizes <-
            ylab = ylab,
            panel = panel,
            as.table = as.table,
-           ylim = ylim,
+           xlim = xlim,
            auto.key = auto.key,
            par.settings = par.settings,
            ...)
@@ -150,5 +150,5 @@ plot.segment.sizes <-
   function(filename, ...)
 {
   data <- read.segment.sizes(filename)
-  barchart.segment.sizes(data = data)
+  barchart.segment.sizes(data = data, ...)
 }
