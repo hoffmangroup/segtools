@@ -556,19 +556,18 @@ def load_gff_data(gff_filename, sort=True):
 
     return data
 
-def load_segmentation(filename, checknames=True):
+def load_segmentation(filename, checknames=True, verbose=True):
     """Returns a segmentation object derived from the given BED file
 
     If the labels in the BED file are all integers, the label_keys will
-      be integer representations of those labels (unless checknames is False).
-    If all of the labels are non-integers, the label_keys will be
+      be integer representations of those labels.
+    If any of the labels are non-integers, the label_keys will be
       integers corresponding to the order observed.
-    If there are some integer and some string labels, an error will be raised
-      (unless checknames is False).
     """
 
-    print >>sys.stderr, "Loading segmentation...",
-    sys.stdout.flush()
+    if verbose:
+        print >>sys.stderr, "Loading segmentation...",
+        sys.stdout.flush()
 
     # first get the tracks that were used for this segmentation
     segtool, tracks = get_bed_metadata(filename)
@@ -576,33 +575,49 @@ def load_segmentation(filename, checknames=True):
     data = defaultdict(list)  # A dictionary-like object
     label_dict = {}
     # read in as lists of tuples
-    with maybe_gzip_open(filename) as infile:
-        for datum in read_native(infile):
-            label = str(datum.name)
-            try:  # Lookup label key
-                label_key = label_dict[label]
-            except KeyError:  # Map new label to key
-                if checknames:
+
+    # Start by assuming integer labels
+    if checknames:
+        with maybe_gzip_open(filename) as infile:
+            for datum in read_native(infile):
+                label = datum.name
+                try:
+                    label_key = label_dict[label]
+                except KeyError:  # Map new label to key
                     try:
                         label_key = int(label)
-                    except ValueError:
+                        label_dict[label] = label_key
+                    except ValueError:  # Not all labels are integers!
+                        print >>sys.stderr, \
+                            ("Warning: found non-integer label: %s" % label,
+                             "\n Treating all labels as strings")
+                        data = defaultdict(list)
+                        label_dict = {}
                         checknames = False
-                        if len(label_dict) > 0:  # Previous int labels found
-                            die("Found both integer and string labels in BED"
-                                "file: %s" % filename)
-                if not checknames:  # Sequential if's important
+                        break
+
+                segment = (datum.chromStart, datum.chromEnd, label_key)
+                data[datum.chrom].append(segment)
+
+    if not checknames:
+        with maybe_gzip_open(filename) as infile:
+            for datum in read_native(infile):
+                label = str(datum.name)
+                try:  # Lookup label key
+                    label_key = label_dict[label]
+                except KeyError:  # Map new label to key
                     label_key = len(label_dict)
+                    label_dict[label] = label_key
 
-                label_dict[label] = label_key
-
-            segment = (datum.chromStart, datum.chromEnd, label_key)
-            data[datum.chrom].append(segment)
+                segment = (datum.chromStart, datum.chromEnd, label_key)
+                data[datum.chrom].append(segment)
 
     # Create reverse dict for return
     labels = dict((val, key) for key, val in label_dict.iteritems())
-    print >>sys.stderr, "\nMapping names to integers"
-    for key, label in labels.iteritems():
-        print >>sys.stderr, "\"%s\" -> %d" % (label, key)
+    if verbose:
+        print >>sys.stderr, "\nMapping names to integers"
+        for key, label in labels.iteritems():
+            print >>sys.stderr, "\"%s\" -> %d" % (label, key)
 
     # Sort segments within each chromosome by start index
     for segments in data.itervalues():
@@ -612,7 +627,8 @@ def load_segmentation(filename, checknames=True):
     chromosomes = dict((chrom, array(segments))
                        for chrom, segments in data.iteritems())
 
-    print >>sys.stderr, "done."
+    if verbose:
+        print >>sys.stderr, "done."
     # wrap in a Segmentation object
     return Segmentation(chromosomes, labels, tracks, segtool)
 

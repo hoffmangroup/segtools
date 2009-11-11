@@ -34,6 +34,7 @@ classifiers = ["Natural Language :: English",
 
 entry_points = """
 [console_scripts]
+segtools-bed-compare = segtools.bed_compare:main
 segtools-feature-aggregation = segtools.feature_aggregation:main
 segtools-label-transition = segtools.label_transition:main
 segtools-length-distribution = segtools.length_distribution:main
