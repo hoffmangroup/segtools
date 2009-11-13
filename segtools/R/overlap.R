@@ -88,7 +88,7 @@ panel.overlap <-
                col = colors,
                pos = pos,
                offset = offset,
-               #cex = 0.9,
+               #cex = c(0.2, 0.9),
                ...)
   }
 
@@ -156,8 +156,8 @@ write.stats <-
 xyplot.overlap <-
   function(x = tpr ~ fpr | factor, 
            data,
-           small.cex = 1.8,
-           large.cex = 2.0,
+           small.cex = 1.0,
+           large.cex = 1.0,
            as.table = TRUE,
            aspect = "iso",
            auto.key = FALSE, #list(space = "right"),
@@ -225,24 +225,17 @@ read.pvalues <-
   res
 }
 
-panel.pvalues <-
-  function(x, y, reference = 0.01, colors = NULL, ...)
+panel.pvalues <- function(x, y, subscripts = NULL, groups = NULL,
+                          reference = 0.01, colors = NULL, ...)
 {
-
   ref.x <- log10(reference)
   panel.refline(v = ref.x)
-  #panel.axis(side = "bottom", at = c(ref.x), outside = TRUE,
-  #           labels = c(paste("p = ", as.character(reference))))
-  special = is.infinite(x)
-  if (!is.null(colors)) {
-    col = colors[special]
-  } else {
-    col = NA
-  }
-  x[special] <- min(x[!special]) * 2
-  #panel.abline(x = c(-10, 1), h = y[special], col = col, lwd = 2, lty = 3, ...)
-  
-  panel.barchart(x, y, stacked = FALSE, col = colors, ...)
+  out.of.bounds = is.infinite(x)
+  x[out.of.bounds] <- min(x[!out.of.bounds]) * 2
+
+  print(colors)
+  panel.barchart(x, y, subscripts = subscripts, groups = groups,
+                 stacked = FALSE, col = colors[y], ...)
 }
 
 barchart.pvalues <-
@@ -255,12 +248,15 @@ barchart.pvalues <-
            ylab = "Segment label",
            reference = 0.01,
            origin = 0,
-           auto.key = if (nlevels(data$variable) > 1) { TRUE } else { FALSE },
-           colors = label.colors(data$label),
+           auto.key = if (nlevels(data.melted$variable) > 1) {
+             list(points = FALSE)
+           } else { FALSE },
+           colors = label.colors(data.melted$label),
            scales = list(x = list(log = TRUE)),
            ...)
 {
-  data.melted <- melt(data, id.vars="label")
+  data.melted <- melt(data, id.vars = "label")
+  colors <- with(data.melted, reorder(colors, -value))
   xyplot(x = x,
          data = data.melted,
          group = variable,
@@ -278,7 +274,13 @@ barchart.pvalues <-
          ...)
 }
 
-plot.overlap.pvalues <- 
+plot.overlap.pvalues <- function(tabfile, mnemonics = NULL, ...)
+{
+  pvalues <- read.pvalues(tabfile, mnemonics = mnemonics)
+  barchart.pvalues(pvalues, ...)
+}
+
+plot.overlap.pvalues <-
   function(tabfile, mnemonics = NULL, ...)
 {
   pvalues <- read.pvalues(tabfile, mnemonics = mnemonics)

@@ -4,8 +4,9 @@ library(lattice)
 library(latticeExtra)
 library(grid)
 
-read.signal <- function(filename, mnemonics = NULL, ...) {
-  res <- read.delim(filename, ...)
+read.signal <- function(filename, mnemonics = NULL, ...,
+                        colClasses = list(label = "character")) {
+  res <- read.delim(filename, ..., colClasses = colClasses)
   res$label <- factor(res$label)    # adds a label attribute
 
   # Replace labels with mnemonics, if supplied
@@ -119,7 +120,7 @@ panel.scales <- function(data, layout, log.y = TRUE, mode = "histogram",
       limits.x <- c(limits.x, list(c(min.x, max.x)))
       at.x.pretty <- unlist(at.pretty(from = min.x, to = max.x, length = 10))
       at.x <- c(at.x, list(c(0, tail(at.x.pretty, n = 1))))
-      print(paste(max(count.subset$lower_edge), " ---> ", max.x))
+      ## print(paste(max(count.subset$lower_edge), " ---> ", max.x))
     }
     scale.y$log <- FALSE
   }
@@ -191,6 +192,7 @@ xyplot.signal <-
   }
 
   if (mode == "normalized") {
+    print("Normalizing data")
     group.sums <- with(data,
                        aggregate(count, list(trackname, label), sum.nona))$x
     group.size <- with(data,
@@ -203,27 +205,30 @@ xyplot.signal <-
 
   # this computes the sum of the counts, for the "all" label
   if (mode == "histogram" || mode == "ecdf") {
+    print("Aggregating over all labels")
     labelsums <- with(data, aggregate(count, list(trackname, lower_edge), sum))
-    names(labelsums) <- sub("^x$", "count", names(labelsums))
-    labelsums$label <- "all"
+    names(labelsums) <- c("trackname", "lower_edge", "count")
+    labelsums$label <- factor("all")
     data.full <- rbind(data, labelsums)
     data.full$label <- relevel(data.full$label, ref = "all") 
   } else {
     data.full <- data
   }
 
+  print("Setting up plot layout")
   num_rows <- length(levels(data.full$label))
   num_cols <- length(levels(data.full$trackname))
   layout <- c(num_rows, num_cols)
-
-  scales <- panel.scales(data.full, layout, log.y = log.y, mode = mode)
-
   # Remove space between panels (where axes were)
   axis.panel <- rep(c(0, 1), c(num_rows - 1, 1))
   # Make strips wider and longer to fit full text
   strips.heights <- rep(c(strip.height, 0), c(1, num_rows - 1))
   strips.widths <- rep(c(strip.width, 0), c(1, num_cols - 1))
+  
+  print("Calculating plot scales")
+  scales <- panel.scales(data.full, layout, log.y = log.y, mode = mode)
 
+  print("Plotting...")
   trellis <- xyplot(x = x,
                     data = data.full,
                     scales = scales,      

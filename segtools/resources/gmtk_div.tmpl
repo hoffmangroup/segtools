@@ -1,0 +1,50 @@
+<div class="module" id="$id">
+  <h2><a href="#">^</a>  $title</h2>
+  <ul>
+    <li> Label transition frequencies:<br />
+      This is a matrix of transition frequencies or probabilities between 
+      every pair of segment labels.<br />
+      The color of the intersection between row 1 and column 2
+      represents the probability (or observed frequency) of transitioning
+      from label 1 to the label 2.<br />
+      For most segmentation methods, self-loops are not generated, so
+      there should be 0-values along the diagonal.
+      <br />
+      <a href="$slidefilename">
+        <img src="$thumbfilename" />
+      </a>
+      <br />
+      [ <a href="$pngfilename">PNG</a> ]
+      [ <a href="$slidefilename">SLIDE</a> ]
+      [ <a href="$pdffilename">PDF</a> ]
+    </li><br />
+    <li> Transition graph (only transitions with <code>$thresh</code> shown):
+      <br />
+      <a href="$graphpngfilename">
+        <img style="width:100; height:100" src="$graphpngfilename" />
+      </a>
+      <br />
+      [ <a href="$graphpngfilename">PNG</a> ]
+      [ <a href="$graphpdffilename">PDF</a> ]
+      [ <a href="$graphdotfilename">DOT</a> ]
+    </li><br />
+    <li> Theoretical parameters for each track: <br />
+      For every track (row) and label (column), the intersect shows the mean
+      and standard deviation of the signal data for that track over segments
+      of that label. The mean is shown as the background color and the
+      standard deviation is representated by the width of the rectangle inside.
+      The two colors inside this rectangle correspond to the mean +/- 1
+      standard deviation. 
+      <a href="$statsslidefilename">
+        <img src="$statsthumbfilename" />
+      </a>
+      <br />
+      [ <a href="$statspngfilename">PNG</a> ]
+      [ <a href="$statsslidefilename">SLIDE</a> ]
+      [ <a href="$statspdffilename">PDF</a> ]
+    </li><br />
+    <li> Parameters read from the following GMTK parameter file:<br />
+      <a href="$gmtk_file">$gmtk_file</a>
+    </li>
+  </ul>
+</div>

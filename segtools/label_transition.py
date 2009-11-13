@@ -33,15 +33,14 @@ import os
 import sys
 
 
-from numpy import array, empty, where, zeros
+from numpy import empty, where, zeros
 from subprocess import call
-from rpy2.robjects import r, rinterface, numpy2ri
+from rpy2.robjects import r, numpy2ri
 
 # XXX: Do this without the kludgy constants
 from .common import check_clobber, die, get_ordered_labels, image_saver, load_segmentation, make_dotfilename, make_pdffilename, make_pngfilename, make_namebase_summary, make_tabfilename, map_mnemonics, r_source, SEGMENT_START_COL, SEGMENT_END_COL, SEGMENT_LABEL_KEY_COL, setup_directory, tab_saver
-
 from .html import save_html_div
-
+from .mnemonics import create_mnemonic_file
 
 NAMEBASE = "%s" % MODULE
 NAMEBASE_SUMMARY = make_namebase_summary(NAMEBASE)
@@ -148,52 +147,30 @@ def save_html(dirpath, p_thresh, q_thresh, clobber=False):
                   module=MODULE, extra_namebases=extra_namebases,
                   title=HTML_TITLE, thresh=thresh)
 
-def save_plot(dirpath, ddgram=False, clobber=False, mnemonics=[],
-              verbose=False):
-    start_R()
-
-    tabfilename = make_tabfilename(dirpath, NAMEBASE)
-    if not os.path.isfile(tabfilename):
-        die("Unable to find tab file: %s" % tabfilename)
-
-    with image_saver(dirpath, NAMEBASE,
-                     height=PNG_SIZE,
-                     width=PNG_SIZE,
-                     clobber=clobber,
-                     verbose=verbose):
-        r.plot(r["plot.transition"](tabfilename,
-                                    mnemonics=mnemonics,
-                                    ddgram=ddgram))
-
-def plot_gmtk_transitions(filename, dirpath, clobber=False, verbose=False,
-                          mnemonics=[]):
-    """Plots transition probabilities from gmtk params file.
+def save_plot(dirpath, basename=NAMEBASE, datafilename=None, ddgram=False,
+              clobber=False, mnemonics=[], verbose=False, gmtk=False):
     """
-    assert filename is not None and os.path.isfile(filename)
-
+    if datafilename is specified, it is used instead of dirpath/basename.tab
+    """
     start_R()
 
-    # Plot transition probabilies
-    with image_saver(dirpath, NAMEBASE,
+    if datafilename is None:
+        datafilename = make_tabfilename(dirpath, basename)
+
+    if not os.path.isfile(datafilename):
+        die("Unable to find tab file: %s" % datafilename)
+
+    with image_saver(dirpath, basename,
                      height=PNG_SIZE,
                      width=PNG_SIZE,
                      clobber=clobber,
                      verbose=verbose):
-        r.plot(r["plot.gmtk.transition"](filename,
-                                         mnemonics=mnemonics))
-
-    # Plot track parameters
-    with image_saver(dirpath, NAMEBASE_PARAMS,
-                     height=PNG_SIZE_PARAMS,
-                     width=PNG_SIZE_PARAMS,
-                     clobber=clobber,
-                     verbose=verbose):
-        r.plot(r["plot.gmtk.params"](filename,
-                                     mnemonics=mnemonics))
+        r.plot(r["plot.transition"](datafilename, mnemonics=mnemonics,
+                                    ddgram=ddgram, gmtk=gmtk))
 
 def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
                clobber=False, mnemonics=[], fontname="Helvetica",
-               lenient_thresh=True, gene_graph=False):
+               lenient_thresh=True, gene_graph=False, basename=NAMEBASE_GRAPH):
     assert labels is not None and probs is not None
     try:
         import pygraphviz as pgv
@@ -202,11 +179,11 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
                              " Skipping transition graph")
         return
 
-    dotfilename = make_dotfilename(dirpath, NAMEBASE_GRAPH)
+    dotfilename = make_dotfilename(dirpath, basename)
     check_clobber(dotfilename, clobber)
-    pngfilename = make_pngfilename(dirpath, NAMEBASE_GRAPH)
+    pngfilename = make_pngfilename(dirpath, basename)
     check_clobber(pngfilename, clobber)
-    pdffilename = make_pdffilename(dirpath, NAMEBASE_GRAPH)
+    pdffilename = make_pdffilename(dirpath, basename)
     check_clobber(pdffilename, clobber)
 
     # Replace labels with mnemonic labels, if mnemonics are given
@@ -242,8 +219,9 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
                    penwidth=str(EDGE_WEIGHT * weight),
                    arrowsize=str(ARROW_WEIGHT * weight))
 
+    G.node_attr.update(fontname=fontname)
     if gene_graph:
-        G.node_attr.update(fontname=fontname, shape="plaintext")
+        G.node_attr.update(shape="plaintext")
         ps_dir = os.path.join(os.path.split(dirpath)[0], "images")
         for node in G.nodes():
             node.attr["image"] = "%s/%s.ps" % (ps_dir, str(node))
@@ -276,104 +254,25 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
 
     print >>sys.stderr, "done"
 
-def create_mnemonic_file(gmtk_file, dirpath, clobber=False, namebase=None):
-    """Generate a mnemonic file for GMTK params with R clustering code.
-
-    Calls R code that writes mnemonics to a file.
-    Returns name of created mnemonic file
-    """
-    start_R()
-
-    if namebase is None:
-        gmtk_filebase = os.path.basename(gmtk_file)
-        if gmtk_filebase.endswith(".params"):
-            namebase = gmtk_filebase[:-7]
-        else:
-            namebase = gmtk_filebase
-
-    mnemonic_base = os.extsep.join([namebase, "mnemonics"])
-
-    filename = make_tabfilename(dirpath, mnemonic_base)
-    check_clobber(filename, clobber)
-
-    # Create mnemonic file via R
-    try:
-        r_filename = r["make.gmtk.mnemonic.file"](gmtk_file, filename=filename)
-        mnemonicfilename = str(r_filename[0])
-
-        print >>sys.stderr, "Generated mnemonic file: %s" % mnemonicfilename
-        return mnemonicfilename
-    except rinterface.RRuntimeError:
-        print >>sys.stderr, ("ERROR: Failed to create mnemonic file."
-                             " Continuing without mnemonics.")
-        return None
-
-def get_num_gmtk_labels(gmtk_file):
-    """Load number of labels from gmtk params file."""
-    start_R()
-
-    num_labels = int(r["num.gmtk.labels"](gmtk_file)[0])
-    return num_labels
-
-def get_default_labels(num_labels):
-    """Generate default labels (0 through num_labels-1)"""
-    return dict([(val, str(val)) for val in range(0, num_labels)])
-
-def load_gmtk_transitions(gmtk_file):
-    """Loads probabilites from a gmtk_file, through R.
-
-    Returns probs as a numpy.array
-    """
-    start_R()
-
-    r_data = r["read.gmtk.transition"](gmtk_file)
-    # Rpy automatically transposes, so need to transpose it back
-    probs = array(r_data, dtype="double").transpose()
-    return probs
-
-
-## Package entry point
-def validate_gmtk(gmtk_file, dirpath, ddgram=False, p_thresh=P_THRESH,
-                  q_thresh=Q_THRESH, noplot=False, nograph=False,
-                  gene_graph=False, clobber=False, mnemonicfilename=None):
-    setup_directory(dirpath)
-
-    if not os.path.isfile(gmtk_file):
-        die("Could not find GMTK file: %s" % gmtk_file)
-
-    # If mnemonics weren't specified, let's create a mnemonic file!
-    if mnemonicfilename is None:
-        mnemonicfilename = create_mnemonic_file(gmtk_file, dirpath,
-                                                clobber=clobber)
-
-    num_labels = get_num_gmtk_labels(gmtk_file)
-    labels = get_default_labels(num_labels)
-    mnemonics = map_mnemonics(labels, mnemonicfilename)
-
-    if not noplot:
-        plot_gmtk_transitions(gmtk_file, dirpath, mnemonics=mnemonics,
-                              clobber=clobber)
-
-    if not nograph:
-        probs = load_gmtk_transitions(gmtk_file)
-        save_graph(labels, probs, dirpath, clobber=clobber,
-                   p_thresh=p_thresh, q_thresh=q_thresh,
-                   gene_graph=gene_graph, mnemonics=mnemonics)
-
-    save_html(dirpath, p_thresh=p_thresh, q_thresh=q_thresh,
-              clobber=clobber)
-
 ## Package entry point
 def validate(bedfilename, dirpath, ddgram=False, p_thresh=P_THRESH,
              q_thresh=Q_THRESH, noplot=False, nograph=False,
-             gene_graph=False, clobber=False, mnemonicfilename=None):
+             gene_graph=False, clobber=False, gmtk=False,
+             mnemonicfilename=None):
     setup_directory(dirpath)
 
-    segmentation = load_segmentation(bedfilename)
-    assert segmentation is not None
+    if gmtk:
+        from .gmtk_parameters import load_gmtk_transitions
+        labels, probs = load_gmtk_transitions(bedfilename)
+        if mnemonicfilename is None:
+            mnemonicfilename = create_mnemonic_file(bedfilename, dirpath,
+                                                    clobber=clobber, gmtk=gmtk)
+    else:
+        segmentation = load_segmentation(bedfilename)
+        assert segmentation is not None
 
-    # Calculate transition probabilities for each label
-    labels, probs = calc_transitions(segmentation)
+        # Calculate transition probabilities for each label
+        labels, probs = calc_transitions(segmentation)
 
     mnemonics = map_mnemonics(labels, mnemonicfilename)
     save_summary_tab(labels, probs, dirpath,
@@ -398,24 +297,29 @@ def parse_options(args):
     version = "%%prog %s" % __version__
     parser = OptionParser(usage=usage, version=version)
 
-    parser.add_option("--clobber", action="store_true",
-                      dest="clobber", default=False,
-                      help="Overwrite existing output files if the specified"
-                      " directory already exists.")
-    parser.add_option("--noplot", action="store_true",
-                      dest="noplot", default=False,
-                      help="Do not generate transition plots")
-    parser.add_option("--nograph", action="store_true",
-                      dest="nograph", default=False,
-                      help="Do not generate transition graph")
-    parser.add_option("--mnemonic-file", dest="mnemonic_file",
-                      default=None,
-                      help="If specified, labels will be shown using"
-                      " mnemonics found in this file")
-    parser.add_option("-o", "--outdir",
-                      dest="outdir", default="%s" % MODULE,
-                      help="File output directory (will be created"
-                      " if it does not exist) [default: %default]")
+    group = OptionGroup(parser, "Flags")
+    group.add_option("--clobber", action="store_true",
+                     dest="clobber", default=False,
+                     help="Overwrite existing output files if the specified"
+                     " directory already exists.")
+    group.add_option("--noplot", action="store_true",
+                     dest="noplot", default=False,
+                     help="Do not generate transition plots")
+    group.add_option("--nograph", action="store_true",
+                     dest="nograph", default=False,
+                     help="Do not generate transition graph")
+    parser.add_option_group(group)
+
+    group = OptionGroup(parser, "Output")
+    group.add_option("--mnemonic-file", dest="mnemonic_file",
+                     default=None,
+                     help="If specified, labels will be shown using"
+                     " mnemonics found in this file")
+    group.add_option("-o", "--outdir",
+                     dest="outdir", default="%s" % MODULE,
+                     help="File output directory (will be created"
+                     " if it does not exist) [default: %default]")
+    parser.add_option_group(group)
 
     group = OptionGroup(parser, "Transition frequency plot options")
     group.add_option("--dd", "--dendrogram", dest="ddgram",
@@ -441,17 +345,17 @@ def parse_options(args):
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Non-segmentation files")
-    group.add_option("-g", "--gmtk-params", dest="gmtk_file", default=None,
-                      help="If specified, parameters in the given GMTK"
-                      " file will be used to generate plots instead of the"
-                      " observed transitions in the BEDFILE. The BEDFILE"
-                      " will not be used and is not required.")
+    group.add_option("-g", "--gmtk", action="store_true",
+                     dest="gmtk", default=False,
+                     help="The BEDFILE argument will instead be treated as"
+                     " a GMTK parameter file. If a mnemonic file is not"
+                     " specified, one will be created and used.")
     parser.add_option_group(group)
 
     (options, args) = parser.parse_args(args)
 
-    if len(args) < 1 and options.gmtk_file is None:
-        parser.error("Insufficient number of arguments")
+    if len(args) != 1:
+        parser.error("Inappropriate number of arguments")
 
     if options.p_thresh > 0 and options.q_thresh > 0:
         parser.error("Cannot specify both absolute and quantile thresholds")
@@ -466,20 +370,17 @@ def parse_options(args):
 def main(args=sys.argv[1:]):
     (options, args) = parse_options(args)
 
-    if options.gmtk_file is not None:
-        validate_gmtk(options.gmtk_file, options.outdir,
-                      p_thresh=options.p_thresh, q_thresh=options.q_thresh,
-                      clobber=options.clobber, noplot=options.noplot,
-                      nograph=options.nograph, gene_graph=options.gene_graph,
-                      mnemonicfilename=options.mnemonic_file)
-
-    else:
-        bedfilename=args[0]
-        validate(bedfilename, options.outdir, ddgram=options.ddgram,
-                 p_thresh=options.p_thresh, q_thresh=options.q_thresh,
-                 clobber=options.clobber, noplot=options.noplot,
-                 nograph=options.nograph, gene_graph=options.gene_graph,
-                 mnemonicfilename=options.mnemonic_file)
+    args = [args[0], options.outdir]
+    kwargs = {"ddgram": options.ddgram,
+              "p_thresh": options.p_thresh,
+              "q_thresh": options.q_thresh,
+              "clobber": options.clobber,
+              "noplot": options.noplot,
+              "nograph": options.nograph,
+              "gene_graph": options.gene_graph,
+              "gmtk": options.gmtk,
+              "mnemonicfilename": options.mnemonic_file}
+    validate(*args, **kwargs)
 
 if __name__ == "__main__":
     sys.exit(main())

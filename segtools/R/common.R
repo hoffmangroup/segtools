@@ -1,6 +1,7 @@
 library(grDevices)
 library(lattice)
 library(RColorBrewer)
+library(latticeExtra)
 
 # Set default theme
 lattice.options(default.theme = "theme.dark2",
@@ -73,11 +74,15 @@ labels.classify <-
       labels.split[i, 1:2] <- label[1:2]
     } else {
       ## Splitting didn't work. Try treating like normal mnemonics (e.g. TF0)
-      match <- regexpr("[0-9]+$", label)
+      match <- regexpr("^[a-zA-Z]+", label)
       match.len <- attributes(match)$match.length
       if (match.len > 0) {
-        labels.split[i, 1] <- substring(label, 1, match - 1)
-        labels.split[i, 2] <- substring(label, match, nchar(label))
+        labels.split[i, 1] <- substring(label, 1, match.len)
+        if (nchar(label) > match.len) {
+          labels.split[i, 2] <- substring(label, match.len + 1, nchar(label))
+        } else {
+          labels.split[i, 2] <- "0"
+        }
       } else {
         labels.split[i, 1] <- label
         labels.split[i, 2] <- "0"
@@ -120,9 +125,24 @@ smart.factor.reorder <- function(field) {
                    as.character(levels.int) == as.character(levels.raw))
   levels.full <- c(sort(levels.int[levels.valid]), 
                    sort(levels.raw[!levels.valid]))
-
   # Reordered factor
   factor(field, levels=levels.full)
+}
+
+## Create a dendrogram legend
+ddgram.legend <- function(dd.row, dd.col, row.ord, col.ord)
+{
+  legend <-
+    list(right = list(fun = dendrogramGrob,
+           args = list(x = dd.row, 
+             ord = row.ord,
+             side = "right",
+             size = 10)),
+         top = list(fun = dendrogramGrob,
+           args = list(x = dd.col, 
+             ord = col.ord,
+             side = "top")))
+  legend
 }
 
 theme.dark2 <- function() {

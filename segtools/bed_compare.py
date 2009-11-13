@@ -8,12 +8,11 @@ Tools for comparing two bed files.
 
 """
 
-__version__ = "$Revision: 151 $"
+__version__ = "$Revision$"
 
-import os
 import sys
 
-from .common import die, load_segmentation, SEGMENT_START_COL, SEGMENT_END_COL, SEGMENT_LABEL_KEY_COL
+from .common import die, load_segmentation, SEGMENT_START_COL, SEGMENT_END_COL
 
 def bases_in_segments(segments):
     """Return the number of bases in a segment array"""
