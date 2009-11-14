@@ -256,7 +256,7 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
 
 ## Package entry point
 def validate(bedfilename, dirpath, ddgram=False, p_thresh=P_THRESH,
-             q_thresh=Q_THRESH, noplot=False, nograph=False,
+             q_thresh=Q_THRESH, replot=False, noplot=False, nograph=False,
              gene_graph=False, clobber=False, gmtk=False,
              mnemonicfilename=None):
     setup_directory(dirpath)
@@ -271,13 +271,19 @@ def validate(bedfilename, dirpath, ddgram=False, p_thresh=P_THRESH,
         segmentation = load_segmentation(bedfilename)
         assert segmentation is not None
 
-        # Calculate transition probabilities for each label
-        labels, probs = calc_transitions(segmentation)
+        if replot:
+            labels = segmentation.labels
+        else:
+            # Calculate transition probabilities for each label
+            labels, probs = calc_transitions(segmentation)
 
     mnemonics = map_mnemonics(labels, mnemonicfilename)
-    save_summary_tab(labels, probs, dirpath,
-                     clobber=clobber, mnemonics=mnemonics)
-    save_tab(labels, probs, dirpath, clobber=clobber)
+
+    if not replot:
+        save_summary_tab(labels, probs, dirpath,
+                         clobber=clobber, mnemonics=mnemonics)
+        save_tab(labels, probs, dirpath, clobber=clobber)
+
     if not noplot:
         save_plot(dirpath, ddgram=ddgram,
                   clobber=clobber, mnemonics=mnemonics)
@@ -302,6 +308,9 @@ def parse_options(args):
                      dest="clobber", default=False,
                      help="Overwrite existing output files if the specified"
                      " directory already exists.")
+    group.add_option("--replot", action="store_true",
+                     dest="replot", default=False,
+                     help="Regenerate graphs/plots from tab files")
     group.add_option("--noplot", action="store_true",
                      dest="noplot", default=False,
                      help="Do not generate transition plots")
@@ -375,6 +384,7 @@ def main(args=sys.argv[1:]):
               "p_thresh": options.p_thresh,
               "q_thresh": options.q_thresh,
               "clobber": options.clobber,
+              "replot": options.replot,
               "noplot": options.noplot,
               "nograph": options.nograph,
               "gene_graph": options.gene_graph,
