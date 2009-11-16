@@ -635,14 +635,14 @@ def main(args=sys.argv[1:]):
               "clobber": options.clobber,
               "quick": options.quick,
               "replot": options.replot,
-              "noplot": options.noplot}
+              "noplot": options.noplot,
               "by": options.by,
               "min_overlap": options.min_overlap,
               "samples": options.samples,
               "min_overlap_fraction": options.min_overlap_fraction,
               "region_fraction": options.region_fraction,
               "subregion_fraction": options.subregion_fraction,
-              "mnemonicfilename": options.mnemonicfilename,
+              "mnemonicfilename": options.mnemonicfilename}
     validate(*args, **kwargs)
 
 if __name__ == "__main__":
