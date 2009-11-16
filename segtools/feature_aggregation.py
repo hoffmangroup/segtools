@@ -54,12 +54,14 @@ FLANK_COMPONENTS = [FLANK_5P, FLANK_3P]
 POINT_COMPONENTS = list(FLANK_COMPONENTS)
 REGION_COMPONENT = "internal"
 REGION_COMPONENTS = [FLANK_5P, REGION_COMPONENT, FLANK_3P]
+INITIAL_EXON = "initial exon"
+TERMINAL_EXON = "terminal exon"
 SPLICE_COMPONENTS = [
-    "initial exon",
+    INITIAL_EXON,
     "initial intron",
     "internal exons",
     "internal introns",
-    "terminal exon",
+    TERMINAL_EXON,
     "terminal intron"]
 CODING_COMPONENTS = [
     "initial 5' UTR",
@@ -126,10 +128,10 @@ def calc_feature_windows(feature, mode, components, component_bins):
     if mode == GENE_MODE:  # by gene
         assert name in components
         component = name
-        if component != SPLICE_COMPONENTS[0]:
+        if component != INITIAL_EXON:
             # Not initial exon, so no 5' flank
             num_5p_bins = 0
-        if component != SPLICE_COMPONENTS[-1]:
+        if component != TERMINAL_EXON:
             # Not terminal exon, so no 3' flank
             num_3p_bins = 0
     elif mode == REGION_MODE:  # by region
