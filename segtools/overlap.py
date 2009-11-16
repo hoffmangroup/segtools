@@ -465,8 +465,8 @@ def validate(bedfilename, featurefilename, dirpath, regionfilename=None,
              min_overlap=1, min_overlap_fraction=None,
              mnemonicfilename=None, replot=False, noplot=False):
     setup_directory(dirpath)
-    segmentation = load_segmentation(bedfilename, checknames=False)
-    features = load_segmentation(featurefilename, checknames=False)
+    segmentation = load_segmentation(bedfilename)
+    features = load_segmentation(featurefilename)
 
     assert segmentation is not None
     assert features is not None
@@ -630,18 +630,20 @@ Overlap_analysis_tool_specification"
 ## Command-line entry point
 def main(args=sys.argv[1:]):
     (options, args) = parse_options(args)
-    bedfilename = args[0]
-    featurefilename = args[1]
-
-    validate(bedfilename, featurefilename, options.outdir,
-             regionfilename=options.regionfilename, clobber=options.clobber,
-             quick=options.quick, by=options.by,
-             min_overlap=options.min_overlap, samples=options.samples,
-             min_overlap_fraction=options.min_overlap_fraction,
-             region_fraction=options.region_fraction,
-             subregion_fraction=options.subregion_fraction,
-             mnemonicfilename=options.mnemonicfilename,
-             replot=options.replot, noplot=options.noplot)
+    args = [args[0], args[1], options.outdir]
+    kwargs = {"regionfilename": options.regionfilename,
+              "clobber": options.clobber,
+              "quick": options.quick,
+              "replot": options.replot,
+              "noplot": options.noplot}
+              "by": options.by,
+              "min_overlap": options.min_overlap,
+              "samples": options.samples,
+              "min_overlap_fraction": options.min_overlap_fraction,
+              "region_fraction": options.region_fraction,
+              "subregion_fraction": options.subregion_fraction,
+              "mnemonicfilename": options.mnemonicfilename,
+    validate(*args, **kwargs)
 
 if __name__ == "__main__":
     sys.exit(main())

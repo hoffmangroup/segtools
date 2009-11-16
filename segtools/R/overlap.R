@@ -233,7 +233,6 @@ panel.pvalues <- function(x, y, subscripts = NULL, groups = NULL,
   out.of.bounds = is.infinite(x)
   x[out.of.bounds] <- min(x[!out.of.bounds]) * 2
 
-  print(colors)
   panel.barchart(x, y, subscripts = subscripts, groups = groups,
                  stacked = FALSE, col = colors[y], ...)
 }
