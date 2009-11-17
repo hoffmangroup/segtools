@@ -282,6 +282,7 @@ def calc_histogram(genome, segmentation, num_bins=None,
                 res_trackname[0] += hist
         if quick: break  # 1 chromosome
 
+    print "Segmentation tracks: %s" % str(segmentation.tracks)
     print "Read %s non-NaN data values from segmentation tracks" % num_seg_dps
     return res, num_seg_dps
 

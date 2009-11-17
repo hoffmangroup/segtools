@@ -18,7 +18,7 @@ read.track.stats <- function(filename, mnemonics = NULL, ...,
   if (length(mnemonics) > 0) {
     stats$label <- relabel.factor(stats$label, mnemonics)
   }
-  stats.renamed <- rename.tracks(stats)
+  stats.renamed <- rename.tracks(stats, ...)
   stats.melted <- melt.track.stats(stats.renamed)
   
   stats.melted
@@ -32,7 +32,7 @@ read.gmtk.track.stats <- function(filename, normalize = TRUE, mnemonics = NULL,
   if (length(mnemonics) > 0) {
     data$label <- relabel.factor(data$label, mnemonics)
   }
-  data <- rename.tracks(data)
+  data <- rename.tracks(data, ...)
   data.shaped <- cast(data, trackname ~ label ~ variable)
   
   res <- covar2sd(data.shaped)
@@ -114,27 +114,31 @@ generate.mnemonics <- function(stats)
   mnemonics
 }
 
-abbr.tracknames <- function(tracknames) {
-  ## try eliminating everything
-  assaynames <- gsub("[^_.]+[_.]", "", tracknames)
-  duplicated.assaynames <- assaynames[duplicated(assaynames)]
-  which.duplicated <- which(assaynames %in% duplicated.assaynames)
-  assaynames[which.duplicated] <- tracknames[which.duplicated]
-
-  ## for failures, try eliminating cell type (middle) only
-  ## XXX: duplicative
-  assaynames <- gsub("[_.][^_.]+[_.]", ".", assaynames)
-  duplicated.assaynames <- assaynames[duplicated(assaynames)]
-  which.duplicated <- which(assaynames %in% duplicated.assaynames)
-  assaynames[which.duplicated] <- tracknames[which.duplicated]
-
-  assaynames
-}
-
-rename.tracks <- function(stats) {
-  levels(stats$trackname) <- gsub("_", ".", levels(stats$trackname))
-  levels(stats$trackname) <- abbr.tracknames(levels(stats$trackname))
-
+## Can rename tracks according to a regex pattern/replacement
+## or a translation table (a Nx2 array, where a trackname found at [i,1]
+## are replaced by the string at [i,2])
+## If both a translation table and regex replacements are specified, the
+## transition table is applied first
+rename.tracks <- function(stats, patterns = "_", replacements = ".", translation = NULL, ...) {
+  tracknames <- levels(stats$trackname)
+  # Apply translation table substitutions
+  if (!is.null(translation)) {
+    indices <- match(tracknames, translation[, 1])
+    if (any(is.finite(indices))) {
+      tracknames[is.finite(indices)] <- translation[indices[is.finite(indices)], 2]
+    }
+  }
+  # Apply regex substitutions
+  if (!is.null(patterns) || !is.null(replacements)) {
+    if (length(patterns) != length(replacements)) {
+      stop("Must have an equal number of patterns and replacements")
+    }
+    for (i in 1:length(patterns)) {
+      tracknames <- gsub(patterns[[i]], replacements[[i]], tracknames)
+    }
+  }
+  levels(stats$trackname) <- tracknames
+  
   stats
 }
 

@@ -264,6 +264,7 @@ dev.print.images <- function(basename, dirname,
                              make.slide = TRUE,
                              make.pdf = TRUE,
                              make.thumb = TRUE,
+                             pdf.as.slide = TRUE,
                              ...)
 {
   # No need for PNG plot since it is done python-side
@@ -287,7 +288,7 @@ dev.print.images <- function(basename, dirname,
     filename.slide <-
       save.image(basename, "slide.png", dirname, device.png, 
                  width = width.slide, height = height.slide, 
-                 units = "px", as.slide = TRUE, ...)
+                 units = "px", as.slide = pdf.as.slide, ...)
   }
 
   if (make.pdf) {
