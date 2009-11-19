@@ -557,7 +557,7 @@ def load_gff_data(gff_filename, sort=True):
     return data
 
 def load_segmentation(filename, checknames=True, verbose=True):
-    """Returns a segmentation object derived from the given BED file
+    """Returns a segmentation object derived from the given BED4+ file
 
     If the labels in the BED file are all integers, the label_keys will
       be integer representations of those labels.

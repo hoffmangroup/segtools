@@ -4,7 +4,7 @@ from __future__ import division, with_statement
 __version__ = "$Revision$"
 
 """
-seg_overlap.py:
+overlap.py:
 
 Evaluates the overlap between two BED files, based upon the spec at:
 http://encodewiki.ucsc.edu/EncodeDCC/index.php/Overlap_analysis_tool_specification
@@ -523,10 +523,10 @@ def parse_options(args):
     from optparse import OptionParser, OptionGroup
 
     usage = "%prog [OPTIONS] BEDFILE FEATUREFILE"
-    description = "BEDFILE and FEATUREFILE should both be in BED3+ format \
-(gzip'd okay). BEDFILE should correspond to a segmentation. Overlap \
-analysis will be performed in both directions (BEDFILE as SUBJECTFILE \
-and QUERYFILE). See for full specification: \
+    description = "BEDFILE and FEATUREFILE should both be in BED4+ format \
+(must include name column) (gzip'd okay). BEDFILE should correspond to a \
+segmentation. Overlap analysis will be performed in both directions \
+(BEDFILE as SUBJECTFILE and QUERYFILE). See for full specification: \
 http://encodewiki.ucsc.edu/EncodeDCC/index.php/\
 Overlap_analysis_tool_specification"
 

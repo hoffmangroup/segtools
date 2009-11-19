@@ -297,12 +297,6 @@ def setup_python_home(arch_home=None):
     python_home = fix_path(prompt_user(query, default_python_home))
     make_dir(python_home)
     addsitedir(python_home)  # Load already-installed packages/eggs
-    try:
-        import pkg_resources
-        reload(pkg_resources)  # Update working set
-    except (ImportError, NameError):
-        pass
-
     return python_home, default_python_home
 
 def get_default_python_home(arch_home):
@@ -479,9 +473,10 @@ def get_egg_version(module_name, *args, **kwargs):
 
     try:
         try:
+            import pkg_resources
             ref = pkg_resources.Requirement.parse(module_name)
             return pkg_resources.working_set.find(ref).version
-        except AttributeError:
+        except (AttributeError, ImportError):
             return None
     finally:
         if index is not None:
@@ -552,8 +547,9 @@ def parse_download_url(url):
 def str2version(ver):  # string to version object
     # If setuptools installed, use its versioning; else, use distutils'
     try:
+        import pkg_resources
         return pkg_resources.parse_version(ver)
-    except NameError:
+    except (ImportError, NameError):
         return LooseVersion(ver)
 
 ##################### SPECIFIC PROGRAM INSTALLERS ################
@@ -615,8 +611,6 @@ def install_setuptools(python_home, url=EZ_SETUP_URL, *args, **kwargs):
     else:
         addsitedir(python_home)  # Load new-installed packages/eggs/site.py
 
-    # Import pkg_resources from setuptools
-    import pkg_resources
     return True
 
 #################### GENERIC INSTALL METHODS ###################
@@ -1003,7 +997,7 @@ def get_R_version():
 
 def get_rpy2_version():
     """Returns rpy2 version as a string or None if not found or installed"""
-    return get_egg_version(rpy2)
+    return get_egg_version("rpy2")
 
 def get_segtools_version():
     """Returns segtools version as a string or None if not found or installed

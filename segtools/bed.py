@@ -35,7 +35,7 @@ class NativeDatum(Datum):
 
         self._words = ((self.chrom, self.chromStart, self.chromEnd)
                        + self._words[3:])
-        
+
 def read(iterator, datum_cls=Datum):
     for line in iterator:
         words = line.split()
@@ -45,7 +45,6 @@ def read(iterator, datum_cls=Datum):
         assert len(words) >= 3
 
         yield datum_cls(words)
-
 
 def read_native(*args, **kwargs):
     return read(datum_cls=NativeDatum, *args, **kwargs)
