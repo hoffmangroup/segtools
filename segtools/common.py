@@ -411,48 +411,6 @@ def iter_supercontig_segments(chromosome, segmentation, verbose=True):
         if cur_segments.shape[0] > 0:
             yield supercontig, segments[rows]
 
-
-## Returns splice of continuous or sequence from supercontig within segment
-## range. Datatype should be "continuous" or "sequence".
-## Assumes supercontigs are non-overlapping and sorted by start ascending
-## Returns empty array if no supercontig touches the given range
-def get_supercontig_splice(chromosome, start, end, datatype="continuous"):
-    if datatype not in ("continuous", "sequence"):
-        die("Unknown data type in 'get_supercontig_splice!")
-
-    # iterate through each supercontig
-    saved = array([])
-    for supercontig, continuous in chromosome.itercontinuous():
-        #print >>sys.stderr, "Examining supercontig [%d, %d]" % \
-        #    (supercontig.start, supercontig.end)
-
-        # Select appropriate data stream
-        if datatype == "continuous":
-            data = continuous
-        else:
-            data = supercontig.seq
-
-        # XXX Make sure there are no OBOBS in indexing!
-        if start >= supercontig.start and end <= supercontig.end:
-            # Found supercontig that completely covers range
-            return data[start - supercontig.start : end - supercontig.start]
-        elif start >= supercontig.start and start < supercontig.end:
-            # Overlapping supercontig end
-            saved = array(data[start - supercontig.start : len(data) - 1])
-        elif end > supercontig.start and end < supercontig.end:
-            # Overlapping supercontig start
-            data_splice = data[0 : end - supercontig.start]
-            # Because supercontigs in sorted order, we can return here
-            if saved.shape[0] > 0:
-                return concatenate((saved, data_splice))
-            else:
-                return data_splice
-        elif end < supercontig.start:
-            # We've passed the appropriate range
-            break
-
-    return saved
-
 ## Ensures output directory exists and has appropriate permissions
 def setup_directory(dirname):
     if not os.path.isdir(dirname):

@@ -19,9 +19,7 @@ from collections import defaultdict
 from numpy import zeros
 from rpy2.robjects import r, numpy2ri
 
-from .common import die, get_ordered_labels, get_supercontig_splice, \
-    image_saver, load_segmentation, load_genome, make_namebase_summary, \
-    make_tabfilename, map_mnemonics, r_source, setup_directory, tab_saver
+from .common import die, get_ordered_labels, image_saver, load_segmentation, load_genome, make_namebase_summary, make_tabfilename, map_mnemonics, r_source, setup_directory, tab_saver
 
 from .html import save_html_div
 
@@ -103,34 +101,33 @@ def calc_nucleotide_frequencies(segmentation, genome,
         for segment in segments:
             seg_start, seg_end, seg_label = segment
 
-            sequence = get_supercontig_splice(chromosome, seg_start,
-                                              seg_end, "sequence")
+            sequence = chromosome.seq[seg_start:seg_end]
+            sequence = sequence.tostring().upper()
 
-            if sequence.shape[0] > 0:
-                # XXXopt: could be optimized to use matrix operations
-                # to determine number of occurances of each (di)nuc
-                # Inch through iteration to look at pairs efficiently
-                cur_nuc = None
-                prev_nuc = None
-                for nuc in sequence:
-                    prev_nuc = cur_nuc
-                    cur_nuc = chr(nuc).upper()  # Get as uppercase letter
+            # XXXopt: could be optimized to use matrix operations
+            # to determine number of occurances of each (di)nuc
+            # Inch through iteration to look at pairs efficiently
+            cur_nuc = None
+            prev_nuc = None
+            for nuc in sequence:
+                prev_nuc = cur_nuc
+                cur_nuc = nuc
 
-                    # Record nucleotide
-                    nuc_cat = quick_nuc_categories[cur_nuc]
-                    if nuc_cat == {}:  # Didn't find; put in last bin
-                        #print >>sys.stderr, "Unknown nuc: %s" % (cur_nuc)
-                        nuc_cat = len(nuc_counts[seg_label]) - 1
+                # Record nucleotide
+                nuc_cat = quick_nuc_categories[cur_nuc]
+                if nuc_cat == {}:  # Didn't find; put in last bin
+                    #print >>sys.stderr, "Unknown nuc: %s" % (cur_nuc)
+                    nuc_cat = len(nuc_counts[seg_label]) - 1
 
-                    nuc_counts[seg_label][nuc_cat] += 1
+                nuc_counts[seg_label][nuc_cat] += 1
 
-                    # Record dinucleotide (last and current)
-                    if prev_nuc is not None:
-                        dinuc_cat = quick_dinuc_categories[(prev_nuc, cur_nuc)]
-                        if dinuc_cat == {}:  # Didn't find; put in last bin
-                            dinuc_cat = len(dinuc_counts[seg_label]) - 1
+                # Record dinucleotide (last and current)
+                if prev_nuc is not None:
+                    dinuc_cat = quick_dinuc_categories[(prev_nuc, cur_nuc)]
+                    if dinuc_cat == {}:  # Didn't find; put in last bin
+                        dinuc_cat = len(dinuc_counts[seg_label]) - 1
 
-                        dinuc_counts[seg_label][dinuc_cat] += 1
+                    dinuc_counts[seg_label][dinuc_cat] += 1
 
         # Only look at first chromosome if quick
         if quick: break
