@@ -22,8 +22,7 @@ from collections import defaultdict
 from numpy import concatenate, median
 from rpy2.robjects import r, numpy2ri
 
-# XXX: Do this without the kludgy constants
-from .common import die, get_ordered_labels, image_saver, LABEL_ALL, load_segmentation, make_namebase_summary, make_tabfilename, map_mnemonics, r_source, SEGMENT_START_COL, SEGMENT_END_COL, SEGMENT_LABEL_KEY_COL, setup_directory, tab_saver
+from .common import die, get_ordered_labels, image_saver, LABEL_ALL, load_segmentation, make_namebase_summary, make_tabfilename, map_mnemonics, r_source, setup_directory, tab_saver
 
 from .html import save_html_div
 
@@ -57,12 +56,10 @@ def segmentation_lengths(segmentation):
     # convert segment coords to lengths
     for segments in segmentation.chromosomes.itervalues():
         for label_key in labels.iterkeys():
-            # XXX: Do this without the kludgy constants
-            labeled_row_indexes = (segments[:, SEGMENT_LABEL_KEY_COL] == \
-                                       label_key)
+            labeled_row_indexes = (segments['key'] == label_key)
             labeled_rows = segments[labeled_row_indexes]
-            lengths[label_key].append(labeled_rows[:, SEGMENT_END_COL] -
-                                      labeled_rows[:, SEGMENT_START_COL])
+            lengths[label_key].append(labeled_rows['end'] -
+                                      labeled_rows['start'])
 
     # key: label_key
     # val: int

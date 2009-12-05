@@ -38,7 +38,7 @@ from subprocess import call
 from rpy2.robjects import r, numpy2ri
 
 # XXX: Do this without the kludgy constants
-from .common import check_clobber, die, get_ordered_labels, image_saver, load_segmentation, make_dotfilename, make_pdffilename, make_pngfilename, make_namebase_summary, make_tabfilename, map_mnemonics, r_source, SEGMENT_START_COL, SEGMENT_END_COL, SEGMENT_LABEL_KEY_COL, setup_directory, tab_saver
+from .common import check_clobber, die, get_ordered_labels, image_saver, load_segmentation, make_dotfilename, make_pdffilename, make_pngfilename, make_namebase_summary, make_tabfilename, map_mnemonics, r_source, setup_directory, tab_saver
 from .html import save_html_div
 from .mnemonics import create_mnemonic_file
 
@@ -79,9 +79,9 @@ def calc_transitions(segmentation):
         for row2 in row_it:
             if row1 is not None:  # Skip first loop
                 # Increment transition only if directly adjacent
-                if row1[SEGMENT_END_COL] == row2[SEGMENT_START_COL]:
-                    label_key1 = row1[SEGMENT_LABEL_KEY_COL]
-                    label_key2 = row2[SEGMENT_LABEL_KEY_COL]
+                if row1['end'] == row2['start']:
+                    label_key1 = row1['key']
+                    label_key2 = row2['key']
                     counts[label_key1, label_key2] += 1
                     if label_key1 == label_key2:
                         if self_transition_count == 0:

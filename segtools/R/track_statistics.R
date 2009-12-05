@@ -125,7 +125,8 @@ rename.tracks <- function(stats, patterns = "_", replacements = ".", translation
   if (!is.null(translation)) {
     indices <- match(tracknames, translation[, 1])
     if (any(is.finite(indices))) {
-      tracknames[is.finite(indices)] <- translation[indices[is.finite(indices)], 2]
+      tracknames[is.finite(indices)] <-
+        translation[indices[is.finite(indices)], 2]
     }
   }
   # Apply regex substitutions

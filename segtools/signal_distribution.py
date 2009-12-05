@@ -27,8 +27,7 @@ from functools import partial
 from numpy import array, histogram, isfinite, NaN, nanmax, nanmin, nansum, NINF, PINF
 from rpy2.robjects import r, numpy2ri
 
-# XXX: Do this without the kludgy constants
-from .common import die, image_saver, load_segmentation, load_genome, loop_segments_continuous, make_tabfilename, map_mnemonics, r_source, SEGMENT_LABEL_KEY_COL, setup_directory, tab_saver
+from .common import die, image_saver, iter_supercontig_segments, load_segmentation, load_genome, loop_segments_continuous, make_tabfilename, map_mnemonics, map_segment_label, r_source, setup_directory, tab_saver
 from .html import save_html_div
 from .mnemonics import create_mnemonic_file
 
@@ -89,12 +88,6 @@ def seg_min_max(chromosome, segmentation, verbose=False):
                                          max(old_max, cur_max))
 
     return limits
-
-def get_num_tracks(genome):
-    # MA: this should really be part of the Genome class - TODO
-    for chromosome in genome:
-        tracknames = chromosome.tracknames_continuous
-        return len(tracknames)
 
 ## Loads the ranges of each track from the genomedata object
 ##   unless a segmentation is specified, in which case the ranges
@@ -241,6 +234,59 @@ def calc_histogram(genome, segmentation, num_bins=None,
         chrom = chromosome.name
         print >>sys.stderr, "\t%s" % chrom
 
+
+#         for supercontig, segments in \
+#                 iter_supercontig_segments(chromosome, segmentation):
+#             continuous = supercontig.continuous
+#             start_i = max(segments['start'][0] - supercontig.start, 0)
+#             end_i = min(segments['end'][-1] - supercontig.start,
+#                         continuous.shape[0])
+#             label_map = map_segment_label(segments, supercontig)
+#             label_map = label_map[start_i:end_i]
+
+#             # Cache the row indices for each label
+#             row_indices = {}
+#             for label_key in labels:
+#                 row_indices[label_key] = (label_map == label_key)
+
+#             track_i = 0
+#             for trackname, histogram_func in histogram_funcs.iteritems():
+#                 track_i += 1
+#                 print >>sys.stderr, "\r\t\t\ttrack %d/%d" % \
+#                     (track_i, num_tracks),
+
+#                 # col_index is the index of the trackname
+#                 #   (if 5 tracks, it can be 0, 1, 2, 3 or 4)
+#                 col_index = chromosome.index_continuous(trackname)
+
+#                 # select track data within the range of the segments and
+#                 #   for the specified track
+#                 continuous_col = continuous[start_i:end_i, col_index]
+
+#                 for label_key in labels:
+#                     if group_labels:
+#                         cur_res = res
+#                     else:
+#                         cur_res = res[label_key]
+
+#                     cur_continuous = continuous_col[row_indices[label_key]]
+
+#                     # Keep track of number of real data values processed
+#                     if trackname in segmentation.tracks:
+#                         num_seg_dps += cur_continuous.shape[0]
+
+#                     # Edges is a list containing the left edge of every bin,
+#                     #   hist is the frequency for every bin
+#                     # This calls numpy.histogram
+#                     hist, edges = histogram_func(cur_continuous)
+
+#                     res_trackname = cur_res[trackname]
+#                     assert (res_trackname[1] == edges).all()
+#                     res_trackname[0] += hist
+
+#         if quick: break
+
+
         # Iterate through supercontigs and segments together
         for segment, continuous_seg in \
                 loop_segments_continuous(chromosome, segmentation):
@@ -248,7 +294,7 @@ def calc_histogram(genome, segmentation, num_bins=None,
             if group_labels:
                 cur_res = res  # All labels are used
             else:
-                seg_label_key = segment[SEGMENT_LABEL_KEY_COL]
+                seg_label_key = segment['key']
                 cur_res = res[seg_label_key]
 
             # Iterate through each track
@@ -282,8 +328,9 @@ def calc_histogram(genome, segmentation, num_bins=None,
                 res_trackname[0] += hist
         if quick: break  # 1 chromosome
 
+    print ""
     print "Segmentation tracks: %s" % str(segmentation.tracks)
-    print "Read %s non-NaN data values from segmentation tracks" % num_seg_dps
+    print "Read %s non-NaN values from segmentation tracks\n" % num_seg_dps
     return res, num_seg_dps
 
 def calc_stats(histogram):
@@ -425,7 +472,7 @@ def validate(bedfilename, genomedatadir, dirpath, group_labels=False,
     assert genome is not None
     assert segmentation is not None
 
-    num_tracks = get_num_tracks(genome)  # All tracks (not just segtracks)
+    num_tracks = genome.num_tracks_continuous  # All tracks; not just segtracks
     segtracks = segmentation.tracks
     labels = segmentation.labels
 

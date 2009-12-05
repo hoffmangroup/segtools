@@ -28,8 +28,7 @@ from functools import partial
 from operator import itemgetter
 from rpy2.robjects import r, numpy2ri
 
-# XXX: Do this without the kludgy constants
-from .common import die, fill_array, image_saver, load_gff_data, load_segmentation, make_tabfilename, map_mnemonics, map_segments, maybe_gzip_open, r_source, SEGMENT_START_COL, SEGMENT_END_COL, setup_directory, tab_saver
+from .common import die, fill_array, image_saver, load_gff_data, load_segmentation, make_tabfilename, map_mnemonics, map_segments, maybe_gzip_open, r_source, setup_directory, tab_saver
 
 from .html import list2html, save_html_div
 
@@ -431,12 +430,12 @@ def get_transcript_length(entries):
     """Returns the length of the transcript.
 
     Assumes entries are all for the same transcript
-    
+
     :param entries: each entry is (chrom, start, end, strand, component, source)
                     and all entries should correspond to the same gene_id
     :type entries: list of 6-tuples
     :rtype: integer or None
-    
+
     """
     min_start = None
     max_end = None
@@ -483,13 +482,13 @@ def load_gtf_data(gtf_filename, min_exons=MIN_EXONS, min_cdss=MIN_CDSS):
     properties and gene_id must be the first one of them.
 
     All features must be stranded.
-    
+
     If an exon is a coding exon, there must also be a CDS line
     establishing the region of that exon that is translated. Assumes each CDS
     region is completely contained within a single exon.
-    
+
     A gene is a coding gene iff there is at least one CDS feature in it.
-    
+
     Genes that do not fit this idealized model (because they only have one
     exon or do not contain a start codon) are skipped.
     """
@@ -571,15 +570,15 @@ def load_gtf_data(gtf_filename, min_exons=MIN_EXONS, min_cdss=MIN_CDSS):
                 feature = dict(start=start, end=end, strand=strand,
                                name=component, source=source)
                 data[chrom].append(feature)
-                
+
 #         raw_input()
 
-    # Sort features by ascending start        
+    # Sort features by ascending start
     for chrom_features in data.itervalues():
         chrom_features.sort(key=itemgetter("start"))
-        
+
     return data
-    
+
 
 ## Accepts data from dict: chr -> dict {"start", "end", "strand", "name"})
 ##   zero-based start and end (exclusive) indices
@@ -608,7 +607,7 @@ def calc_aggregation(segmentation, mode, features, factors, components=[],
 
     if nofactor:
         assert len(factors) == 1
-            
+
     labels = segmentation.labels
 
     print >>sys.stderr, "\tFactors: %s" % factors
@@ -637,14 +636,14 @@ def calc_aggregation(segmentation, mode, features, factors, components=[],
                                 for component, bins
                                 in component_bins.iteritems()]))
                           for label_key in labels])
-    
+
     # dict:
     #   key: segmentation label_key
     #   value: dict:
     #     key: feature_factor
     #     value: dict:  component_name  -> numpy.array histogram
     counts = defaultdict(dict)
-    
+
     # Initialize histograms for each label,factor
     for label_key in labels.keys():
         counts[label_key] = dict([(factor,
@@ -654,15 +653,15 @@ def calc_aggregation(segmentation, mode, features, factors, components=[],
                                   for factor in factors])
 
     counted_features = 0
-    
+
     for chrom, segments in segmentation.chromosomes.iteritems():
         print >>sys.stderr, "\t%s" % chrom
 
         # XXX: Segments and features are in sorted order. TAKE ADVANTAGE
-        
+
         # Get bounds on segmentation for chr (since segments are sorted)
-        segmentation_start = segments[:, SEGMENT_START_COL].min()
-        segmentation_end = segments[:, SEGMENT_END_COL].max()
+        segmentation_start = segments['start'].min()
+        segmentation_end = segments['end'].max()
 
         # Map entire chromosome into a list of labels
         # XXXopt: THIS LINE TAKES 3.2 GB OF MEMORY!!!!
@@ -699,7 +698,7 @@ def calc_aggregation(segmentation, mode, features, factors, components=[],
                             counted_features += 1
                             feature_counted = True
         if quick: break
-        
+
     return (counts, label_counts, component_counts, counted_features)
 
 
@@ -732,17 +731,19 @@ def save_tab(labels, counts, components, component_bins,
 
                         # Try to substitute component bins into component names
                         try:
-                            component_name = component % component_bins[component]
+                            component_name = component % \
+                                component_bins[component]
                         except TypeError:
                             component_name = component
 
-                        row = make_row(labels[label_key],
-                                       factor,
-                                       component_name,
-                                       offset,
-                                       count,
-                                       component_counts[factor][component][offset],
-                                       label_counts[label_key][component][offset])
+                        row = make_row(\
+                            labels[label_key],
+                            factor,
+                            component_name,
+                            offset,
+                            count,
+                            component_counts[factor][component][offset],
+                            label_counts[label_key][component][offset])
 
                         saver.writerow(row)
 
@@ -823,6 +824,7 @@ def validate(bedfilename, featurefilename, dirpath,
     if nofactor:
         factors = ["factor"]
 
+    # Parse components from features
     if mode == GENE_MODE:
         components = GENE_COMPONENTS
         if not nofactor:

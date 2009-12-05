@@ -3,8 +3,6 @@ from __future__ import division, with_statement
 __version__ = "$Revision$"
 
 """
-common.py:
-
 Assorted utility functions and classes common or useful to most of segtools.
 
 
@@ -20,7 +18,7 @@ from contextlib import closing, contextmanager
 from functools import partial
 from genomedata import Genome
 from gzip import open as _gzip_open
-from numpy import array, concatenate, empty, iinfo
+from numpy import array, concatenate, empty, iinfo, logical_and, uint16, uint32, uint64
 from operator import itemgetter
 from pkg_resources import resource_filename, resource_string
 from string import Template
@@ -36,7 +34,8 @@ except NameError:
 PKG_R = os.extsep.join([PKG, "R"])
 PKG_RESOURCE = os.extsep.join([PKG, "resources"])
 
-from .bed import read_native
+from .bed import read_native as read_bed
+from .gff import read_native as read_gff
 
 EXT_GZ = "gz"
 EXT_PDF = "pdf"
@@ -60,37 +59,68 @@ LABEL_ALL = "all"
 
 THUMB_SIZE = 100
 
-SEGMENT_START_COL = 0
-SEGMENT_END_COL = 1
-SEGMENT_LABEL_KEY_COL = 2
+DTYPE_SEGMENT_START = uint64
+DTYPE_SEGMENT_END = uint64
+DTYPE_SEGMENT_KEY = uint32
+DTYPE_SOURCE_KEY = uint16
+DTYPE_STRAND = '|S1'
+MAXLEN_ID_DTYPE = 20
+DTYPE_GENE_ID = '|S%d' % MAXLEN_ID_DTYPE
+DTYPE_TRANSCRIPT_ID = '|S%d' % MAXLEN_ID_DTYPE
 
 #FEATURE_FIELDS = ["chrom", "source", "name", "start", "end", "score", "strand"]
 
 r_filename = partial(resource_filename, PKG_R)
 template_string = partial(resource_string, PKG_RESOURCE)
 
-
 ## Wrapper for segmentation data object
 class Segmentation(object):
     """
     chromosomes: a dict
       key: chromosome name
-      val: segments: numpy.ndarray(each row = chromStart, chromEnd, label_key)
-           sorted by chromStart
+      val: segments: numpy.ndarray, (each row is a (start, end, key) struct)
+           sorted by start, end
     labels: a dict
-      key: int ("label_key")  (a unique id)
+      key: int ("label_key")  (a unique id; segment['end'])
       val: printable (str or int)  (what's in the actual BED file)
 
     tracks: a list of track names that were used to obtain the segmentation
     segtool: the tool that was used to obtain this segmentation (e.g. segway)
+    name: the filename of the se
     """
 
-    def __init__(self, chromosomes, labels, tracks, segtool):
+    def __init__(self, chromosomes, labels, tracks, segtool, name):
         self.chromosomes = chromosomes
         self.labels = labels
         self.tracks = tracks
         self.segtool = segtool
+        self.name = name
 
+## Wrapper for gff/gtf feature data
+class Features(object):
+    """
+    sequences: a dict
+      key: chromosome/scaffold name
+      val: segments: numpy.ndarray
+           each row is a struct of: start, end, key, source_key
+           sorted by start, end
+    features: a dict
+      key: int ("feature_key")  (a unique id)
+      val: printable (str or int)  (what's in the actual GFF/GTF file)
+    sources: a dict
+      key: int ("source_key")  (a unique id)
+      val: printable (str or int)  (what's in the actual GFF/GTF file)
+
+    tracks: a list of track names that were used to obtain the segmentation
+    segtool: the tool that was used to obtain this segmentation (e.g. segway)
+    """
+    def __init__(self, sequences, features, sources):
+        self.sequences = sequences
+        self.features = features
+        self.sources = sources
+        # Allow Segmentation-like access
+        self.chromosomes = self.sequences
+        self.labels = self.features
 
 class OutputMasker:
     """Class to mask the output of a stream.
@@ -109,19 +139,6 @@ class OutputMasker:
     def restore(self):
         return self._stream
 
-## Wrapper for gff/gtf feature data
-# class Feature(object):
-#     def __init__(self, line=None, tokens=None):
-#         assert (line or tokens) and not (line and tokens)
-#         if tokens is None:
-#             tokens = line.strip().split("\t")
-
-#         self.__dict__ = dict(zip(FEATURE_FIELDS, tokens))
-
-#         # Make zero-based, exclusive end:
-#         #   http://genome.ucsc.edu/FAQ/FAQformat#format3
-#         self.start = int(self.start) - 1
-#         self.end = int(self.end)
 
 
 ## UTILITY FUNCTIONS
@@ -284,7 +301,7 @@ def map_segments(segments, labels, chrom_size):
           segment labeled 1 at position [4,7) gets converted into:
           0000111
     """
-    segments_dtype = segments.dtype  # MA: the data type of segments
+    segments_dtype = segments['key'].dtype  # MA: the data type of segments
     segments_dtype_max = iinfo(segments_dtype).max  # sentinel value
     # MA: the maximum value supported by the type
     assert segments_dtype_max not in labels.keys()
@@ -292,9 +309,43 @@ def map_segments(segments, labels, chrom_size):
     res = fill_array(segments_dtype_max, (chrom_size,), segments_dtype)
 
     # will overwrite in overlapping case
-    for segment in segments:
-        res[segment[SEGMENT_START_COL]:
-                segment[SEGMENT_END_COL]] = segment[SEGMENT_LABEL_KEY_COL]
+    for start, end, key in segments:
+        res[start:end] = key
+
+    return res
+
+def map_segment_label(segments, structure):
+    """Flatten segments to a segment label per base vector
+
+    Returns a numpy.array of the segment key at every base
+
+    The given structure must have 'start' and 'end' attributes, and the
+    returned array will represent the segment keys found between start and end.
+
+    Thus, if start is 1000, and a segment with key 4 starts at 1000, the
+    value of keys[0] is 4.
+
+    """
+    map_start = structure.start
+    map_end = structure.end
+    map_size = map_end - map_start
+    assert map_size >= 0
+
+    # Choose sentinal value as maximum value supported by datatype
+    segments_dtype = segments['key'].dtype
+    sentinal = iinfo(segments_dtype).max
+    assert sentinal != segments['key'].max()  # not already used
+
+    res = fill_array(sentinal, (map_size,), segments_dtype)
+    if map_size == 0:
+        return res
+
+    # will overwrite in overlapping case
+    for start, end, key in segments:
+        if start < map_end and end > map_start:
+            start_i = max(start - map_start, 0)
+            end_i = min(end - map_start, map_size)
+            res[start_i:end_i] = key
 
     return res
 
@@ -304,21 +355,16 @@ def loop_segments_continuous(chromosome, segmentation, verbose=True):
     try:
         segments = segmentation.chromosomes[chromosome.name]
     except KeyError:
-        if verbose:
-            print >>sys.stderr, "\t\tskipping: no data"
         raise StopIteration
 
     supercontig_iter = chromosome.itercontinuous()
     supercontig = None
     supercontig_last_start = 0
-    segment_i = 0
     num_segments = len(segments)
-    for segment in segments:
-        segment_i += 1
-        seg_start = segment[SEGMENT_START_COL]
-        seg_end = segment[SEGMENT_END_COL]  # Exclusive
-
-        while supercontig is None or seg_start >= supercontig.end:
+    i = 0
+    for i, segment in enumerate(segments):
+        start, end, key = segment
+        while supercontig is None or start >= supercontig.end:
             # Raise StopIteration if out of supercontigs
             supercontig, continuous = supercontig_iter.next()
             # Enforce increasing supercontig indices
@@ -327,25 +373,46 @@ def loop_segments_continuous(chromosome, segmentation, verbose=True):
 
             if verbose:
                 print >>sys.stderr, "\n\t\t%s) %d : %d" % (supercontig.name,
-                                             supercontig.start,
-                                             supercontig.end)
+                                                           supercontig.start,
+                                                           supercontig.end)
 
-        if verbose and segment_i % 100 == 0:
-            print >>sys.stderr, "\r\t\t\tSegment %d / %d" % \
-                (segment_i, num_segments),
+        if verbose and i % 1000 == 0:
+            print >>sys.stderr, "\r\t\t\tSegment %d / %d" % (i, num_segments),
             sys.stdout.flush()
 
-        if seg_end <= supercontig.start:
+        if end <= supercontig.start:
             continue  # Get next segment
 
-        yield segment, continuous[seg_start:seg_end]
+        try:
+            yield segment, continuous[start:end]
+        except:
+            for k, v in locals():
+                print "%r: %r" % (k, v)
+            raise
 
     if verbose:
         print >>sys.stderr, "\r\t\t\tSegment %d / %d" % \
-            (segment_i, num_segments)
+            (i, num_segments)
+
+## Yields supercontig and the subset of segments which overlap it.
+def iter_supercontig_segments(chromosome, segmentation, verbose=True):
+    try:
+        segments = segmentation.chromosomes[chromosome.name]
+    except KeyError:
+        raise StopIteration
+
+    for supercontig in chromosome:
+        if verbose:
+            print >>sys.stderr, "\t\t%s" % supercontig
+
+        rows = logical_and(segments['start'] < supercontig.end,
+                           segments['end'] > supercontig.start)
+        cur_segments = segments[rows]
+        if cur_segments.shape[0] > 0:
+            yield supercontig, segments[rows]
 
 
-## Returns splice of continuous or sequece from supercontig within segment
+## Returns splice of continuous or sequence from supercontig within segment
 ## range. Datatype should be "continuous" or "sequence".
 ## Assumes supercontigs are non-overlapping and sorted by start ascending
 ## Returns empty array if no supercontig touches the given range
@@ -556,83 +623,206 @@ def load_gff_data(gff_filename, sort=True):
 
     return data
 
-def load_segmentation(filename, checknames=True, verbose=True):
+def gff2arraydict(filename, gtf=False, sort=None, verbose=True):
+    """Parses a gff/gtf file and returns a dict of numpy arrays for each chrom.
+
+    Default behavior is to sort features unless 'gtf' is True
+
+    Returns labels, sequences, where:
+      labels: a dict from feature_key -> feature string
+      sequences: a dict from seqname -> features (numpy array)
+        (features: structured array with start, end, key, and source fields.
+         If stranded, a strand field is included.
+         If gtf-mode, gene_id and transcript_id fields are included.)
+    """
+    if sort is None:
+        sort = not gtf
+
+    data = defaultdict(list)  # A dictionary-like object
+    feature_dict = {}
+    source_dict = {}
+    last_segment_start = {}  # per seq
+    unsorted_seqs = set()
+    stranded = None
+    with maybe_gzip_open(filename) as infile:
+        for datum in read_gff(infile, gtf=gtf):
+            try:
+                if datum.start < last_segment_start[datum.seqname]:
+                    unsorted_seqs.add(datum.seqname)
+            except KeyError:
+                pass
+
+            feature = str(datum.feature)
+            try:  # Lookup feature key
+                feature_key = feature_dict[feature]
+            except KeyError:  # Map new feature to key
+                feature_key = len(feature_dict)
+                feature_dict[feature] = feature_key
+
+            source = str(datum.source)
+            try:  # Lookup source key
+                source_key = source_dict[source]
+            except KeyError:  # Map new source to key
+                source_key = len(source_dict)
+                source_dict[source] = source_key
+
+            try:
+                strand = datum.strand
+            except AttributeError:
+                strand = "."
+
+            if strand == "+" or strand == "-":
+                assert stranded is None or stranded
+                stranded = True
+            else:
+                assert not stranded
+                stranded = False
+
+            feature = [datum.start, datum.end, feature_key, source_key]
+            if stranded:
+                feature.append(datum.strand)
+
+            if gtf:
+                gene_id = datum.attributes["gene_id"]
+                transcript_id = datum.attributes["transcript_id"]
+                if len(gene_id) > MAXLEN_ID_DTYPE:
+                    raise ValueError("gene_id field was too long (over \
+%d characters): %s" % (MAXLEN_ID_DTYPE, gene_id))
+                elif len(transcript_id) > MAXLEN_ID_DTYPE:
+                    raise ValueError("transcript_id field was too long (over \
+%d characters): %s" % (MAXLEN_ID_DTYPE, transcript_id))
+                feature.extend([gene_id, transcript_id])
+
+            data[datum.seqname].append(tuple(feature))
+            last_segment_start[datum.seqname] = datum.start
+
+    # Create reverse dict for return
+    features = dict((val, key) for key, val in feature_dict.iteritems())
+    sources = dict((val, key) for key, val in source_dict.iteritems())
+
+    # convert lists of tuples to array
+    dtype = [('start', DTYPE_SEGMENT_START),
+             ('end', DTYPE_SEGMENT_END),
+             ('key', DTYPE_SEGMENT_KEY),
+             ('source_key', DTYPE_SOURCE_KEY)]
+    if stranded:
+        dtype.append(('strand', DTYPE_STRAND))
+    if gtf:
+        dtype.extend([('gene_id', DTYPE_GENE_ID),
+                      ('transcript_id', DTYPE_TRANSCRIPT_ID)])
+
+    sequences = dict((seq, array(segments, dtype=dtype))
+                       for seq, segments in data.iteritems())
+
+    # Sort segments within each chromosome
+    for seq, segments in sequences.iteritems():
+        if sort and seq in unsorted_seqs:
+            if verbose:
+                print >>sys.stderr, \
+                    "Segments were unsorted relative to %s. Sorting..." % seq,
+            segments.sort(order=['start'])
+            if verbose:
+                print >>sys.stderr, "done"
+
+    return features, sources, sequences
+
+def load_features(filename, verbose=True, *args, **kwargs):
+    if verbose:
+        print >>sys.stderr, "Loading features from: %s..." % filename
+
+    features, sources, sequences = \
+        gff2arraydict(filename, verbose=verbose, *args, **kwargs)
+
+    if verbose:
+        print >>sys.stderr, "\tFound %d sources:" % len(sources)
+        for source_key, source in sources.iteritems():
+            print >>sys.stderr, '\t\t"%s" -> %d' % (source, source_key)
+
+        print >>sys.stderr, "\tFound %d feature classes" % len(features)
+        for key, feature in features.iteritems():
+            print >>sys.stderr, '\t\t"%s" -> %d' % (feature, key)
+
+        print >>sys.stderr, "done"
+
+    return Features(sequences, features, sources)
+
+def bed2arraydict(filename, verbose=True):
+    """Parses a bedfile and returns a dict of numpy arrays for each chrom.
+
+    Returns labels, chromosomes, where:
+      labels: a dict from label_key -> label string
+      chromosomes: a dict from chrom_name -> segments (numpy array)
+        (segments: structured array with start, end, and key fields)
+    """
+    data = defaultdict(list)  # A dictionary-like object
+    label_dict = {}
+    last_segment_start = {}  # per chromosome
+    unsorted_chroms = set()
+    with maybe_gzip_open(filename) as infile:
+        for datum in read_bed(infile):
+            try:
+                if datum.chromStart < last_segment_start[datum.chrom]:
+                    unsorted_chroms.add(datum.chrom)
+            except KeyError:
+                pass
+
+            label = str(datum.name)
+            try:  # Lookup label key
+                label_key = label_dict[label]
+            except KeyError:  # Map new label to key
+                label_key = len(label_dict)
+                label_dict[label] = label_key
+
+            segment = (datum.chromStart, datum.chromEnd, label_key)
+            data[datum.chrom].append(segment)
+            last_segment_start[datum.chrom] = datum.chromStart
+
+    # Create reverse dict for return
+    labels = dict((val, key) for key, val in label_dict.iteritems())
+
+    # convert lists of tuples to array
+    dtype = [('start', DTYPE_SEGMENT_START),
+             ('end', DTYPE_SEGMENT_END),
+             ('key', DTYPE_SEGMENT_KEY)]
+    chromosomes = dict((chrom, array(segments, dtype=dtype))
+                       for chrom, segments in data.iteritems())
+
+    # Sort segments within each chromosome
+    for chrom, segments in chromosomes.iteritems():
+        if chrom in unsorted_chroms:
+            if verbose:
+                print >>sys.stderr, "Segments were unsorted relative to \
+%s. Sorting..." % chrom,
+            segments.sort(order=['start'])
+            if verbose:
+                print >>sys.stderr, "done"
+
+    return labels, chromosomes
+
+def load_segmentation(filename, verbose=True):
     """Returns a segmentation object derived from the given BED4+ file
 
-    If the labels in the BED file are all integers, the label_keys will
-      be integer representations of those labels.
-    If any of the labels are non-integers, the label_keys will be
-      integers corresponding to the order observed.
+    label_keys are integers corresponding to the order observed.
     """
 
     if verbose:
-        print >>sys.stderr, "Loading segmentation...",
-        sys.stdout.flush()
+        print >>sys.stderr, "Loading segmentation..."
 
     # first get the tracks that were used for this segmentation
     segtool, tracks = get_bed_metadata(filename)
 
-    data = defaultdict(list)  # A dictionary-like object
-    label_dict = {}
-    # read in as lists of tuples
+    labels, chromosomes = bed2arraydict(filename)
 
-    # Start by assuming integer labels
-    if checknames:
-        with maybe_gzip_open(filename) as infile:
-            for datum in read_native(infile):
-                label = datum.name
-                try:
-                    label_key = label_dict[label]
-                except KeyError:  # Map new label to key
-                    try:
-                        label_key = int(label)
-                        label_dict[label] = label_key
-                    except ValueError:  # Not all labels are integers!
-                        print >>sys.stderr, \
-                            ("Warning: found non-integer label: %s" % label,
-                             "\n Treating all labels as strings")
-                        data = defaultdict(list)
-                        label_dict = {}
-                        checknames = False
-                        break
-
-                segment = (datum.chromStart, datum.chromEnd, label_key)
-                data[datum.chrom].append(segment)
-
-    if not checknames:
-        with maybe_gzip_open(filename) as infile:
-            for datum in read_native(infile):
-                label = str(datum.name)
-                try:  # Lookup label key
-                    label_key = label_dict[label]
-                except KeyError:  # Map new label to key
-                    label_key = len(label_dict)
-                    label_dict[label] = label_key
-
-                segment = (datum.chromStart, datum.chromEnd, label_key)
-                data[datum.chrom].append(segment)
-
-    # Create reverse dict for return
-    labels = dict((val, key) for key, val in label_dict.iteritems())
     if verbose:
-        print >>sys.stderr, "\nMapping names to integers"
+        print >>sys.stderr, "\n\tMapped labels to integer keys:"
         for key, label in labels.iteritems():
-            print >>sys.stderr, "\"%s\" -> %d" % (label, key)
-
-    # Sort segments within each chromosome by start index
-    for segments in data.itervalues():
-        segments.sort(key=itemgetter(0))
-
-    # convert lists of tuples to array
-    chromosomes = dict((chrom, array(segments))
-                       for chrom, segments in data.iteritems())
-
-    if verbose:
+            print >>sys.stderr, "\t\t\"%s\" -> %d" % (label, key)
         print >>sys.stderr, "done."
-    # wrap in a Segmentation object
-    return Segmentation(chromosomes, labels, tracks, segtool)
 
-## Returns a genome object from data in a genomedata directory
+    # wrap in a Segmentation object
+    return Segmentation(chromosomes, labels, tracks, segtool, filename)
+
+## Returns a Genome object from data in a genomedata directory
 def load_genome(genomedatadir):
     if genomedatadir is not None and os.path.isdir(genomedatadir):
         genome = Genome(genomedatadir)

@@ -22,7 +22,7 @@ expected.len <- function(prob.loop) {
 
 panel.violinplot <-
   function(x, y, ..., box.ratio, mark.prior = NULL,
-           marks.posterior = NULL, rug = FALSE)
+           marks.posterior = NULL, rug = FALSE, do.out = FALSE)
 {
   if (!is.null(mark.prior)) {
     log10.mark.prior <- log10(mark.prior)
@@ -31,22 +31,37 @@ panel.violinplot <-
 
   # In order to do a violin-plot, each label must have at least
   # two data points. Ignore any labels with fewer data points.
-  keep_levels = c()
+  keep_levels <- c()
   for (lev in levels(y)) {
     if (sum(y == lev) > 1) {
       # Keep entries for level if enough data points
-      keep_levels = c(keep_levels, lev)
+      keep_levels <- c(keep_levels, lev)
     }
   }
-  keep = is.element(y, keep_levels)
-
+  keep <- is.element(y, keep_levels)
+  x <- x[keep]
+  y <- y[keep]
+  
   # Violin-plot of non-unique label entries
-  panel.violin(x[keep], y[keep], ..., box.ratio = box.ratio)
+  panel.violin(x, y, ..., box.ratio = box.ratio)
 
+  # Only display most extreme points
+  panel.bwplot(x, y, ..., box.ratio = 0, do.out = FALSE)
+  plot.symbol <- trellis.par.get("plot.symbol")
+  fontsize.points <- trellis.par.get("fontsize")$points
+  for (i in 1:nlevels(y)) {
+    subset = (y == levels(y)[i])
+    x.out <- range(x[subset], finite = TRUE)
+    panel.points(x.out, i, pch = plot.symbol$pch, col = plot.symbol$col,
+                 alpha = plot.symbol$alpha, cex = plot.symbol$cex,
+                 fontfamily = plot.symbol$fontfamily,
+                 fontface = plot.symbol$fontface,
+                 fontsize = fontsize.points, ...)
+  }
+  
   # Add remaining plots
-  panel.bwplot(x, y, ..., box.ratio = 0)
   if (rug) {
-    panel.rug(x, NULL, ..., end = 0.01)
+    panel.rug(x[keep], NULL, ..., end = 0.01)
   }
   if (!is.null(marks.posterior)) {
     log10.marks.posterior <- log10(marks.posterior)
@@ -68,7 +83,8 @@ violinplot.length <-
                                   at = at.log(),
                                   labels = labels.log() )),
            panel = panel.violinplot, 
-           expected.lens = NULL)
+           expected.lens = NULL,
+           ...)
 {
   marks.posterior <-
     if (is.null(expected.lens)) {
@@ -81,7 +97,8 @@ violinplot.length <-
          xlab = xlab, ylab = ylab,
          scales = scales, 
          panel = panel,
-         marks.posterior = marks.posterior)
+         marks.posterior = marks.posterior,
+         ...)
 }
 
 plot.length <- function(filename, mnemonics = NULL) {

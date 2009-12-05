@@ -4,11 +4,8 @@ from __future__ import division, with_statement
 __version__ = "$Revision$"
 
 """
-overlap.py:
-
 Evaluates the overlap between two BED files, based upon the spec at:
 http://encodewiki.ucsc.edu/EncodeDCC/index.php/Overlap_analysis_tool_specification
-
 
 Author: Orion Buske <orion.buske@gmail.com>
 Date:   August 18, 2009
@@ -18,12 +15,12 @@ import math
 import os
 import sys
 
+from collections import defaultdict
 from math import ceil
 from numpy import invert, logical_or, zeros
 from rpy2.robjects import r, numpy2ri
 
-# XXX: Do this without the kludgy constants
-from .common import die, get_ordered_labels, image_saver, load_segmentation, make_tabfilename, map_mnemonics, maybe_gzip_open, OutputMasker, r_source, SEGMENT_START_COL, SEGMENT_END_COL, SEGMENT_LABEL_KEY_COL, setup_directory, tab_saver, template_substitute
+from .common import check_clobber, die, get_ordered_labels, image_saver, load_features, load_segmentation, make_tabfilename, map_mnemonics, maybe_gzip_open, OutputMasker, r_source, setup_directory, SUFFIX_GZ, tab_saver, template_substitute
 
 from .bed import read_native
 from .html import find_output_files, save_html_div
@@ -32,9 +29,12 @@ from .html import find_output_files, save_html_div
 MODULE = "overlap"
 
 NAMEBASE = "%s" % MODULE
-FORWARD_NAMEBASE = os.extsep.join([NAMEBASE, "seg"])
-BACKWARD_NAMEBASE = os.extsep.join([NAMEBASE, "feature"])
+TABLE_NAMEBASE = os.extsep.join([NAMEBASE, "table"])
 SIGNIFICANCE_NAMEBASE = os.extsep.join([NAMEBASE, "significance"])
+OVERLAPPING_SEGMENTS_NAMEBASE = os.extsep.join([NAMEBASE, "segments"])
+OVERLAPPING_SEGMENTS_FIELDS = ["chrom", "start (zero-indexed)",
+                               "end (exclusive)", "group",
+                               "[additional fields]"]
 
 HTML_TITLE_BASE = "Overlap statistics"
 HTML_TEMPLATE_FILENAME = "overlap_div.tmpl"
@@ -47,9 +47,9 @@ TOTAL_COL = "total"
 BY_CHOICES = ["segments", "bases"]
 BY_DEFAULT = "segments"
 MIDPOINT_CHOICES = ["1", "2", "both"]
-SAMPLES_DEFAULT = 1000
-REGION_FRACTION_DEFAULT = 0.5
-SUBREGION_FRACTION_DEFAULT = 0.5
+SAMPLES_DEFAULT = 5000
+REGION_FRACTION_DEFAULT = 0.2
+SUBREGION_FRACTION_DEFAULT = 0.2
 
 PNG_SIZE_PER_PANEL = 400  # px
 SIGNIFICANCE_PNG_SIZE = 600  # px
@@ -58,7 +58,8 @@ def start_R():
     r_source("common.R")
     r_source("overlap.R")
 
-def calc_overlap(subseg, qryseg, quick=False, by=BY_DEFAULT,
+def calc_overlap(subseg, qryseg, quick=False, clobber=False, by=BY_DEFAULT,
+                 print_segments=False, dirpath=None,
                  min_overlap=1, min_overlap_fraction=None):
     # Ensure either min_overlap or _fraction, but not both
     if min_overlap_fraction is None:
@@ -67,6 +68,8 @@ def calc_overlap(subseg, qryseg, quick=False, by=BY_DEFAULT,
         min_overlap = None
         min_overlap_fraction = float(min_overlap_fraction)
         assert min_overlap_fraction >= 0 and min_overlap_fraction <= 1
+
+    if print_segments: assert dirpath is not None
 
     sub_labels = subseg.labels
     qry_labels = qryseg.labels
@@ -77,6 +80,18 @@ def calc_overlap(subseg, qryseg, quick=False, by=BY_DEFAULT,
         elif col_label in qry_labels.values():
             die("QUERYFILE uses reserved group name: %s" % col_label)
 
+    # Set up output files if printing overlapping segments
+    if print_segments:
+        outfiles = {}
+        header = "# %s" % "\t".join(OVERLAPPING_SEGMENTS_FIELDS)
+        for sub_label_key, sub_label in sub_labels.iteritems():
+            outfilename = os.extsep.join([OVERLAPPING_SEGMENTS_NAMEBASE,
+                                          sub_label, "txt"])
+            outfilepath = os.path.join(dirpath, outfilename)
+            check_clobber(outfilepath, clobber=clobber)
+            outfiles[sub_label_key] = open(outfilepath, "w")
+            print >>outfiles[sub_label_key], header
+
     counts = zeros((len(sub_labels), len(qry_labels)), dtype="int")
     totals = zeros(len(sub_labels), dtype="int")
     nones = zeros(len(sub_labels), dtype="int")
@@ -85,28 +100,18 @@ def calc_overlap(subseg, qryseg, quick=False, by=BY_DEFAULT,
         try:
             qry_segments = qryseg.chromosomes[chrom]
         except KeyError:
-            print >>sys.stderr, "\t\tNot in QUERYFILE. Skipping."
             continue
 
         # Track upper and lower bounds on range of segments that might
         #   be in the range of the current segment (to keep O(n))
-        low_qry_segment_iter = iter(qry_segments)
-        high_qry_segment_iter = iter(qry_segments)
-        low_index = 0
-        low_stop = False
-        low_qry_segment = low_qry_segment_iter.next()
-        high_index = 0
-        high_stop = False
-        high_qry_segment = high_qry_segment_iter.next()
-
-        # Keep track of the number of segments of each group that are currently
-        #   in range of the current segment
-        qrygroup_counts = zeros(len(qry_labels), dtype="int")
-
+        qry_segment_iter = iter(qry_segments)
+        qry_segment = qry_segment_iter.next()
+        qry_segments_in_range = []
         for sub_segment in subseg.chromosomes[chrom]:
-            substart = sub_segment[SEGMENT_START_COL]
-            subend = sub_segment[SEGMENT_END_COL]
-            sublabelkey = sub_segment[SEGMENT_LABEL_KEY_COL]
+            print "on subject: %r" % sub_segment
+            substart = sub_segment['start']
+            subend = sub_segment['end']
+            sublabelkey = sub_segment['key']
             sublength = subend - substart
             # Compute min-overlap in terms of bases, if conversion required
             if min_overlap is None:
@@ -115,71 +120,105 @@ def calc_overlap(subseg, qryseg, quick=False, by=BY_DEFAULT,
             else:
                 min_overlap_bp = min_overlap
 
-            # High_index is just above top of range around subsegment
-            while not high_stop and \
-                    high_qry_segment[SEGMENT_START_COL] <= \
-                    sub_segment[SEGMENT_END_COL] - min_overlap:
-                try:
-                    qrygroup_counts[
-                        high_qry_segment[SEGMENT_LABEL_KEY_COL]] += 1
-                    high_qry_segment = high_qry_segment_iter.next()
-                    high_index += 1
-                except StopIteration:
-                    high_index = len(qry_segments)
-                    high_stop = True
-                    break
-
-            # Low_index is bottom of range around subsegment
-            while not low_stop and \
-                    low_qry_segment[SEGMENT_END_COL] - \
-                    min_overlap < sub_segment[SEGMENT_START_COL]:
-                try:
-                    qrygroup_counts[
-                        low_qry_segment[SEGMENT_LABEL_KEY_COL]] -= 1
-                    low_qry_segment = low_qry_segment_iter.next()
-                    low_index += 1
-                except StopIteration:
-                    low_index = len(qry_segments)
-                    low_stop = True
-                    break
-
             if by == "segments":
                 full_score = 1
             elif by == "bases":
                 full_score = sublength
 
+            # Add subject segment to the total count
             totals[sublabelkey] += full_score
 
-            # Skip processing if there are no overlapping segments
-            if high_index - low_index <= 0:
+            # Remove from list any qry_segments that are now too low
+            if len(qry_segments_in_range) > 0:
+                print "dropping queries out of range..."
+            i = 0
+            while i < len(qry_segments_in_range):
+                segment = qry_segments_in_range[i]
+                if segment['end'] - min_overlap_bp < substart:
+                    del qry_segments_in_range[i]
+                    print "\tdropped: %r" % segment
+                else:
+                    i += 1
+
+            # Advance qry_segment pointer to past sub_segment, updating list
+            while qry_segment is not None and \
+                    qry_segment['start'] <= subend - min_overlap_bp:
+                if qry_segment['end'] - min_overlap_bp >= substart:
+                    # qry_segment overlaps with sub_segment
+                    qry_segments_in_range.append(qry_segment)
+                    print "adding query: %r" % qry_segment
+                try:
+                    qry_segment = qry_segment_iter.next()
+                except StopIteration:
+                    qry_segment = None
+
+                print "advanced query ptr to: %r" % qry_segment
+
+            # Skip processing if there aren't any segments in range
+            if len(qry_segments_in_range) == 0:
                 nones[sublabelkey] += full_score
                 continue
 
-            # At least one segment overlaps, so calculate overlap
-            range_segments = qry_segments[low_index:high_index, :]
-            label_col = range_segments[:, SEGMENT_LABEL_KEY_COL]
+            print "extracting subset from %d queries in range" % \
+                len(qry_segments_in_range)
+            # Scan list for subset that actually overlap current segment
+            overlapping_segments = []
+            for segment in qry_segments_in_range:
+                if segment['start'] <= subend - min_overlap_bp:
+                    assert segment['end'] - min_overlap_bp >= substart
+                    overlapping_segments.append(segment)
+                    print "\tfound: %r" % segment
+
+            # Skip processing if there are no overlapping segments
+            if len(overlapping_segments) == 0:
+                nones[sublabelkey] += full_score
+                continue
+
+            if print_segments:
+                for segment in overlapping_segments:
+                    values = [chrom,
+                              segment['start'],
+                              segment['end'],
+                              qry_labels[segment['key']]]
+                    # Add a source if there is one
+                    try:
+                        values.append(qryseg.sources[segment['source_key']])
+                    except AttributeError, IndexError:
+                        pass
+                    # Add any other data in the segment
+                    try:
+                        values.extend(tuple(segment)[4:])
+                    except IndexError:
+                        pass
+                    values = [str(val) for val in values]
+                    print >>outfiles[sublabelkey], "\t".join(values)
+
+            # Organize overlapping_segments by qrylabelkey
+            label_overlaps = defaultdict(list)  # Per qrylabelkey
+            for segment in overlapping_segments:
+                label_overlaps[segment['key']].append(segment)
+            label_overlaps = dict(label_overlaps)  # Remove defaultdict
 
             if by == "segments":
-                # Add 1 to count for each group currently in range
-                groups_in_range = (qrygroup_counts > 0)
-                assert groups_in_range.sum() != 0
-                counts[sublabelkey] += groups_in_range
-
+                # Add 1 to count for each group that overlaps at least
+                # one segment
+                for qrylabelkey in label_overlaps:
+                    counts[sublabelkey][qrylabelkey] += 1
             elif by == "bases":
-                # Keep track of total covered by all labels
+                # Keep track of total covered by any labels
                 covered = zeros(sublength, dtype="bool")
-                for qrylabelkey in qry_labels:
+                for qrylabelkey, segments in label_overlaps.iteritems():
                     # Look at total covered by single label
-                    label_rows = (label_col == qrylabelkey)
                     label_covered = zeros(sublength, dtype="bool")
-                    for qry_segment in range_segments[label_rows, :]:
-                        qrystart = qry_segment[SEGMENT_START_COL]
-                        qryend = qry_segment[SEGMENT_END_COL]
+                    for segment in segments:
+                        qrystart = segment['start']
+                        qryend = segment['end']
+                        qrylabelkey = segment['key']
                         # Define bounds of coverage
                         cov_start = min(qrystart - substart, 0)
                         cov_end = max(cov_start + (qryend - qrystart),
                                       sublength)
-                        label_covered[cov_start:cov_end]=True
+                        label_covered[cov_start:cov_end] = True
 
                     # Add the number of bases covered by this segment
                     counts[sublabelkey][qrylabelkey] += label_covered.sum()
@@ -189,6 +228,11 @@ def calc_overlap(subseg, qryseg, quick=False, by=BY_DEFAULT,
                 nones[sublabelkey] += invert(covered).sum()
 
         if quick: break
+
+    if print_segments:
+        for outfile in outfiles.itervalues():
+            outfile.close()
+
     return (counts, totals, nones)
 
 def split_bed_regions(filename, labels, lengths):
@@ -217,7 +261,7 @@ def split_bed_regions(filename, labels, lengths):
             if not lengths.has_key( chName ):
                 continue
 
-            shifted_feature = lengths[chName].intersection(feature) 
+            shifted_feature = lengths[chName].intersection(feature)
             # if there is no intersection, there is nothing else to do
             if shifted_feature == None: continue
             else:
@@ -289,21 +333,11 @@ Skipping significance statistics." % regionfilename
     # Preprocess both input BED files, splitting by labels
 
     # Parse segmentation BED file, once for each label
-    print >>sys.stderr, "Parsing segmentation by label...",
-    sys.stdout.flush()
     seg_regions = split_bed_regions(bedfilename, seg_labels, lengths)
-    #seg_regions = parse_file_regions(parse_bed_file, bedfilename,
-    #                                 seg_labels, lengths)
-    print >>sys.stderr, "done"
 
     # Parse feature BED file, once for each label
-    print >>sys.stderr, "Parsing features by label...",
-    sys.stdout.flush()
     feature_regions = split_bed_regions(featurefilename,
                                         feature_labels, lengths)
-    #feature_regions = parse_file_regions(parse_bed_file, featurefilename,
-    #                                     feature_labels, lengths)
-    print >>sys.stderr, "done"
 
     # Calculate p-value for every label-feature pair
     p_values = {}
@@ -403,7 +437,7 @@ def save_significance_tab(dirpath, seg_labels, feature_labels, p_values,
 def save_plot(dirpath, num_panels, clobber=False, mnemonics=[]):
     start_R()
 
-    tabfilename = make_tabfilename(dirpath, FORWARD_NAMEBASE)
+    tabfilename = make_tabfilename(dirpath, TABLE_NAMEBASE)
     if not os.path.isfile(tabfilename):
         die("Unable to find tab file: %s" % tabfilename)
 
@@ -451,14 +485,24 @@ def save_html(dirpath, bedfilename, featurefilename, by, clobber=False):
         significance = ""
 
     save_html_div(HTML_TEMPLATE_FILENAME, dirpath, NAMEBASE, clobber=clobber,
-                  title=title, forwardtablenamebase=FORWARD_NAMEBASE,
-                  backwardtablenamebase=BACKWARD_NAMEBASE,
+                  title=title, tablenamebase=TABLE_NAMEBASE,
                   module=MODULE, by=by, significance=significance,
                   bedfilename=bedfilename, featurefilename=featurebasename)
 
+def is_file_type(filename, ext):
+    """Return True if the filename is of the given extension type (e.g. 'txt')
+
+    Allows g-zipping
+
+    """
+    base = os.path.basename(filename)
+    if base.endswith(SUFFIX_GZ):
+        base = base[:-3]
+    return base.endswith("." + ext)
+
 ## Package entry point
 def validate(bedfilename, featurefilename, dirpath, regionfilename=None,
-             clobber=False, quick=False,
+             clobber=False, quick=False, print_segments=False,
              by=BY_DEFAULT, samples=SAMPLES_DEFAULT,
              region_fraction=REGION_FRACTION_DEFAULT,
              subregion_fraction=SUBREGION_FRACTION_DEFAULT,
@@ -466,7 +510,17 @@ def validate(bedfilename, featurefilename, dirpath, regionfilename=None,
              mnemonicfilename=None, replot=False, noplot=False):
     setup_directory(dirpath)
     segmentation = load_segmentation(bedfilename)
-    features = load_segmentation(featurefilename)
+
+    if is_file_type(featurefilename, 'bed'):
+        features = load_segmentation(featurefilename)
+    elif is_file_type(featurefilename, 'gff'):
+        features = load_features(featurefilename)
+    elif is_file_type(featurefilename, 'gtf'):
+        features = load_features(featurefilename, gtf=True, sort=True)
+    else:
+        raise NotImplementedError("Only bed, gff, and gtf files are supported \
+for FEATUREFILE. If the file is in one of these formats, please use the \
+appropriate extension")
 
     assert segmentation is not None
     assert features is not None
@@ -476,27 +530,20 @@ def validate(bedfilename, featurefilename, dirpath, regionfilename=None,
     mnemonics = map_mnemonics(seg_labels, mnemonicfilename)
 
     if not replot:
-        # Overlap of segmentation with features (forward)
-        print >>sys.stderr, "Measuring overlap of segmentation with features..."
-        seg_counts, seg_totals, seg_nones = calc_overlap(
-            segmentation, features, by=by, min_overlap=min_overlap,
-            min_overlap_fraction=min_overlap_fraction, quick=quick)
+        # Overlap of segmentation with features
+        print >>sys.stderr, "Measuring overlap..."
+        seg_counts, seg_totals, seg_nones = \
+            calc_overlap(segmentation, features, clobber=clobber,
+                         by=by, min_overlap=min_overlap,
+                         min_overlap_fraction=min_overlap_fraction,
+                         print_segments=print_segments,
+                         quick=quick, dirpath=dirpath)
         save_tab(dirpath, seg_labels, feature_labels, seg_counts,
-                 seg_totals, seg_nones, namebase=FORWARD_NAMEBASE,
-                 clobber=clobber, mnemonic_rows=mnemonics)  # Labels on rows
-
-        # Overlap of features with segmentation (backward)
-        print >>sys.stderr, "Measuring overlap of features with segmentation..."
-        feature_counts, feature_totals, feature_nones=calc_overlap(
-            features, segmentation, by=by, min_overlap=min_overlap,
-            min_overlap_fraction=min_overlap_fraction, quick=quick)
-        save_tab(dirpath, feature_labels, seg_labels, feature_counts,
-                 feature_totals, feature_nones, namebase=BACKWARD_NAMEBASE,
-                 clobber=clobber, mnemonic_cols=mnemonics)  # Labels on cols
+                 seg_totals, seg_nones, namebase=TABLE_NAMEBASE,
+                 clobber=clobber, mnemonic_rows=mnemonics)
 
         # GSC significance of forward overlap
-        print >>sys.stderr, "Measuring significance of overlap \
-of segmentation with features..."
+        print >>sys.stderr, "Measuring significance of overlap..."
         p_values = calc_significance(seg_labels, feature_labels, bedfilename,
                                      featurefilename, regionfilename,
                                      num_samples=samples,
@@ -523,10 +570,13 @@ def parse_options(args):
     from optparse import OptionParser, OptionGroup
 
     usage = "%prog [OPTIONS] BEDFILE FEATUREFILE"
-    description = "BEDFILE and FEATUREFILE should both be in BED4+ format \
-(must include name column) (gzip'd okay). BEDFILE should correspond to a \
-segmentation. Overlap analysis will be performed in both directions \
-(BEDFILE as SUBJECTFILE and QUERYFILE). See for full specification: \
+    description = "BEDFILE must be in BED4+ format (name column used as \
+grouping variable). FEATUREFILE should be in BED4+ format or GFF format \
+(feature column used as grouping variable). Results summarize the overlap \
+of BEDFILE groups with FEATUREFILE groups. The symmetric analysis can \
+be performed (if both input files are in BED4+ format) \
+by rerunning the program with the input file arguments swapped \
+(and a different output directory). A rough specification can be found here: \
 http://encodewiki.ucsc.edu/EncodeDCC/index.php/\
 Overlap_analysis_tool_specification"
 
@@ -549,6 +599,15 @@ Overlap_analysis_tool_specification"
     group.add_option("--noplot", action="store_true",
                      dest="noplot", default=False,
                      help="Do not generate plots")
+    group.add_option("-p", "--print-segments", action="store_true",
+                     dest="print_segments", default=False,
+                     help=("Treat features in FEATUREFILE as gene annotations"
+                     " with gene_ids in the feature column. For each group"
+                     " in the BEDFILE, a separate output file will be"
+                     " created that contains a list of all the segments that"
+                     " the group was found to overlap with. Output files"
+                     " are named %s.X.txt, where X is the name"
+                     " of the BEDFILE group.") % OVERLAPPING_SEGMENTS_NAMEBASE)
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Parameters")
@@ -607,12 +666,12 @@ Overlap_analysis_tool_specification"
     group.add_option("--region-fraction", type="float",
                      dest="region_fraction",
                      default=REGION_FRACTION_DEFAULT,
-                     help="The region_fraction tu use with GSC"
+                     help="The region_fraction to use with GSC"
                      " [default: %default]")
     group.add_option("--subregion-fraction", type="float",
                      dest="subregion_fraction",
                      default=SUBREGION_FRACTION_DEFAULT,
-                     help="The subregion_fraction tu use with GSC"
+                     help="The subregion_fraction to use with GSC"
                      " [default: %default]")
     parser.add_option_group(group)
 
@@ -620,6 +679,8 @@ Overlap_analysis_tool_specification"
 
     if len(args) < 2:
         parser.error("Insufficient number of arguments")
+
+    if options.print_segments: assert options.by == "segments"
 
     mof = options.min_overlap_fraction
     if mof is not None and (mof < 0 or mof > 1):
@@ -636,6 +697,7 @@ def main(args=sys.argv[1:]):
               "quick": options.quick,
               "replot": options.replot,
               "noplot": options.noplot,
+              "print_segments": options.print_segments,
               "by": options.by,
               "min_overlap": options.min_overlap,
               "samples": options.samples,

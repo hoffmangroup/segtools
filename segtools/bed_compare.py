@@ -4,7 +4,7 @@ from __future__ import division, with_statement
 """
 bed_compare.py
 
-Tools for comparing two bed files.
+Tools for comparing two segmentations in befile format
 
 """
 
@@ -12,25 +12,32 @@ __version__ = "$Revision$"
 
 import sys
 
-from .common import die, load_segmentation, SEGMENT_START_COL, SEGMENT_END_COL
+from .common import load_segmentation
 
 def bases_in_segments(segments):
     """Return the number of bases in a segment array"""
-    if segments is None or segments.shape[0] == 0:
+    if segments is None or len(segments) == 0:
         return 0
     else:
-        return (segments[:, SEGMENT_END_COL] - \
-                    segments[:, SEGMENT_START_COL]).sum()
+        return (segments['end'] - segments['start']).sum()
 
 def edit_distance(bedfile1, bedfile2, quick=False, verbose=False):
-    """Given two bed files, prints the edit distance (bp) between them"""
-    segmentation1 = load_segmentation(bedfile1, verbose=verbose)
-    if segmentation1 is None: die("Failed to load segmentation: %s" % bedfile1)
-    segmentation2 = load_segmentation(bedfile2, verbose=verbose)
-    if segmentation2 is None: die("Failed to load segmentation: %s" % bedfile2)
+    """Given two segmentations, returns the edit distance (bp) between them"""
+    segmentations = [load_segmentation(bedfile, verbose=verbose)
+                     for bedfile in [bedfile1, bedfile2]]
 
-    chroms = set(segmentation1.chromosomes.keys() + \
-                     segmentation2.chromosomes.keys())
+    for segmentation in segmentations:
+        for segments in segmentation.chromosomes.itervalues():
+            if not (segments['start'][1:] >= segments['end'][:-1]).all():
+                raise SyntaxError("Overlapping segments found in: %s" % \
+                                      segmentation.name)
+
+    chroms = set()
+    for segmentation in segmentations:
+        chroms.update(segmentation.chromosomes.keys())
+
+    labels = [segmentation.labels for segmentation in segmentations]
+
     bases_diff = 0
     bases_same = 0
     bases_missing1 = 0
@@ -41,14 +48,14 @@ def edit_distance(bedfile1, bedfile2, quick=False, verbose=False):
 
         # If no segments in segmentation 1
         try:
-            segs1 = segmentation1.chromosomes[chrom]
+            segs1 = segmentations[0].chromosomes[chrom]
         except KeyError:
             segs1 = None
 
 
         # If no segments in segmentation 2
         try:
-            segs2 = segmentation2.chromosomes[chrom]
+            segs2 = segmentations[1].chromosomes[chrom]
         except KeyError:
             segs2 = None
 
@@ -63,9 +70,9 @@ def edit_distance(bedfile1, bedfile2, quick=False, verbose=False):
 
         # Segments in both segmentations
         segs1_iter = iter(segs1)
-        start1, end1, label_key1 = segs1_iter.next()
+        start1, end1, key1 = segs1_iter.next()
         segs2_iter = iter(segs2)
-        start2, end2, label_key2 = segs2_iter.next()
+        start2, end2, key2 = segs2_iter.next()
         while True:
             advance1 = False
             advance2 = False
@@ -96,7 +103,7 @@ def edit_distance(bedfile1, bedfile2, quick=False, verbose=False):
                     advance1 = True
                     advance2 = True
 
-                if label_key1 == label_key2:
+                if labels[0][key1] == labels[1][key2]:
                     bases_same += bases
                 else:
                     bases_diff += bases
@@ -108,47 +115,25 @@ def edit_distance(bedfile1, bedfile2, quick=False, verbose=False):
             # Carry out any pending advances
             if advance1:
                 try:
-                    start1, end1, label_key1 = segs1_iter.next()
+                    start1, end1, key1 = segs1_iter.next()
                 except StopIteration:
                     bases_missing1 += end2 - start2
-                    for start2, end2, label_key2 in segs2_iter:
+                    for start2, end2, key2 in segs2_iter:
                         bases_missing1 += end2 - start2
                     break
 
             if advance2:
                 try:
-                    start2, end2, label_key2 = segs2_iter.next()
+                    start2, end2, key2 = segs2_iter.next()
                 except StopIteration:
                     bases_missing2 += end1 - start1
-                    for start1, end1, label_key1 in segs1_iter:
+                    for start1, end1, key1 in segs1_iter:
                         bases_missing2 += end1 - start1
                     break
 
         if quick: break
 
-    # Direct just numbers to stdout
-    stderr = ["Bases the same:  ",
-              "Bases different: ",
-              "Bases missing in %s:\t " % bedfile1,
-              "Bases missing in %s:\t " % bedfile2]
-    stdout = ["%d" % bases_same,
-              "%d" % bases_diff,
-              "%d" % bases_missing1,
-              "%d" % bases_missing2]
-
-    print >>sys.stderr, "\n===== EDIT DISTANCE ====="
-    mesh_output(stderr, stdout)
-
-def mesh_output(messages, values):
-    """Print messages to stderr, values tab-delimited to stdout"""
-    assert len(messages) == len(values)
-    for message, value in zip(messages, values):
-        print >>sys.stderr, str(message),
-        sys.stderr.flush()
-        print "%s\t" % value,
-        sys.stdout.flush()
-        print >>sys.stderr, ""
-        sys.stderr.flush()
+    return bases_same, bases_diff, bases_missing1, bases_missing2
 
 def parse_options(args):
     from optparse import OptionParser
@@ -177,15 +162,28 @@ def parse_options(args):
 
     return (options, args)
 
+def print_edit_distance(*args):
+    labels = ["bases the same",
+              "bases different",
+              "bases missing in first file",
+              "bases missing in second file"]
+    values = [int(val) for val in args]
+    print >>sys.stderr, "\n===== EDIT DISTANCE ====="
+    for label, value in zip(labels, values):
+        print >>sys.stderr, "%s: \t%s" % (label, value)
+
+
 ## Command-line entry point
 def main(args=sys.argv[1:]):
     (options, args) = parse_options(args)
     bedfiles = args[0:2]
-
     if options.edit_distance:
         kwargs = {"quick": options.quick,
                   "verbose": options.verbose}
-        edit_distance(*bedfiles, **kwargs)
+        results = edit_distance(*bedfiles, **kwargs)
+        print_edit_distance(*results)
+    else:
+        print >>sys.stderr, "No actions were specified"
 
 if __name__ == "__main__":
     sys.exit(main())
