@@ -108,7 +108,6 @@ def calc_overlap(subseg, qryseg, quick=False, clobber=False, by=BY_DEFAULT,
         qry_segment = qry_segment_iter.next()
         qry_segments_in_range = []
         for sub_segment in subseg.chromosomes[chrom]:
-            print "on subject: %r" % sub_segment
             substart = sub_segment['start']
             subend = sub_segment['end']
             sublabelkey = sub_segment['key']
@@ -129,14 +128,11 @@ def calc_overlap(subseg, qryseg, quick=False, clobber=False, by=BY_DEFAULT,
             totals[sublabelkey] += full_score
 
             # Remove from list any qry_segments that are now too low
-            if len(qry_segments_in_range) > 0:
-                print "dropping queries out of range..."
             i = 0
             while i < len(qry_segments_in_range):
                 segment = qry_segments_in_range[i]
                 if segment['end'] - min_overlap_bp < substart:
                     del qry_segments_in_range[i]
-                    print "\tdropped: %r" % segment
                 else:
                     i += 1
 
@@ -146,28 +142,22 @@ def calc_overlap(subseg, qryseg, quick=False, clobber=False, by=BY_DEFAULT,
                 if qry_segment['end'] - min_overlap_bp >= substart:
                     # qry_segment overlaps with sub_segment
                     qry_segments_in_range.append(qry_segment)
-                    print "adding query: %r" % qry_segment
                 try:
                     qry_segment = qry_segment_iter.next()
                 except StopIteration:
                     qry_segment = None
-
-                print "advanced query ptr to: %r" % qry_segment
 
             # Skip processing if there aren't any segments in range
             if len(qry_segments_in_range) == 0:
                 nones[sublabelkey] += full_score
                 continue
 
-            print "extracting subset from %d queries in range" % \
-                len(qry_segments_in_range)
             # Scan list for subset that actually overlap current segment
             overlapping_segments = []
             for segment in qry_segments_in_range:
                 if segment['start'] <= subend - min_overlap_bp:
                     assert segment['end'] - min_overlap_bp >= substart
                     overlapping_segments.append(segment)
-                    print "\tfound: %r" % segment
 
             # Skip processing if there are no overlapping segments
             if len(overlapping_segments) == 0:
