@@ -1024,7 +1024,7 @@ def prompt_install_R_libs(pkgs=R_PACKAGES, repo=CRAN_REPO):
     else:
         return False
 
-def prompt_install_segtools(min_version=SEGTOOLS_VERSION):
+def prompt_install_segtools(min_version=PKG_VERSION):
     return _installer("segtools", install_segtools, get_segtools_version,
                       install_prompt=EASY_INSTALL_PROMPT,
                       min_version=min_version)
@@ -1077,7 +1077,7 @@ def install_R_libs(pkgs=R_PACKAGES, repo=CRAN_REPO, *args, **kwargs):
         if old is not None:
             os.environ["DISPLAY"] = old
 
-def install_segtools(min_version=SEGTOOLS_VERSION, *args, **kwargs):
+def install_segtools(min_version=PKG_VERSION, *args, **kwargs):
     return easy_install("segtools", min_version=min_version)
 
 
