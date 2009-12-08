@@ -13,7 +13,7 @@ code.
 (c) 2009: Orion Buske <stasis@u.washington.edu>
 
 """
-SEGTOOLS_VERSION = "0.1.1"
+PKG_VERSION = "0.1.2"
 
 ####################### BEGIN COMMON CODE HEADER #####################
 
