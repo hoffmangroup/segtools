@@ -29,7 +29,7 @@ class OverlapTester(unittest.TestCase):
         pass
 
     def setUp(self):
-        self.kwargs = {}
+        self.kwargs = {"verbose": False}
         self.init()
 
         # Set self.features from self.subject, self.query
@@ -125,6 +125,48 @@ class TestOverlappingFeatures(OverlapTester):
         self.answer = ([[2, 1], [1, 1]],
                        (2, 1),
                        (0, 0))
+
+class TestComplexOverlap(OverlapTester):
+    def init(self):
+        self.subject = ("bed", [(1, 0, 4, 1),
+                                (1, 10, 15, 2),
+                                (1, 15, 21, 3),
+                                (1, 26, 27, 1),
+                                (1, 30, 31, 2),
+                                (2, 14, 16, 2),
+                                (3, 1, 100, 3)])
+        self.query = ("bed", [(1, 0, 10, 1),
+                              (1, 5, 15, 2),
+                              (1, 15, 25, 1),
+                              (1, 20, 30, 1),
+                              (1, 20, 30, 2),
+                              (1, 25, 30, 3),
+                              (2, 5, 10, 1),
+                              (2, 10, 15, 3)])
+        self.answer = ([[2, 1, 1], [0, 1, 1], [1, 1, 0]],
+                       (2, 3, 2),
+                       (0, 1, 1))
+
+class TestComplexOverlapReversed(OverlapTester):
+    def init(self):
+        self.subject = ("bed", [(1, 0, 10, 1),
+                                (1, 5, 15, 2),
+                                (1, 15, 25, 1),
+                                (1, 20, 30, 1),
+                                (1, 20, 30, 2),
+                                (1, 25, 30, 3),
+                                (2, 5, 10, 1),
+                                (2, 10, 15, 3)])
+        self.query = ("gff", [(1, 0, 4, 1),
+                              (1, 10, 15, 2),
+                              (1, 15, 21, 3),
+                              (1, 26, 27, 1),
+                              (1, 30, 31, 2),
+                              (2, 14, 16, 2),
+                              (3, 1, 100, 3)])
+        self.answer = ([[2, 0, 2], [1, 1, 1], [1, 1, 0]],
+                       (4, 2, 2),
+                       (1, 0, 0))
 
 def suite():
     def is_test_class(member):

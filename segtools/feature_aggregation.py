@@ -33,7 +33,7 @@ from .common import die, fill_array, image_saver, load_gff_data, load_segmentati
 from .html import list2html, save_html_div
 
 NAMEBASE = "%s" % MODULE
-FIELDNAMES = ["label", "factor", "component", "offset", "count", "component_count", "label_count"]
+STATIC_FIELDNAMES = ["factor", "component", "offset"]
 
 HTML_TITLE_BASE = "Feature aggregation"
 HTML_TEMPLATE_FILENAME = "aggregation_div.tmpl"
@@ -119,7 +119,7 @@ def calc_feature_windows(feature, mode, components, component_bins):
     end = feature["end"]
     strand = feature["strand"]
     length = end - start
-    assert length > 0
+    assert length >= 0
 
     # Include flanks by default
     num_5p_bins = component_bins[FLANK_5P]
@@ -593,8 +593,6 @@ def load_gtf_data(gtf_filename, min_exons=MIN_EXONS, min_cdss=MIN_CDSS):
 ## Returns:
 ##   factors: a list of the factors (groups) aggregated over
 ##   counts: dict(label_key -> dict(feature -> dict(component -> histogram)))
-##   component_counts: an array of the number of factors with valid
-##     labels at each bin pos
 def calc_aggregation(segmentation, mode, features, factors, components=[],
                      component_bins=None, quick=False, nofactor=False):
     assert len(factors) > 0
@@ -621,36 +619,15 @@ def calc_aggregation(segmentation, mode, features, factors, components=[],
             print >>sys.stderr, "%s: %d" % (component,
                                             component_bins[component])
 
-    # Number of features aggregated over at each position for each factor
-    # and component
-    component_counts = dict([(factor,
-                              dict([(component, fill_array(0, bins))
-                                   for component, bins
-                                   in component_bins.iteritems()]))
-                             for factor in factors])
-
-    # Number of features aggregated over at each position for each label and
-    # each component
-    label_counts = dict([(label_key,
-                          dict([(component, fill_array(0, bins))
-                                for component, bins
-                                in component_bins.iteritems()]))
-                          for label_key in labels])
-
     # dict:
-    #   key: segmentation label_key
+    #   key: feature_factor
     #   value: dict:
-    #     key: feature_factor
-    #     value: dict:  component_name  -> numpy.array histogram
-    counts = defaultdict(dict)
-
-    # Initialize histograms for each label,factor
-    for label_key in labels.keys():
-        counts[label_key] = dict([(factor,
-                                   dict([(component, fill_array(0, bins))
-                                         for component, bins
-                                         in component_bins.iteritems()]))
-                                  for factor in factors])
+    #      key: component_name
+    #      value: numpy.array histogram [bin, label_key]
+    counts = dict([(factor,
+                    dict([(component, fill_array(0, (bins, len(labels))))
+                          for component, bins in component_bins.iteritems()]))
+                   for factor in factors])
 
     counted_features = 0
 
@@ -680,76 +657,76 @@ def calc_aggregation(segmentation, mode, features, factors, components=[],
             else:
                 factor = get_feature_factor(feature, mode)
 
+            factor_counts = counts[factor]
+
             # Spread internal bins throughout feature
             component_windows = calc_feature_windows(feature, mode, components,
                                                      component_bins)
             # Scan window, tallying segments observed
             for component, window in component_windows.iteritems():
+                component_counts = factor_counts[component]
                 for bin, bp in enumerate(window):
                     try:
                         label_key = segment_map[bp]
                     except IndexError:
                         continue  # Window outside segmentation. Ignore
                     if label_key in labels.keys():
-                        counts[label_key][factor][component][bin] += 1
-                        component_counts[factor][component][bin] += 1
-                        label_counts[label_key][component][bin] += 1
+                        component_counts[bin][label_key] += 1
                         if not feature_counted:
                             counted_features += 1
                             feature_counted = True
         if quick: break
 
-    return (counts, label_counts, component_counts, counted_features)
+    return (counts, counted_features)
 
 
 ## Specifies the format of a tab file row
-def make_row(label, factor, component, offset, count,
-             component_count, label_count):
-    return {"label": label,
-            "factor": factor,
-            "component": component,
-            "offset": offset,
-            "count": count,
-            "component_count": component_count,
-            "label_count": label_count}
+def make_row(factor, component, offset, labels, counts):
+    values = {"factor": factor,
+              "component": component,
+              "offset": offset}
+    for label, count in zip(labels, counts):
+        values[label] = count
+
+    return values
 
 ## Saves the data to a tab file
 def save_tab(labels, counts, components, component_bins,
-             component_counts, label_counts,
              counted_features, dirpath, clobber=False):
     comment = "Number of features: %d" % counted_features
-    with tab_saver(dirpath, NAMEBASE, FIELDNAMES,
+
+    label_fieldnames = [labels[key] for key in sorted(labels.keys())]
+    for fieldname in label_fieldnames:
+        assert fieldname not in STATIC_FIELDNAMES
+
+    fieldnames = STATIC_FIELDNAMES + label_fieldnames
+    with tab_saver(dirpath, NAMEBASE, fieldnames,
                    comment=comment, clobber=clobber) as saver:
-        for label_key in sorted(labels.keys()):
-            for factor, component_hists in counts[label_key].iteritems():
-                for component in components:
-                    hist = component_hists[component]
-                    for offset, count in enumerate(hist):
-                        if component == FLANK_5P:
-                            # Show 5' offsets from start of feature
-                            offset -= len(hist)
+        for factor in counts:
+            for component in components:
+                hist = counts[factor][component]
+                for offset, bin_counts in enumerate(hist):
+                    if component == FLANK_5P:
+                        # Show 5' offsets from start of feature
+                        offset -= len(hist)
 
-                        # Try to substitute component bins into component names
-                        try:
-                            component_name = component % \
-                                component_bins[component]
-                        except TypeError:
-                            component_name = component
+                    # Try to substitute component bins into component names
+                    try:
+                        component_name = component % component_bins[component]
+                    except TypeError:
+                        component_name = component
 
-                        row = make_row(\
-                            labels[label_key],
-                            factor,
-                            component_name,
-                            offset,
-                            count,
-                            component_counts[factor][component][offset],
-                            label_counts[label_key][component][offset])
+                    row = make_row(factor,
+                                   component_name,
+                                   offset,
+                                   label_fieldnames,
+                                   bin_counts)
 
-                        saver.writerow(row)
+                    saver.writerow(row)
 
 ## Plots aggregation data from tab file
 def save_plot(dirpath, num_labels, mode, spacers=len(EXON_COMPONENTS),
-              clobber=False, mnemonics=[]):
+              clobber=False, mnemonics=[], normalize=False):
     start_R()
 
     tabfilename = make_tabfilename(dirpath, NAMEBASE)
@@ -768,27 +745,23 @@ def save_plot(dirpath, num_labels, mode, spacers=len(EXON_COMPONENTS),
         r.plot(r["plot.aggregation"](tabfilename,
                                      mnemonics=mnemonics,
                                      genemode=(mode == GENE_MODE),
-                                     spacers=spacers))
-
-#     with image_saver(dirpath, "%s.label_normalized" % NAMEBASE,
-#                      height=png_size,
-#                      width=png_size,
-#                      clobber=clobber):
-#         r.plot(r["plot.aggregation"](tabfilename,
-#                                      normalize_labels=True,
-#                                      mnemonics=mnemonics,
-#                                      genemode=(mode == GENE_MODE)))
-
+                                     spacers=spacers,
+                                     normalize=normalize))
 
 def save_html(dirpath, featurefilename, mode, num_features, factors,
-              components, clobber=False):
+              components, clobber=False, normalize=False):
     featurebasename = os.path.basename(featurefilename)
     title = "%s (%s)" % (HTML_TITLE_BASE, featurebasename)
     factorlist = list2html(factors, code=True)
+    if normalize:
+        yaxis = "proportion"
+    else:
+        yaxis = "count"
+
     save_html_div(HTML_TEMPLATE_FILENAME, dirpath, NAMEBASE, clobber=clobber,
                   module=MODULE, featurefilename=featurebasename,
                   numfeatures=num_features, mode=mode, factorlist=factorlist,
-                  title=title)
+                  title=title, yaxis=yaxis)
 
 def print_array(arr, tag="", type="%d"):
     fstring = "%%s:  %s, %s, ..., %s, ..., %s, %s" % tuple([type]*5)
@@ -804,7 +777,7 @@ def validate(bedfilename, featurefilename, dirpath,
              flank_bins=FLANK_BINS, region_bins=REGION_BINS,
              intron_bins=INTRON_BINS, exon_bins=EXON_BINS,
              nofactor=False, mode=DEFAULT_MODE, clobber=False,
-             quick=False, replot=False, noplot=False,
+             quick=False, replot=False, noplot=False, normalize=False,
              min_exons=MIN_EXONS, min_cdss=MIN_CDSS,
              mnemonicfilename=None):
     setup_directory(dirpath)
@@ -857,29 +830,39 @@ def validate(bedfilename, featurefilename, dirpath,
                                factors=factors, components=components,
                                component_bins=component_bins, quick=quick,
                                nofactor=nofactor)
-        counts, label_counts, component_counts, counted_features = res
+        counts, counted_features = res
         for factor in factors:
             for component in components:
-                print_array(component_counts[factor][component],
-                            tag=factor+":"+component+" counts")
+                # Allow component bin substitution
+                try:
+                    component_name = component % component_bins[component]
+                except TypeError:
+                    component_name = component
+                component_counts = counts[factor][component].sum(axis=1)
+                print_array(component_counts, tag="%s:%s count" % \
+                                (factor, component_name))
 
         save_tab(labels, counts, components, component_bins,
-                 component_counts, label_counts,
                  counted_features, dirpath, clobber=clobber)
 
     if not noplot:
         save_plot(dirpath, len(labels), mode, clobber=clobber,
-                  mnemonics=mnemonics)
+                  mnemonics=mnemonics, normalize=normalize)
 
     save_html(dirpath, featurefilename, mode=mode, factors=factors,
               components=components, num_features=num_features,
-              clobber=clobber)
+              clobber=clobber, normalize=normalize)
 
 def parse_options(args):
     from optparse import OptionParser, OptionGroup
 
     usage = "%prog [OPTIONS] BEDFILE FEATUREFILE"
-    description = "FEATUREFILE should be in GFF or GTF format"
+    description = ("Plot the enrichment of the BEDFILE groups relative to"
+                   " the position of features in FEATUREFILE."
+                   " BEDFILE is a BED4+ segmentation, where the name column"
+                   " corresponds to the segment group. FEATUREFILE should"
+                   " be in GFF or GTF format and will be grouped by the"
+                   " feature column unless --no-factor is specified.")
     version = "%%prog %s" % __version__
     parser = OptionParser(usage=usage, version=version,
                           description=description)
@@ -913,6 +896,10 @@ def parse_options(args):
     group.add_option("--no-factor", action="store_true",
                      dest="nofactor", default=False,
                      help="Do not separate data into different factors")
+    group.add_option("--normalize", action="store_true",
+                     dest="normalize", default=False,
+                     help="Plot the relative frequency instead of the counts"
+                     " for each BEDFILE group (normalize over BEDFILE groups)")
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Main aggregation options")
@@ -967,15 +954,21 @@ def main(args=sys.argv[1:]):
     (options, args) = parse_options(args)
     bedfilename = args[0]
     featurefilename = args[1]
-
-    validate(bedfilename, featurefilename, options.outdir,
-             flank_bins=options.flankbins, region_bins=options.regionbins,
-             intron_bins=options.intronbins, exon_bins=options.exonbins,
-             clobber=options.clobber, quick=options.quick,
-             replot=options.replot, noplot=options.noplot,
-             nofactor=options.nofactor, mode=options.mode,
-             min_exons=options.min_exons, min_cdss=options.min_cdss,
-             mnemonicfilename=options.mnemonicfilename)
+    kwargs = {"flank_bins": options.flankbins,
+              "region_bins": options.regionbins,
+              "intron_bins": options.intronbins,
+              "exon_bins": options.exonbins,
+              "clobber": options.clobber,
+              "quick": options.quick,
+              "replot": options.replot,
+              "noplot": options.noplot,
+              "nofactor": options.nofactor,
+              "normalize": options.normalize,
+              "mode": options.mode,
+              "min_exons": options.min_exons,
+              "min_cdss": options.min_cdss,
+              "mnemonicfilename": options.mnemonicfilename}
+    validate(bedfilename, featurefilename, options.outdir, **kwargs)
 
 if __name__ == "__main__":
     sys.exit(main())

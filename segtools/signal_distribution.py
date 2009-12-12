@@ -456,8 +456,10 @@ def save_html(dirpath, seg_dps=None, ecdf=False, clobber=False):
     if seg_dps is None:
         seg_dps = "???"
 
+    extra_namebases = {"stats": NAMEBASE_STATS}
     save_html_div(HTML_TEMPLATE_FILENAME, dirpath, NAMEBASE, clobber=clobber,
-                  module=MODULE, title=title, segdatapoints=seg_dps)
+                  module=MODULE, title=title, segdatapoints=seg_dps,
+                  extra_namebases=extra_namebases)
 
 ## Package entry point
 def validate(bedfilename, genomedatadir, dirpath, group_labels=False,

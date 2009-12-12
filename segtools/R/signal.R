@@ -192,7 +192,6 @@ xyplot.signal <-
   }
 
   if (mode == "normalized") {
-    print("Normalizing data")
     group.sums <- with(data,
                        aggregate(count, list(trackname, label), sum.nona))$x
     group.size <- with(data,
@@ -205,7 +204,6 @@ xyplot.signal <-
 
   # this computes the sum of the counts, for the "all" label
   if (mode == "histogram" || mode == "ecdf") {
-    print("Aggregating over all labels")
     labelsums <- with(data, aggregate(count, list(trackname, lower_edge), sum))
     names(labelsums) <- c("trackname", "lower_edge", "count")
     labelsums$label <- factor("all")
@@ -215,7 +213,6 @@ xyplot.signal <-
     data.full <- data
   }
 
-  print("Setting up plot layout")
   num_rows <- length(levels(data.full$label))
   num_cols <- length(levels(data.full$trackname))
   layout <- c(num_rows, num_cols)
@@ -225,10 +222,8 @@ xyplot.signal <-
   strips.heights <- rep(c(strip.height, 0), c(1, num_rows - 1))
   strips.widths <- rep(c(strip.width, 0), c(1, num_cols - 1))
   
-  print("Calculating plot scales")
   scales <- panel.scales(data.full, layout, log.y = log.y, mode = mode)
 
-  print("Plotting...")
   trellis <- xyplot(x = x,
                     data = data.full,
                     scales = scales,      

@@ -17,7 +17,7 @@ import sys
 
 from collections import defaultdict
 from math import ceil
-from numpy import invert, logical_or, zeros
+from numpy import bincount, invert, logical_or, zeros
 from rpy2.robjects import r, numpy2ri
 
 from .common import check_clobber, die, get_ordered_labels, image_saver, load_features, load_segmentation, make_tabfilename, map_mnemonics, maybe_gzip_open, OutputMasker, r_source, setup_directory, SUFFIX_GZ, tab_saver, template_substitute
@@ -59,7 +59,7 @@ def start_R():
     r_source("overlap.R")
 
 def calc_overlap(subseg, qryseg, quick=False, clobber=False, by=BY_DEFAULT,
-                 print_segments=False, dirpath=None,
+                 print_segments=False, dirpath=None, verbose=True,
                  min_overlap=1, min_overlap_fraction=None):
     # Ensure either min_overlap or _fraction, but not both
     if min_overlap_fraction is None:
@@ -96,10 +96,24 @@ def calc_overlap(subseg, qryseg, quick=False, clobber=False, by=BY_DEFAULT,
     totals = zeros(len(sub_labels), dtype="int")
     nones = zeros(len(sub_labels), dtype="int")
     for chrom in subseg.chromosomes:
-        print >>sys.stderr, "\t%s" % chrom
+        if verbose:
+            print >>sys.stderr, "\t%s" % chrom
+
         try:
             qry_segments = qryseg.chromosomes[chrom]
         except KeyError:
+            segments = subseg.chromosomes[chrom]
+            # Assumes segment keys are non-negative, consecutive integers
+            if by == "segments":
+                key_scores = bincount(segments['key'])
+            elif by == "bases":
+                # Weight each segment by its length
+                weights = segments['end'] - segments['start']
+                key_scores = bincount(segments['key'], weights=weights)
+                key_scores.astype("int")
+
+            totals += key_scores
+            nones += key_scores
             continue
 
         # Track upper and lower bounds on range of segments that might
@@ -382,13 +396,13 @@ def make_tab_row(row_labels, row_key, col_labels, col_ordered_keys,
 ## Saves the data to a tab file
 def save_tab(dirpath, row_labels, col_labels, counts, totals, nones,
              namebase=NAMEBASE, clobber=False,
-             mnemonic_rows=[], mnemonic_cols=[]):
+             row_mnemonics=[], col_mnemonics=[]):
     assert counts is not None and totals is not None and nones is not None
 
     row_ordered_keys, row_labels = get_ordered_labels(row_labels,
-                                                      mnemonic_rows)
+                                                      row_mnemonics)
     col_ordered_keys, col_labels = get_ordered_labels(col_labels,
-                                                      mnemonic_cols)
+                                                      col_mnemonics)
 
     # Set up fieldnames based upon QUERYFILE groups
     fieldnames = list(col_labels[col_key] for col_key in col_ordered_keys)
@@ -404,13 +418,15 @@ def save_tab(dirpath, row_labels, col_labels, counts, totals, nones,
             count_saver.writerow(count_row)
 
 ## Saves the significance data to a tab file
-def save_significance_tab(dirpath, seg_labels, feature_labels, p_values,
+def save_significance_tab(dirpath, row_labels, col_labels, p_values,
              namebase=SIGNIFICANCE_NAMEBASE, clobber=False,
-             mnemonics=[]):
+             row_mnemonics=[], col_mnemonics=[]):
     assert p_values is not None
 
-    row_ordered_keys, row_labels = get_ordered_labels(seg_labels, mnemonics)
-    col_ordered_keys, col_labels = get_ordered_labels(feature_labels)
+    row_ordered_keys, row_labels = get_ordered_labels(row_labels,
+                                                      row_mnemonics)
+    col_ordered_keys, col_labels = get_ordered_labels(col_labels,
+                                                      col_mnemonics)
 
     # Set up fieldnames based upon feature groups
     fieldnames = list(col_labels[col_key] for col_key in col_ordered_keys)
@@ -424,7 +440,8 @@ def save_significance_tab(dirpath, seg_labels, feature_labels, p_values,
                                          formatstr="%.0e")
                 count_saver.writerow(count_row)
 
-def save_plot(dirpath, num_panels, clobber=False, mnemonics=[]):
+def save_plot(dirpath, num_panels, clobber=False,
+              row_mnemonics=[], col_mnemonics=[]):
     start_R()
 
     tabfilename = make_tabfilename(dirpath, TABLE_NAMEBASE)
@@ -442,9 +459,11 @@ def save_plot(dirpath, num_panels, clobber=False, mnemonics=[]):
         r.plot(r["plot.overlap"](tabfilename,
                                  dirpath=dirpath,
                                  basename=NAMEBASE,
-                                 mnemonics=mnemonics))
+                                 mnemonics=row_mnemonics,
+                                 col_mnemonics=col_mnemonics))
 
-def save_significance_plot(dirpath, clobber=False, mnemonics=[]):
+def save_significance_plot(dirpath, clobber=False,
+                           row_mnemonics=[], col_mnemonics=[]):
     start_R()
 
     tabfilename = make_tabfilename(dirpath, SIGNIFICANCE_NAMEBASE)
@@ -457,7 +476,8 @@ Skipping significance plot." % tabfilename
     with image_saver(dirpath, SIGNIFICANCE_NAMEBASE, clobber=clobber,
                      width=SIGNIFICANCE_PNG_SIZE,
                      height=SIGNIFICANCE_PNG_SIZE):
-        r.plot(r["plot.overlap.pvalues"](tabfilename, mnemonics=mnemonics))
+        r.plot(r["plot.overlap.pvalues"](tabfilename, mnemonics=row_mnemonics,
+                                         col_mnemonics=col_mnemonics))
 
 def save_html(dirpath, bedfilename, featurefilename, by, clobber=False):
     bedfilename = os.path.basename(bedfilename)
@@ -497,7 +517,8 @@ def validate(bedfilename, featurefilename, dirpath, regionfilename=None,
              region_fraction=REGION_FRACTION_DEFAULT,
              subregion_fraction=SUBREGION_FRACTION_DEFAULT,
              min_overlap=1, min_overlap_fraction=None,
-             mnemonicfilename=None, replot=False, noplot=False):
+             mnemonic_filename=None, feature_mnemonic_filename=None,
+             replot=False, noplot=False):
     setup_directory(dirpath)
     segmentation = load_segmentation(bedfilename)
 
@@ -517,7 +538,9 @@ appropriate extension")
 
     seg_labels = segmentation.labels
     feature_labels = features.labels
-    mnemonics = map_mnemonics(seg_labels, mnemonicfilename)
+    mnemonics = map_mnemonics(seg_labels, mnemonic_filename)
+    feature_mnemonics = map_mnemonics(feature_labels,
+                                      feature_mnemonic_filename)
 
     if not replot:
         # Overlap of segmentation with features
@@ -528,9 +551,11 @@ appropriate extension")
                          min_overlap_fraction=min_overlap_fraction,
                          print_segments=print_segments,
                          quick=quick, dirpath=dirpath)
+
         save_tab(dirpath, seg_labels, feature_labels, seg_counts,
                  seg_totals, seg_nones, namebase=TABLE_NAMEBASE,
-                 clobber=clobber, mnemonic_rows=mnemonics)
+                 clobber=clobber, row_mnemonics=mnemonics,
+                 col_mnemonics=feature_mnemonics)
 
         # GSC significance of forward overlap
         print >>sys.stderr, "Measuring significance of overlap..."
@@ -543,13 +568,16 @@ appropriate extension")
         if p_values is not None:
             save_significance_tab(dirpath, seg_labels, feature_labels,
                                   p_values=p_values, clobber=clobber,
-                                  mnemonics=mnemonics)
+                                  row_mnemonics=mnemonics,
+                                  col_mnemonics=feature_mnemonics)
 
     if not noplot:
         save_plot(dirpath, num_panels=len(feature_labels),
-                  clobber=clobber, mnemonics=mnemonics)
+                  clobber=clobber, row_mnemonics=mnemonics,
+                  col_mnemonics=feature_mnemonics)
         save_significance_plot(dirpath, clobber=clobber,
-                               mnemonics=mnemonics)
+                               row_mnemonics=mnemonics,
+                               col_mnemonics=feature_mnemonics)
 
     print >>sys.stderr, "Saving HTML div...",
     sys.stdout.flush()  # Necessary to make sure html errors don't clobber print
@@ -634,10 +662,14 @@ Overlap_analysis_tool_specification"
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Files")
-    group.add_option("--mnemonic-file", dest="mnemonicfilename",
+    group.add_option("--mnemonic-file", dest="mnemonic_filename",
                      default=None,
-                     help="If specified, labels will be shown using"
+                     help="If specified, BEDFILE groups will be shown using"
                      " mnemonics found in this file")
+    group.add_option("--feature-mnemonic-file",
+                     dest="feature_mnemonic_filename", default=None,
+                     help="If specified, FEATUREFILE groups will be shown"
+                     " using mnemonics found in this file")
     group.add_option("-o", "--outdir",
                      dest="outdir", default="%s" % MODULE,
                      help="File output directory (will be created"
@@ -694,7 +726,8 @@ def main(args=sys.argv[1:]):
               "min_overlap_fraction": options.min_overlap_fraction,
               "region_fraction": options.region_fraction,
               "subregion_fraction": options.subregion_fraction,
-              "mnemonicfilename": options.mnemonicfilename}
+              "mnemonic_filename": options.mnemonic_filename,
+              "feature_mnemonic_filename": options.feature_mnemonic_filename}
     validate(*args, **kwargs)
 
 if __name__ == "__main__":

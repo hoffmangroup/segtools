@@ -361,7 +361,6 @@ def loop_segments_continuous(chromosome, segmentation, verbose=True):
     supercontig = None
     supercontig_last_start = 0
     num_segments = len(segments)
-    i = 0
     for i, segment in enumerate(segments):
         start, end, key = segment
         while supercontig is None or start >= supercontig.end:
@@ -377,7 +376,8 @@ def loop_segments_continuous(chromosome, segmentation, verbose=True):
                                                            supercontig.end)
 
         if verbose and i % 1000 == 0:
-            print >>sys.stderr, "\r\t\t\tSegment %d / %d" % (i, num_segments),
+            print >>sys.stderr, "\r\t\t\tSegment %d / %d" % \
+                (i + 1, num_segments),
             sys.stdout.flush()
 
         if end <= supercontig.start:
@@ -392,7 +392,7 @@ def loop_segments_continuous(chromosome, segmentation, verbose=True):
 
     if verbose:
         print >>sys.stderr, "\r\t\t\tSegment %d / %d" % \
-            (i, num_segments)
+            (i + 1, num_segments)
 
 ## Yields supercontig and the subset of segments which overlap it.
 def iter_supercontig_segments(chromosome, segmentation, verbose=True):
@@ -764,7 +764,7 @@ def load_segmentation(filename, verbose=True):
     """
 
     if verbose:
-        print >>sys.stderr, "Loading segmentation..."
+        print >>sys.stderr, "Loading segmentation...",
 
     # first get the tracks that were used for this segmentation
     segtool, tracks = get_bed_metadata(filename)
@@ -772,9 +772,9 @@ def load_segmentation(filename, verbose=True):
     labels, chromosomes = bed2arraydict(filename)
 
     if verbose:
-        print >>sys.stderr, "\n\tMapped labels to integer keys:"
-        for key, label in labels.iteritems():
-            print >>sys.stderr, "\t\t\"%s\" -> %d" % (label, key)
+#         print >>sys.stderr, "\n\tMapped labels to integer keys:"
+#         for key, label in labels.iteritems():
+#             print >>sys.stderr, "\t\t\"%s\" -> %d" % (label, key)
         print >>sys.stderr, "done."
 
     # wrap in a Segmentation object

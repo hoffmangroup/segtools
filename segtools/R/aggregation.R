@@ -1,16 +1,17 @@
 library(lattice)
 library(RColorBrewer)
 library(latticeExtra)
+library(plyr)
+library(reshape)
 
-read.aggregation <- function(filename, mnemonics=NULL, ..., 
+read.aggregation <- function(filename, mnemonics = NULL, ..., 
                              comment.char = "#",
-                             check.names=FALSE) {
-  data <- read.delim(filename, ..., 
-                     comment.char=comment.char, 
-                     check.names=check.names)
-  data$label <- factor(data$label)
-  data$factor <- factor(data$factor)
-  data$component <- factor(data$component)
+                             check.names = FALSE) {
+  data.raw <- read.delim(filename, ..., 
+                         comment.char=comment.char, 
+                         check.names=check.names)
+
+  data <- melt.aggregation(data.raw)
   
   if (length(mnemonics) > 0) {
     data$label <- relabel.factor(data$label, mnemonics)
@@ -18,7 +19,7 @@ read.aggregation <- function(filename, mnemonics=NULL, ...,
     data$label <- smart.factor.reorder(data$label)
   }
 
-  # Order components by the order observed in the file
+  ## Order components by the order observed in the file
   data$component <- factor(data$component, levels=unique(data$component))
   
   data
@@ -28,15 +29,15 @@ read.aggregation <- function(filename, mnemonics=NULL, ...,
 ## Generates pretty scales for the data.
 ## layout is a 2-element vector: c(num_rows, num_cols) for the xyplot
 ## num_panels is the number of panels/packets in the trellis
-panel.scales <- function(data, layout, num_panels) 
+panel.scales <- function(data, layout, num_panels, x.axis = FALSE) 
 {
   components <- levels(data$component)
   num_components <- length(components)
 
-  # Avoid overlapping scales if there is not an even row at the bottom
+  ## Avoid overlapping scales if there is not an even row at the bottom
   remove.extra.scales <- (layout[1] * layout[2] != num_panels) * num_components
 
-  # Figure out x axis labels (should be same within component)
+  ## Figure out x axis labels (should be same within component)
   at.x <- list()
   for (cur_component in components) {
     component_subset <- subset(data, component == cur_component)
@@ -46,22 +47,26 @@ panel.scales <- function(data, layout, num_panels)
     at.x <- c(at.x, at.x.pretty)
   }
 
-  at.x.nonnull.full <- rep(at.x, 
-    as.integer((layout[1] - remove.extra.scales) / num_components))
+  at.x.full <-
+    if (x.axis) {
+      ## Remove internal axes and space where axes were
+      at.x.nonnull.full <- rep(at.x,
+                               as.integer((layout[1] - remove.extra.scales) /
+                                          num_components))
+      c(rep(list(NULL), num_panels - layout[1] + remove.extra.scales),
+        at.x.nonnull.full)
+    } else {
+      NULL
+    }
 
-  # Remove internal axes and space where axes were
-  at.x.full <- c(rep(list(NULL), num_panels - layout[1] + remove.extra.scales),
-                 at.x.nonnull.full)
-
-  max.y <- max(data$frequency, na.rm=TRUE)
+  max.y <- max(data$overlap, na.rm=TRUE)
   limits.y <- c(-0.001, max.y*1.1)
   at.y.full <- unlist(at.pretty(from=0, to=max.y, length=5))
-  # Take only 0 and the last
+  ## Take only 0 and the last
   at.y <- c(0, tail(at.y.full, n=1))
   scales <- list(x = list(relation = "free",
                           tck = c(1, 0),
-                          #at = at.x.full,
-                          at = NULL,
+                          at = at.x.full,
                           rot = 90,
                           axs = "i"
                           ),
@@ -93,17 +98,44 @@ transpose.levels <-
   factor(data.factor, levels = res)
 }
 
-# Plots frequency vs position for each label
-#   data: a data frame with fields: frequency, offset, label
-#   spacers should be a vector of indices, where a spacer will be placed after
-#     that component (e.g. c(1, 3) will place spacers after the first and third
-#     components
+melt.aggregation <- function(data.raw) {
+  id.vars <- colnames(data.raw)[1:3]
+  data <- melt(data.raw, id.vars = id.vars)
+  colnames(data)[(colnames(data) == "variable")] <- "label"
+  colnames(data)[(colnames(data) == "value")] <- "count"
+
+  data$factor <- factor(data$factor)
+  data$component <- factor(data$component)
+  data$label <- factor(data$label)
+
+  data
+}
+
+cast.aggregation <- function(data.raw) {
+  cast(data, factor + component + offset ~ label, value = "count")
+}
+
+## Given an aggregation data frame, normalize the counts over all labels
+normalize.counts <- function(data.raw) {
+  data <- cast.aggregation(data.raw)
+  data.values <- data.cur[4:ncol(data)]
+  data[4:ncol(data)] <- data.values / rowSums(data.values)
+  
+  melt.aggregation(data)
+}
+
+## Plots overlap vs position for each label
+##   data: a data frame with fields: overlap, offset, label
+##   spacers should be a vector of indices, where a spacer will be placed after
+##     that component (e.g. c(1, 3) will place spacers after the first and third
+##     components
 xyplot.aggregation <- 
   function(data,
-    x = frequency ~ offset | component * label,
+    x = overlap ~ offset | component * label,
     spacers = NULL,
     genemode = FALSE,
-    normalize_labels = FALSE,
+    normalize = TRUE,
+    x.axis = FALSE,  # Show x axis
     text.cex = 1,
     spacing.x = 0.4,
     spacing.y = 0.4,
@@ -115,28 +147,28 @@ xyplot.aggregation <-
     strip = strip.custom(horizontal = FALSE),
     strip.height = 10,
     xlab = NULL,
-    ylab = "Frequency",
+    ylab = if (normalize) "Frequency" else "Count",
     ...) 
 {
 
-  # Calculate frequencies from counts
-  data$frequency <- 
-    if (normalize_labels) {
-      data$count / data$label_count
+  ## Calculate frequencies from counts
+  data$overlap <- 
+    if (normalize) {
+      normalize.counts(data$count)
     } else {
-      data$count / data$component_count
+      data$count
     }
-  data$frequency[!is.finite(data$frequency)] <- 0
+  data$overlap[!is.finite(data$overlap)] <- 0
 
 
-  # Determine panel layout
+  ## Determine panel layout
   num_levels <- nlevels(data$label)
   num_components <- nlevels(data$component)
   num_rows <- num_components
   num_cols <- num_levels
   num_panels <- num_rows * num_cols
 
-  # Rework layout to optimize organization
+  ## Rework layout to optimize organization
   while (num_cols > num_rows) {
     num_cols <- num_cols / 2
     num_rows <- num_rows * 2
@@ -144,10 +176,10 @@ xyplot.aggregation <-
   num_cols <- ceiling(num_cols)
   layout <- c(num_rows, num_cols)
 
-  # Reorder labels so they are in order downward in panels
+  ## Reorder labels so they are in order downward in panels
   data$label <- transpose.levels(data$label, num_rows / num_components)
 
-  # Separate distinct groups
+  ## Separate distinct groups
   spaces.x <- rep(0, num_components - 1)
   if (is.numeric(spacers) && length(spacers) > 0) {
     if (any(spacers < 1 | spacers >= num_components)) {
@@ -161,16 +193,11 @@ xyplot.aggregation <-
                   y = spacing.y)
 
 
-  scales <- panel.scales(data, layout, num_panels)
+  scales <- panel.scales(data, layout, num_panels, x.axis = x.axis)
   axis.panel <- rep(c(0, 1), c(num_cols - 1, 1))
 
-  # Make top strips longer
+  ## Make top strips longer
   strips.heights <- rep(c(strip.height, 0), c(1, num_cols - 1))
-
-#  if (genemode) {
-#    par.settings$strip.border <- list(col="transparent")
-#    trellis <- resizePanels(trellis, w = panel.widths(
-#  }
 
   trellis.raw <- xyplot(x, 
                         data = data, 

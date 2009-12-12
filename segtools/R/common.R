@@ -95,15 +95,14 @@ labels.classify <-
 }
 
 # Substitutes names for mnemonics and reorders to match mnemonic ordering
-# Factor should have integer labels
 # Usage: x$factor <- relabel.factor(x$factor, mnemonics)
 relabel.factor <- function(field, mnemonics) {
   # Order by mnemonics
-  mnemonics <- data.frame(old=as.integer(mnemonics[,1]),
+  mnemonics <- data.frame(old=as.character(mnemonics[,1]),
                           new=as.character(mnemonics[,2]),
                           stringsAsFactors=FALSE)
   # Substitute label names
-  levels.raw <- levels(field)
+  levels.raw <- as.character(levels(field))
   mapping.rows <- match(levels.raw, mnemonics$old)
   mapping.valid <- is.finite(mapping.rows)
   levels.mapped <- mnemonics$new[mapping.rows[mapping.valid]]

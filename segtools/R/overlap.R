@@ -7,16 +7,39 @@ library(reshape)
 
 ############### OVERLAP ANALYSIS ##############
 
-read.overlap <- function(filename, mnemonics = NULL, ..., check.names = FALSE,
-                         colClasses = "character")
+relabel.cols <- function(mat, mnemonics = NULL) {
+  mnemonics.frame <- data.frame(old = as.integer(mnemonics[,1]),
+                                new = as.character(mnemonics[,2]),
+                                stringsAsFactors = FALSE)
+
+  labels.raw <- colnames(mat)
+  mapping.cols <- match(labels.raw, mnemonics.frame$old)
+  mapping.valid <- is.finite(mapping.cols)
+  levels.mapped <- mnemonics.frame$new[mapping.cols[mapping.valid]]
+  
+  colnames(mat)[mapping.valid] <- levels.mapped
+  cbind(mat[, mapping.valid], mat[, !mapping.valid])
+}
+
+read.overlap <- function(filename, mnemonics = NULL, col_mnemonics = NULL,
+                         ..., check.names = FALSE, colClasses = "character")
 {
   res <- read.delim(filename, ..., check.names = check.names,
                     colClasses = colClasses)
+  
+  if (length(col_mnemonics) > 0) {
+    res <- cbind(res[, 1], relabel.cols(res[, -1]))
+  }
   colnames(res)[1] <- "label"
+  
   # Order by file order
   res$label <- factor(res$label, levels = unique(res$label))
-  
-  res[,2:ncol(res)] <- apply(res[,2:ncol(res)], 2, as.numeric)
+
+  if (ncol(res) == 2) {
+    res[, 2] <- as.numeric(res[, 2])
+  } else{
+    res[, 2:ncol(res)] <- apply(res[, 2:ncol(res)], 2, as.numeric)
+  }
   
   if (length(mnemonics) > 0) {
     res$label <- relabel.factor(res$label, mnemonics)

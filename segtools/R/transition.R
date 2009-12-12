@@ -13,8 +13,9 @@ relabel.matrix <- function(mat, mnemonics = NULL,
                            relabel.cols = TRUE, relabel.rows = TRUE)
 {
   if (length(mnemonics) > 0) {
-    mnemonics.frame <- data.frame(old = as.integer(as.character(mnemonics[,1])),
-                                  new = as.character(mnemonics[,2]))
+    mnemonics.frame <- data.frame(old = as.integer(mnemonics[,1]),
+                                  new = as.character(mnemonics[,2]),
+                                  stringsAsFactors = FALSE)
     row.order <- 1:nrow(mat)
     col.order <- 1:ncol(mat)
     if (relabel.rows) {
