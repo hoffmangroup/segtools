@@ -485,14 +485,14 @@ def save_html(dirpath, bedfilename, featurefilename, by, clobber=False):
 
     title = "%s (%s)" % (HTML_TITLE_BASE, featurebasename)
 
-    # Insert significance results if they were made
-    tabfilename = make_tabfilename(dirpath, SIGNIFICANCE_NAMEBASE)
-    if os.path.isfile(tabfilename):
-        files = find_output_files(dirpath, SIGNIFICANCE_NAMEBASE)
-        significance = template_substitute(
-            SIGNIFICANCE_TEMPLATE_FILENAME)(files)
-    else:
-        significance = ""
+#     # Insert significance results if they were made
+#     tabfilename = make_tabfilename(dirpath, SIGNIFICANCE_NAMEBASE)
+#     if os.path.isfile(tabfilename):
+#         files = find_output_files(dirpath, SIGNIFICANCE_NAMEBASE)
+#         significance = template_substitute(
+#             SIGNIFICANCE_TEMPLATE_FILENAME)(files)
+#     else:
+    significance = ""
 
     save_html_div(HTML_TEMPLATE_FILENAME, dirpath, NAMEBASE, clobber=clobber,
                   title=title, tablenamebase=TABLE_NAMEBASE,
@@ -557,27 +557,30 @@ appropriate extension")
                  clobber=clobber, row_mnemonics=mnemonics,
                  col_mnemonics=feature_mnemonics)
 
-        # GSC significance of forward overlap
-        print >>sys.stderr, "Measuring significance of overlap..."
-        p_values = calc_significance(seg_labels, feature_labels, bedfilename,
-                                     featurefilename, regionfilename,
-                                     num_samples=samples,
-                                     region_fraction=region_fraction,
-                                     subregion_fraction=subregion_fraction,
-                                     quick=quick, by=by)
-        if p_values is not None:
-            save_significance_tab(dirpath, seg_labels, feature_labels,
-                                  p_values=p_values, clobber=clobber,
-                                  row_mnemonics=mnemonics,
-                                  col_mnemonics=feature_mnemonics)
+#         # GSC significance of forward overlap
+#         print >>sys.stderr, "Measuring significance of overlap..."
+#         p_values = calc_significance(seg_labels,
+#                                      feature_labels,
+#                                      bedfilename,
+#                                      featurefilename,
+#                                      regionfilename,
+#                                      num_samples=samples,
+#                                      region_fraction=region_fraction,
+#                                      subregion_fraction=subregion_fraction,
+#                                      quick=quick, by=by)
+#         if p_values is not None:
+#             save_significance_tab(dirpath, seg_labels, feature_labels,
+#                                   p_values=p_values, clobber=clobber,
+#                                   row_mnemonics=mnemonics,
+#                                   col_mnemonics=feature_mnemonics)
 
     if not noplot:
         save_plot(dirpath, num_panels=len(feature_labels),
                   clobber=clobber, row_mnemonics=mnemonics,
                   col_mnemonics=feature_mnemonics)
-        save_significance_plot(dirpath, clobber=clobber,
-                               row_mnemonics=mnemonics,
-                               col_mnemonics=feature_mnemonics)
+#         save_significance_plot(dirpath, clobber=clobber,
+#                                row_mnemonics=mnemonics,
+#                                col_mnemonics=feature_mnemonics)
 
     print >>sys.stderr, "Saving HTML div...",
     sys.stdout.flush()  # Necessary to make sure html errors don't clobber print
