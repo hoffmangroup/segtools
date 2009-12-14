@@ -178,9 +178,9 @@ melt.track.stats <- function(data) {
 
 panel.track.stats <-
   function(x, y, z, subscripts, at = pretty(z), sds = NULL, 
-           ncolors = 2, threshold = FALSE, sd.shape = "box", 
-           panel.fill = "mean", box.fill = "gradient", 
-           sd.box.size = 0.4, sd.scale = 1, sd.line.size = 0.1,
+           ncolors = 2, threshold = FALSE, sd.shape = "line", 
+           panel.fill = "mean", box.fill = NULL, 
+           sd.box.size = 0.4, sd.scale = 1, sd.line.size = 0.15,
            panel.outline = FALSE, horizontal.sd = TRUE, ...)
 {
   require("grid", quietly = TRUE)
