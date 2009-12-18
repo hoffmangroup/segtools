@@ -10,7 +10,7 @@ This script is designed to be downloaded and run independently, and
 will guide the process of downloading and installing all other source
 code.
 
-(c) 2009: Orion Buske <stasis@u.washington.edu>
+(c) 2009: Orion Buske <stasis {at} uw {dot} edu>
 
 """
 PKG_VERSION = "0.1.2"
