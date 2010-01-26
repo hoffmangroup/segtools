@@ -12,37 +12,28 @@ library(latticeExtra)
 relabel.matrix <- function(mat, mnemonics = NULL, 
                            relabel.cols = TRUE, relabel.rows = TRUE)
 {
-  if (length(mnemonics) > 0) {
-    mnemonics.frame <- data.frame(old = as.integer(mnemonics[,1]),
-                                  new = as.character(mnemonics[,2]),
-                                  stringsAsFactors = FALSE)
-    row.order <- 1:nrow(mat)
-    col.order <- 1:ncol(mat)
-    if (relabel.rows) {
-      ## Substitute label names (assume default labels are named)
-      rownames(mat) <- mnemonics.frame$new[match(0:(nrow(mat)-1), 
-                                                 mnemonics.frame$old)]
-      row.order <- mnemonics.frame$old + 1
-    }
-    if (relabel.cols) {
-      colnames(mat) <- mnemonics.frame$new[match(0:(ncol(mat)-1), 
-                                                 mnemonics.frame$old)]
-      col.order <- mnemonics.frame$old + 1
-    }
-    ## Reorder
-    mat <- mat[row.order, col.order]
-  } else {
-    ## Default names
-    rownames(mat) <- as.character(0:(nrow(mat)-1))
-    colnames(mat) <- as.character(0:(ncol(mat)-1))
+  ## Start with default names
+  rownames(mat) <- as.character(0:(nrow(mat)-1))
+  colnames(mat) <- as.character(0:(ncol(mat)-1))
+  row.ord <- 1:nrow(mat)
+  col.ord <- 1:ncol(mat)
+  if (relabel.rows) {
+    label.map <- map.mnemonics(rownames(mat), mnemonics)
+    rownames(mat) <- label.map$labels
+    row.ord <- label.map$order
   }
-
-  mat
+  if (relabel.cols) {
+    label.map <- map.mnemonics(colnames(mat), mnemonics)
+    colnames(mat) <- label.map$labels
+    col.ord <- label.map$order
+  }
+  
+  mat[row.ord, col.ord]
 }
 
-read.transition <- function(filename, mnemonics = NULL, ..., header = FALSE)
+read.transition <- function(filename, mnemonics = NULL, ...)
 {
-  res <- read.delim(filename, ..., header = FALSE)
+  res <- read.matrix(filename)
   res.labeled <-  relabel.matrix(res, mnemonics = mnemonics)
 
   res.labeled
@@ -57,7 +48,7 @@ read.gmtk.transition <- function(filename, mnemonics = NULL, ...)
   dims <- as.numeric(scan(con, what = "numeric", n = 2, quiet = TRUE))
   close(con)
   end <- start + dims[1] - 1
-  
+
   con <- textConnection(lines[start:end])
   res <- read.table(con)
   close(con)

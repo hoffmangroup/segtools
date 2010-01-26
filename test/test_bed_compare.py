@@ -4,7 +4,7 @@ import unittest
 
 from tempfile import NamedTemporaryFile
 
-from .bed_compare import edit_distance
+from segtools.bed_compare import edit_distance
 
 def beddata2bed(lines):
     # Input lines should each be a tuple of (chrom, start, end, label)
@@ -73,10 +73,6 @@ class TestNotSegmentation(EditDistanceTester):
         self.assertRaises(SyntaxError, edit_distance, *self.bedfiles)
 
 def suite():
-    def is_test_class(member):
-        name, value = member
-        return inspect.isclass(value) and name.startswith("Test")
-
     classes = []
     members = inspect.getmembers(sys.modules[__name__])
     for name, value in members:

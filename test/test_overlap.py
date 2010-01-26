@@ -5,8 +5,8 @@ import unittest
 from numpy import array
 from tempfile import NamedTemporaryFile
 
-from .common import load_features, load_segmentation
-from .overlap import calc_overlap
+from segtools.common import load_features, load_segmentation
+from segtools.overlap import calc_overlap
 
 def data2bed(lines):
     # Input lines should each be a tuple of (chrom, start, end, label)
@@ -74,17 +74,28 @@ class OverlapTester(unittest.TestCase):
         for val1, val2 in zip(observed, expected):
             self.assertArraysEqual(val1, array(val2))
 
-class TestPerfectOverlap(OverlapTester):
+class TestSegmentPerfectOverlap(OverlapTester):
     def init(self):
+        self.subject = ("bed", [(1, 0, 50, 1),  # chrom, start, end, label
+                                (1, 50, 100, 2)])
+        self.query = ("bed", [(1, 0, 50, 1),
+                              (1, 50, 100, 2)])
+        self.answer = ([[1, 0], [0, 1]],  # subi vs qryj
+                       (1, 1),  # total
+                       (0, 0))  # none
+
+class TestBasePerfectOverlap(OverlapTester):
+    def init(self):
+        self.kwargs["by"] = "bases"
         self.subject = ("bed", [(1, 0, 50, 1),
                                 (1, 50, 100, 2)])
         self.query = ("bed", [(1, 0, 50, 1),
                               (1, 50, 100, 2)])
-        self.answer = ([[1, 0], [0, 1]],
-                       (1, 1),
+        self.answer = ([[50, 0], [0, 50]],
+                       (50, 50),
                        (0, 0))
 
-class TestNoOverlap(OverlapTester):
+class TestSegmentNoOverlap(OverlapTester):
     def init(self):
         self.subject = ("bed", [(1, 10, 20, 1)])
         self.query = ("bed", [(1, 20, 35, 6)])
@@ -92,7 +103,33 @@ class TestNoOverlap(OverlapTester):
                        (1),
                        (1))
 
-class TestSimpleOverlap(OverlapTester):
+class TestBaseNoOverlap(OverlapTester):
+    def init(self):
+        self.kwargs["by"] = "bases"
+        self.subject = ("bed", [(1, 10, 20, 1)])
+        self.query = ("bed", [(1, 20, 35, 6)])
+        self.answer = ([0],
+                       (10),
+                       (10))
+
+class TestSegmentNoOverlapChrom(OverlapTester):
+    def init(self):
+        self.subject = ("bed", [(1, 10, 20, 1)])
+        self.query = ("bed", [(9, 20, 35, 6)])
+        self.answer = ([0],
+                       (1),
+                       (1))
+
+class TestBaseNoOverlapChrom(OverlapTester):
+    def init(self):
+        self.kwargs["by"] = "bases"
+        self.subject = ("bed", [(1, 10, 20, 1)])
+        self.query = ("bed", [(9, 20, 35, 6)])
+        self.answer = ([0],
+                       (10),
+                       (10))
+
+class TestSegmentSimpleOverlap(OverlapTester):
     def init(self):
         self.subject = ("bed", [(1, 11, 20, 1),
                                 (1, 25, 35, 2),
@@ -102,7 +139,18 @@ class TestSimpleOverlap(OverlapTester):
                        (1, 1, 1),
                        (0, 0, 1))
 
-class TestStackedFeatures(OverlapTester):
+class TestBaseSimpleOverlap(OverlapTester):
+    def init(self):
+        self.kwargs["by"] = "bases"
+        self.subject = ("bed", [(1, 11, 20, 1),
+                                (1, 25, 35, 2),
+                                (1, 37, 40, 3)])
+        self.query = ("bed", [(1, 15, 37, 2)])
+        self.answer = ([[5], [10], [0]],
+                       (9, 10, 3),
+                       (4, 0, 3))
+
+class TestSegmentStackedFeatures(OverlapTester):
     def init(self):
         self.subject = ("bed", [(1, 0, 10, 1)])
         self.query = ("gff", [(1, 2, 9, 2),
@@ -113,7 +161,19 @@ class TestStackedFeatures(OverlapTester):
                        (1),
                        (0))
 
-class TestOverlappingFeatures(OverlapTester):
+class TestBaseStackedFeatures(OverlapTester):
+    def init(self):
+        self.kwargs["by"] = "bases"
+        self.subject = ("bed", [(1, 0, 10, 1)])
+        self.query = ("gff", [(1, 2, 9, 2),
+                              (1, 3, 12, 3),
+                              (1, 4, 7, 4),
+                              (1, 5, 6, 5)])
+        self.answer = ([7, 7, 3, 1],
+                       (10),
+                       (2))
+
+class TestSegmentOverlappingFeatures(OverlapTester):
     def init(self):
         self.subject = ("bed", [(1, 0, 10, 1),
                                 (1, 10, 20, 2),
@@ -126,7 +186,21 @@ class TestOverlappingFeatures(OverlapTester):
                        (2, 1),
                        (0, 0))
 
-class TestComplexOverlap(OverlapTester):
+class TestBaseOverlappingFeatures(OverlapTester):
+    def init(self):
+        self.kwargs["by"] = "bases"
+        self.subject = ("bed", [(1, 0, 10, 1),
+                                (1, 10, 20, 2),
+                                (1, 20, 30, 1)])
+        self.query = ("gff", [(1, 0, 30, 1),
+                              (1, 2, 15, 1),
+                              (1, 5, 20, 2),
+                              (1, 10, 12, 1)])
+        self.answer = ([[20, 5], [10, 10]],
+                       (20, 10),
+                       (0, 0))
+
+class TestSegmentComplexOverlap(OverlapTester):
     def init(self):
         self.subject = ("bed", [(1, 0, 4, 1),
                                 (1, 10, 15, 2),
@@ -147,7 +221,29 @@ class TestComplexOverlap(OverlapTester):
                        (2, 3, 2),
                        (0, 1, 1))
 
-class TestComplexOverlapReversed(OverlapTester):
+class TestBaseComplexOverlap(OverlapTester):
+    def init(self):
+        self.kwargs["by"] = "bases"
+        self.subject = ("bed", [(1, 0, 4, 1),
+                                (1, 10, 15, 2),
+                                (1, 15, 21, 3),
+                                (1, 26, 27, 1),
+                                (1, 30, 31, 2),
+                                (2, 14, 16, 2),
+                                (3, 1, 100, 3)])
+        self.query = ("bed", [(1, 0, 10, 1),
+                              (1, 5, 15, 2),
+                              (1, 15, 25, 1),
+                              (1, 20, 30, 1),
+                              (1, 20, 30, 2),
+                              (1, 25, 30, 3),
+                              (2, 5, 10, 1),
+                              (2, 10, 15, 3)])
+        self.answer = ([[5, 1, 1], [0, 5, 1], [6, 1, 0]],
+                       (5, 8, 105),
+                       (0, 2, 99))
+
+class TestSegmentComplexOverlapReversed(OverlapTester):
     def init(self):
         self.subject = ("bed", [(1, 0, 10, 1),
                                 (1, 5, 15, 2),
@@ -168,11 +264,30 @@ class TestComplexOverlapReversed(OverlapTester):
                        (4, 2, 2),
                        (1, 0, 0))
 
-def suite():
-    def is_test_class(member):
-        name, value = member
-        return inspect.isclass(value) and name.startswith("Test")
 
+class TestBaseComplexOverlapReversed(OverlapTester):
+    def init(self):
+        self.kwargs["by"] = "bases"
+        self.subject = ("bed", [(1, 0, 10, 1),
+                                (1, 5, 15, 2),
+                                (1, 15, 25, 1),
+                                (1, 20, 30, 1),
+                                (1, 20, 30, 2),
+                                (1, 25, 30, 3),
+                                (2, 5, 10, 1),
+                                (2, 10, 15, 3)])
+        self.query = ("gff", [(1, 0, 4, 1),
+                              (1, 10, 15, 2),
+                              (1, 15, 21, 3),
+                              (1, 26, 27, 1),
+                              (1, 30, 31, 2),
+                              (2, 14, 16, 2),
+                              (3, 1, 100, 3)])
+        self.answer = ([[5, 0, 7], [1, 5, 1], [1, 1, 0]],
+                       (35, 20, 10),
+                       (23, 13, 8))
+
+def suite():
     classes = []
     members = inspect.getmembers(sys.modules[__name__])
     for name, value in members:

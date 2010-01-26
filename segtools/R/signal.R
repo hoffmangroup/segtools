@@ -4,17 +4,11 @@ library(lattice)
 library(latticeExtra)
 library(grid)
 
-read.signal <- function(filename, mnemonics = NULL, ...,
+read.signal <- function(filename, mnemonics = NULL, comment.char = "#", ...,
                         colClasses = list(label = "character")) {
+  comment.lines <- read.comment.lines(filename, comment.char = comment.char)
   res <- read.delim(filename, ..., colClasses = colClasses)
-  res$label <- factor(res$label)    # adds a label attribute
-
-  # Replace labels with mnemonics, if supplied
-  if (length(mnemonics) > 0) {
-    res$label <- relabel.factor(res$label, mnemonics)
-  } else {
-    res$label <- smart.factor.reorder(res$label)
-  }
+  res$label <- relevel.mnemonics(factor(res$label), mnemonics)
 
   res
 }

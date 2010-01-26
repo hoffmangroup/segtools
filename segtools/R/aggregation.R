@@ -13,11 +13,7 @@ read.aggregation <- function(filename, mnemonics = NULL, ...,
 
   data <- melt.aggregation(data.raw)
   
-  if (length(mnemonics) > 0) {
-    data$label <- relabel.factor(data$label, mnemonics)
-  } else {
-    data$label <- smart.factor.reorder(data$label)
-  }
+  data$label <- relevel.mnemonics(data$label, mnemonics)
 
   ## Order components by the order observed in the file
   data$component <- factor(data$component, levels=unique(data$component))
@@ -111,17 +107,17 @@ melt.aggregation <- function(data.raw) {
   data
 }
 
-cast.aggregation <- function(data.raw) {
-  cast(data, factor + component + offset ~ label, value = "count")
+cast.aggregation <- function(data.df) {
+  cast(data.df, factor + component + offset ~ label, value = "count")
 }
 
 ## Given an aggregation data frame, normalize the counts over all labels
-normalize.counts <- function(data.raw) {
-  data <- cast.aggregation(data.raw)
-  data.values <- data.cur[4:ncol(data)]
-  data[4:ncol(data)] <- data.values / rowSums(data.values)
+normalize.counts <- function(data.df) {
+  data.mat <- cast.aggregation(data.df)
+  data.values <- data.mat[, 4:ncol(data.mat)]
+  data.mat[, 4:ncol(data.mat)] <- data.values / rowSums(data.values)
   
-  melt.aggregation(data)
+  melt.aggregation(data.mat)
 }
 
 ## Plots overlap vs position for each label
@@ -152,12 +148,10 @@ xyplot.aggregation <-
 {
 
   ## Calculate frequencies from counts
-  data$overlap <- 
-    if (normalize) {
-      normalize.counts(data$count)
-    } else {
-      data$count
-    }
+  if (normalize) {
+    data <- normalize.counts(data)
+  }
+  colnames(data) <- gsub("^count$", "overlap", colnames(data))
   data$overlap[!is.finite(data$overlap)] <- 0
 
 
@@ -218,7 +212,6 @@ xyplot.aggregation <-
 
 plot.aggregation <- function(filename, mnemonics=NULL, ..., verbose=FALSE) {
   data <- read.aggregation(filename, mnemonics=mnemonics)
-
   if (verbose) {
     xyplot.aggregation(data=data, ...)
   } else {

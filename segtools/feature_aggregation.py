@@ -28,7 +28,7 @@ from functools import partial
 from operator import itemgetter
 from rpy2.robjects import r, numpy2ri
 
-from .common import die, fill_array, image_saver, load_gff_data, load_segmentation, make_tabfilename, map_mnemonics, map_segments, maybe_gzip_open, r_source, setup_directory, tab_saver
+from .common import die, fill_array, get_ordered_labels, image_saver, load_gff_data, load_segmentation, make_tabfilename, map_mnemonics, map_segments, maybe_gzip_open, r_source, setup_directory, tab_saver
 
 from .html import list2html, save_html_div
 
@@ -670,8 +670,8 @@ def calc_aggregation(segmentation, mode, features, factors, components=[],
                         label_key = segment_map[bp]
                     except IndexError:
                         continue  # Window outside segmentation. Ignore
-                    if label_key in labels.keys():
-                        component_counts[bin][label_key] += 1
+                    if label_key in labels:
+                        component_counts[bin, label_key] += 1
                         if not feature_counted:
                             counted_features += 1
                             feature_counted = True
@@ -679,49 +679,44 @@ def calc_aggregation(segmentation, mode, features, factors, components=[],
 
     return (counts, counted_features)
 
-
-## Specifies the format of a tab file row
-def make_row(factor, component, offset, labels, counts):
-    values = {"factor": factor,
-              "component": component,
-              "offset": offset}
-    for label, count in zip(labels, counts):
-        values[label] = count
+def make_row(labels, row_data):
+    values = {}
+    for label_key, label in labels.iteritems():
+        values[label] = row_data[label_key]
 
     return values
 
 ## Saves the data to a tab file
 def save_tab(labels, counts, components, component_bins,
-             counted_features, dirpath, clobber=False):
-    comment = "Number of features: %d" % counted_features
+             counted_features, dirpath, clobber=False, namebase=NAMEBASE):
+    metadata = {"num_features": counted_features}
+    label_keys, labels = get_ordered_labels(labels)
+    for label in labels.values():
+        assert label not in STATIC_FIELDNAMES
 
-    label_fieldnames = [labels[key] for key in sorted(labels.keys())]
-    for fieldname in label_fieldnames:
-        assert fieldname not in STATIC_FIELDNAMES
-
-    fieldnames = STATIC_FIELDNAMES + label_fieldnames
-    with tab_saver(dirpath, NAMEBASE, fieldnames,
-                   comment=comment, clobber=clobber) as saver:
+    fieldnames = STATIC_FIELDNAMES + [labels[label_key]
+                                      for label_key in label_keys]
+    with tab_saver(dirpath, namebase, fieldnames=fieldnames, metadata=metadata,
+                   clobber=clobber) as saver:
         for factor in counts:
             for component in components:
                 hist = counts[factor][component]
-                for offset, bin_counts in enumerate(hist):
-                    if component == FLANK_5P:
-                        # Show 5' offsets from start of feature
-                        offset -= len(hist)
+                # Try to substitute component bins into component names
+                try:
+                    component_name = component % component_bins[component]
+                except TypeError:
+                    component_name = component
 
-                    # Try to substitute component bins into component names
-                    try:
-                        component_name = component % component_bins[component]
-                    except TypeError:
-                        component_name = component
+                if component == FLANK_5P:
+                    offsets = range(-len(hist), 0)
+                else:
+                    offsets = range(0, len(hist))
 
-                    row = make_row(factor,
-                                   component_name,
-                                   offset,
-                                   label_fieldnames,
-                                   bin_counts)
-
+                for offset, row_data in zip(offsets, hist):
+                    row = make_row(labels, row_data)
+                    row["factor"] = factor
+                    row["component"] = component_name
+                    row["offset"] = offset
                     saver.writerow(row)
 
 ## Plots aggregation data from tab file

@@ -12,22 +12,21 @@
          [ <a href="$pngfilename">PNG</a> ]
          [ <a href="$slidefilename">SLIDE</a> ]
          [ <a href="$pdffilename">PDF</a> ]
-         [ <a href="$tabfilename">TAB</a> ]
     </li><br />
     $significance
-    <li> Counts:
+    <li> Heatmap of overlap:
       <ul>
-        <li>Overlapping groups on rows</li>
-        <li>Overlapped groups on columns (plus 'none' and 'total' columns)</li>
-        <li>Each row,col is the number of times a feature in the row
-        group overlapped at least one feature in the col
-        group.</li><br />
-        <li> Overlap of segmentation with features:
-          <br />
-          $table
-          <br />
-          [ <a href="$tablefilename">TAB</a> ]
-        </li>
+        <li>Color corresponds to degree of overlap between 
+          <code>$by</code> in the row group with those in the column group.</li>
+        <br />
+         <a href="$heatmapslidefilename">
+           <img src="$heatmapthumbfilename" />
+         </a>
+         <br />
+         [ <a href="$heatmappngfilename">PNG</a> ]
+         [ <a href="$heatmapslidefilename">SLIDE</a> ]
+         [ <a href="$heatmappdffilename">PDF</a> ]
+         [ <a href="$tabfilename">TAB</a> ]
       </ul>
     </li>
   </ul>

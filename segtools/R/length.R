@@ -2,14 +2,8 @@ read.length <- function(filename, mnemonics = NULL, ...)
 {
   res <- read.delim(filename, ...)
 
-  res$label <- factor(res$label)
+  res$label <- relevel.mnemonics(factor(res$label), mnemonics)
   
-  if (length(mnemonics) > 0) {
-    res$label <- relabel.factor(res$label, mnemonics)
-  } else {
-    res$label <- smart.factor.reorder(res$label)
-  }
-
   # Reverse rows for plot
   res$label <- factor(res$label, levels = rev(levels(res$label)))
 

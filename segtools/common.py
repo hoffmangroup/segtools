@@ -6,7 +6,7 @@ __version__ = "$Revision$"
 Assorted utility functions and classes common or useful to most of segtools.
 
 
-Author: Orion Buske <orion.buske@gmail.com>
+Author: Orion Buske <stasis@uw.edu>
 """
 
 import os
@@ -18,11 +18,11 @@ from contextlib import closing, contextmanager
 from functools import partial
 from genomedata import Genome
 from gzip import open as _gzip_open
-from numpy import array, concatenate, empty, iinfo, logical_and, uint16, uint32, uint64
+from numpy import array, concatenate, empty, iinfo, logical_and, uint16, uint32, int64
 from operator import itemgetter
 from pkg_resources import resource_filename, resource_string
 from string import Template
-from tabdelim import DictReader, DictWriter
+from tabdelim import DictReader, DictWriter, ListReader, ListWriter
 from rpy2.robjects import r, rinterface, numpy2ri
 # numpy2ri imported for side-effect
 
@@ -59,8 +59,8 @@ LABEL_ALL = "all"
 
 THUMB_SIZE = 100
 
-DTYPE_SEGMENT_START = uint64
-DTYPE_SEGMENT_END = uint64
+DTYPE_SEGMENT_START = int64
+DTYPE_SEGMENT_END = int64
 DTYPE_SEGMENT_KEY = uint32
 DTYPE_SOURCE_KEY = uint16
 DTYPE_STRAND = '|S1'
@@ -72,6 +72,7 @@ DTYPE_TRANSCRIPT_ID = '|S%d' % MAXLEN_ID_DTYPE
 
 r_filename = partial(resource_filename, PKG_R)
 template_string = partial(resource_string, PKG_RESOURCE)
+
 
 ## Wrapper for segmentation data object
 class Segmentation(object):
@@ -122,7 +123,7 @@ class Features(object):
         self.chromosomes = self.sequences
         self.labels = self.features
 
-class OutputMasker:
+class OutputMasker(object):
     """Class to mask the output of a stream.
 
     Suggested usage:
@@ -139,6 +140,62 @@ class OutputMasker:
     def restore(self):
         return self._stream
 
+class ProgressBar(object):
+    def __init__(self, total=67, width=67, chr_done="#", chr_undone="-",
+                 format_str="Progress: [%(done)s%(undone)s]",
+                 out=sys.stdout):
+        """Create a progress bar for num_items that is width characters wide
+
+        total: the number of items in the task (calls to next before 100%)
+        width: the width of the bar itself, not including labels
+        chr_done: character for displaying completed work
+        chr_undone: character for displaying uncompleted work
+        format_str: format string for displaying progress bar. Must contain
+          a reference to %(done)s and %(undone)s, which will be substituted
+        out: an object that supports calls to write() and flush()
+        """
+        assert int(width) > 0
+        assert int(total) > 0
+
+        self._width = int(width)
+        self._n = int(total)
+        self._quantum = float(self._n / self._width)
+        self._chr_done = str(chr_done)
+        self._chr_undone = str(chr_undone)
+        self._format_str = str(format_str)
+        self._out = out
+
+        self._i = 0
+        self._progress = 0
+        self.refresh()
+
+    def next(self):
+        """Advance to the next item in the task
+
+        Might or might not refresh the progress bar
+        """
+        self._i += 1
+        if self._i > self._n:
+            raise StopIteration("End of progress bar reached.")
+
+        progress = int(self._i / self._quantum)
+        if progress != self._progress:
+            self._progress = progress
+            self.refresh()
+
+    def refresh(self):
+        """Refresh the progress bar display"""
+        fields = {"done": self._chr_done * self._progress,
+                  "undone": self._chr_undone * (self._width - self._progress)}
+        self._out.write("\r%s" % (self._format_str % fields))
+        self._out.flush()
+
+    def end(self):
+        """Complete the job progress, regardless of current state"""
+        self._progress = self._width
+        self.refresh()
+        self._out.write("\n")
+        self._out.flush()
 
 
 ## UTILITY FUNCTIONS
@@ -147,6 +204,14 @@ class OutputMasker:
 def die(msg="Unexpected error"):
     print >> sys.stderr, "\nERROR: %s\n" % msg
     sys.exit(1)
+
+def inverse_dict(d):
+    """Given a dict, returns the inverse of the dict (val -> key)"""
+    res = {}
+    for k, v in d.iteritems():
+        assert v not in res
+        res[v] = k
+    return res
 
 def make_filename(dirpath, basename, ext):
     return os.path.join(dirpath, os.extsep.join([basename, ext]))
@@ -169,8 +234,8 @@ def make_id(modulename, dirpath):
 
 def check_clobber(filename, clobber):
     if (not clobber) and os.path.isfile(filename):
-        die("Output file: %s already exists! Use --clobber to overwrite!" % \
-                filename)
+        raise IOError("Output file: %s already exists!"
+                      " Use --clobber to overwrite!" % filename)
 
 def gzip_open(*args, **kwargs):
     return closing(_gzip_open(*args, **kwargs))
@@ -211,10 +276,16 @@ def template_substitute(filename):
     return Template(template_string(filename)).substitute
 
 @contextmanager
-def tab_saver(dirpath, basename, fieldnames, comment=None,
-              clobber=False, header=True, verbose=True):
-    """
-    Saves data to tab file (yeilds DictWriter)
+def tab_saver(dirpath, basename, fieldnames=None, header=True,
+              clobber=False, metadata=None, verbose=True):
+    """Save data to tab file
+
+    If fieldnames are specified, a DictWriter is yielded
+    If fieldnames are not, a ListWriter is yielded instead
+
+    metadata: a dict describing the data to include in the comment line.
+      Comment line will start with '# ' and then will be a space-delimited
+      list of <field>=<value> pairs, one for each element of the dict.
     """
     if verbose:
         print >>sys.stderr, "Saving tab file...",
@@ -222,14 +293,53 @@ def tab_saver(dirpath, basename, fieldnames, comment=None,
     outfilename = make_tabfilename(dirpath, basename)
     check_clobber(outfilename, clobber)
     with open(outfilename, "w") as outfile:
-        if comment is not None and len(comment) > 0:
-            if comment != str(comment):  # Not a single string
-                for line in comment:
-                    print >> outfile, "# %s" % line
-            else:
-                print >> outfile, "# %s" % comment
-        yield DictWriter(outfile, fieldnames,
-                         extrasaction="ignore", header=header)
+        if metadata is not None:
+            assert isinstance(metadata, dict)
+            metadata_strs = ["%s=%s" % pair for pair in metadata.iteritems()]
+            print >>outfile, "# %s" % " ".join(metadata_strs)
+
+        if fieldnames:
+            yield DictWriter(outfile, fieldnames, header=header,
+                             extrasaction="ignore")
+        else:
+            yield ListWriter(outfile)
+
+    if verbose:
+        print >>sys.stderr, "done"
+
+@contextmanager
+def tab_reader(dirpath, basename, verbose=True, fieldnames=False):
+    """Reads data from a tab file
+
+    Yields a tuple (Reader, metadata)
+    If fieldnames is True, a DictReader is yielded
+    If fieldnames is False, a ListReader is yielded instead
+
+    metadata: a dict describing the data included in the comment line.
+    """
+    if verbose:
+        print >>sys.stderr, "Reading tab file...",
+
+    infilename = make_tabfilename(dirpath, basename)
+    if not os.path.isfile(infilename):
+        raise IOError("Unable to find tab file: %s" % infilename)
+
+    with open(infilename, "rU") as infile:
+        infile_start = infile.tell()
+        comments = infile.readline().strip().split()
+        metadata = {}
+        if comments and comments[0] == "#":
+            # Found comment line
+            for comment in comments[1:]:
+                name, value = comment.split("=")
+                metadata[name] = value
+        else:
+            infile.seek(infile_start)
+
+        if fieldnames:
+            yield DictReader(infile), metadata
+        else:
+            yield ListReader(infile), metadata
 
     if verbose:
         print >>sys.stderr, "done"
@@ -314,20 +424,25 @@ def map_segments(segments, labels, chrom_size):
 
     return res
 
-def map_segment_label(segments, structure):
+def map_segment_label(segments, range):
     """Flatten segments to a segment label per base vector
 
     Returns a numpy.array of the segment key at every base
 
-    The given structure must have 'start' and 'end' attributes, and the
-    returned array will represent the segment keys found between start and end.
+    The given range must either be a tuple of (start, end), or
+      have 'start' and 'end' attributes, and the returned array
+      will represent the segment keys found between start and end.
 
     Thus, if start is 1000, and a segment with key 4 starts at 1000, the
     value of keys[0] is 4.
 
     """
-    map_start = structure.start
-    map_end = structure.end
+    if isinstance(range, tuple):
+        map_start, map_end = range
+    else:
+        map_start = range.start
+        map_end = range.end
+
     map_size = map_end - map_start
     assert map_size >= 0
 
@@ -351,48 +466,57 @@ def map_segment_label(segments, structure):
 
 ## Yields segment and the continuous corresponding to it, for each segment
 ##   in the chromosome inside of a supercontig
-def loop_segments_continuous(chromosome, segmentation, verbose=True):
+def iter_segments_continuous(chromosome, segmentation, verbose=True):
+    chrom = chromosome.name
     try:
-        segments = segmentation.chromosomes[chromosome.name]
+        segments = segmentation.chromosomes[chrom]
     except KeyError:
         raise StopIteration
 
     supercontig_iter = chromosome.itercontinuous()
     supercontig = None
     supercontig_last_start = 0
-    num_segments = len(segments)
-    for i, segment in enumerate(segments):
-        start, end, key = segment
+    nsegments = len(segments)
+
+    if verbose:
+        format_str = "".join([chrom, ":\t[%(done)s%(undone)s]"])
+        progress = ProgressBar(nsegments, out=sys.stderr,
+                               format_str=format_str)
+
+    for segment in segments:
+        start = segment['start']
+        end = segment['end']
+
         while supercontig is None or start >= supercontig.end:
-            # Raise StopIteration if out of supercontigs
-            supercontig, continuous = supercontig_iter.next()
+            try:
+                # Raise StopIteration if out of supercontigs
+                supercontig, continuous = supercontig_iter.next()
+            except StopIteration:
+                if verbose:
+                    progress.end()
+                raise
+
             # Enforce increasing supercontig indices
             assert supercontig.start >= supercontig_last_start
             supercontig_last_start = supercontig.start
 
-            if verbose:
-                print >>sys.stderr, "\n\t\t%s) %d : %d" % (supercontig.name,
-                                                           supercontig.start,
-                                                           supercontig.end)
-
-        if verbose and i % 1000 == 0:
-            print >>sys.stderr, "\r\t\t\tSegment %d / %d" % \
-                (i + 1, num_segments),
-            sys.stdout.flush()
+        if verbose:
+            progress.next()
 
         if end <= supercontig.start:
             continue  # Get next segment
 
         try:
-            yield segment, continuous[start:end]
+            sc_start = supercontig.project(max(start, supercontig.start))
+            sc_end = supercontig.project(min(end, supercontig.end))
+            yield segment, continuous[sc_start:sc_end]
         except:
             for k, v in locals():
-                print "%r: %r" % (k, v)
+                print >>sys.stderr, "%r: %r" % (k, v)
             raise
 
     if verbose:
-        print >>sys.stderr, "\r\t\t\tSegment %d / %d" % \
-            (i + 1, num_segments)
+        progress.end()
 
 ## Yields supercontig and the subset of segments which overlap it.
 def iter_supercontig_segments(chromosome, segmentation, verbose=True):
@@ -466,7 +590,6 @@ def map_mnemonics(labels, mnemonicfilename, field="mnemonic"):
 
     label_order, label_data = load_mnemonics(mnemonicfilename)
     str_labels = labels.values()
-
     mnemonics = []
     # Add mapping for labels in mnemonic file
     for old_label in label_order:
@@ -655,8 +778,8 @@ def gff2arraydict(filename, gtf=False, sort=None, verbose=True):
             last_segment_start[datum.seqname] = datum.start
 
     # Create reverse dict for return
-    features = dict((val, key) for key, val in feature_dict.iteritems())
-    sources = dict((val, key) for key, val in source_dict.iteritems())
+    features = inverse_dict(feature_dict)
+    sources = inverse_dict(source_dict)
 
     # convert lists of tuples to array
     dtype = [('start', DTYPE_SEGMENT_START),
@@ -711,6 +834,8 @@ def bed2arraydict(filename, verbose=True):
       labels: a dict from label_key -> label string
       chromosomes: a dict from chrom_name -> segments (numpy array)
         (segments: structured array with start, end, and key fields)
+
+    If the file is in BED3 format, labels will be None
     """
     data = defaultdict(list)  # A dictionary-like object
     label_dict = {}
@@ -724,19 +849,25 @@ def bed2arraydict(filename, verbose=True):
             except KeyError:
                 pass
 
-            label = str(datum.name)
-            try:  # Lookup label key
-                label_key = label_dict[label]
-            except KeyError:  # Map new label to key
-                label_key = len(label_dict)
-                label_dict[label] = label_key
+            if label_dict is not None:
+                try:
+                    label = str(datum.name)
+                except AttributeError:
+                    # No name column, read as BED3 (no labels)
+                    label_dict = None
+                else:
+                    try:  # Lookup label key
+                        label_key = label_dict[label]
+                    except KeyError:  # Map new label to key
+                        label_key = len(label_dict)
+                        label_dict[label] = label_key
 
             segment = (datum.chromStart, datum.chromEnd, label_key)
             data[datum.chrom].append(segment)
             last_segment_start[datum.chrom] = datum.chromStart
 
     # Create reverse dict for return
-    labels = dict((val, key) for key, val in label_dict.iteritems())
+    labels = inverse_dict(label_dict)
 
     # convert lists of tuples to array
     dtype = [('start', DTYPE_SEGMENT_START),

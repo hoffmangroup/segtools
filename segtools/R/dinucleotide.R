@@ -8,13 +8,7 @@ read.nuc <- function(filename = "nucleotide.tab", mnemonics = NULL, ...,
                      check.names = FALSE)
 {
   res <- read.delim(filename, ..., check.names = check.names)
-  res$label <- factor(res$label)
-
-  if (length(mnemonics) > 0) {
-    res$label <- relabel.factor(res$label, mnemonics)
-  } else {
-    res$label <- smart.factor.reorder(res$label)
-  }
+  res$label <- relevel.mnemonics(factor(res$label), mnemonics)
 
   res
 }

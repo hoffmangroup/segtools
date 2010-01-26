@@ -33,7 +33,7 @@ import os
 import sys
 
 
-from numpy import empty, where, zeros
+from numpy import empty, loadtxt, where, zeros
 from subprocess import call
 from rpy2.robjects import r, numpy2ri
 
@@ -105,6 +105,9 @@ def calc_transitions(segmentation):
 
     return labels, probs
 
+def load_transition_probs(dirpath, namebase=NAMEBASE):
+    filename = make_tabfilename(dirpath, namebase)
+    return loadtxt(filename)
 
 def save_tab(labels, probs, dirpath, clobber=False):
     ordered_keys, labels = get_ordered_labels(labels)
@@ -272,6 +275,7 @@ def validate(bedfilename, dirpath, ddgram=False, p_thresh=P_THRESH,
         assert segmentation is not None
 
         if replot:
+            probs = load_transition_probs(dirpath)
             labels = segmentation.labels
         else:
             # Calculate transition probabilities for each label

@@ -22,7 +22,8 @@ from rpy2.robjects import r, numpy2ri
 from .common import die, map_mnemonics, r_source, setup_directory
 from .html import save_html_div
 from .label_transition import save_plot, save_graph
-from .signal_distribution import create_mnemonic_file, save_stats_plot
+from .mnemonics import create_mnemonic_file
+from .signal_distribution import save_stats_plot
 
 NAMEBASE = "%s" % MODULE
 NAMEBASE_GRAPH = os.extsep.join([NAMEBASE, "graph"])
@@ -73,7 +74,8 @@ def save_html(dirpath, gmtk_file, p_thresh, q_thresh, clobber=False):
 ## Package entry point
 def validate(gmtk_file, dirpath, p_thresh=P_THRESH, q_thresh=Q_THRESH,
              noplot=False, nograph=False, gene_graph=False, clobber=False,
-             mnemonicfilename=None):
+             translation_file=None, mnemonicfilename=None,
+             create_mnemonics=False):
     setup_directory(dirpath)
 
     if not os.path.isfile(gmtk_file):
@@ -84,7 +86,7 @@ def validate(gmtk_file, dirpath, p_thresh=P_THRESH, q_thresh=Q_THRESH,
     print "done"
 
     # If mnemonics weren't specified, let's create a mnemonic file!
-    if mnemonicfilename is None:
+    if mnemonicfilename is None and create_mnemonics:
         mnemonicfilename = create_mnemonic_file(gmtk_file, dirpath,
                                                 clobber=clobber, gmtk=True)
 
@@ -95,7 +97,8 @@ def validate(gmtk_file, dirpath, p_thresh=P_THRESH, q_thresh=Q_THRESH,
                   clobber=clobber, gmtk=True, mnemonics=mnemonics)
         save_stats_plot(dirpath, basename=NAMEBASE_STATS,
                         datafilename=gmtk_file, clobber=clobber,
-                        gmtk=True, mnemonics=mnemonics)
+                        gmtk=True, translation_file=translation_file,
+                        mnemonics=mnemonics)
 
     if not nograph:
         save_graph(labels, probs, dirpath, clobber=clobber,
@@ -125,6 +128,10 @@ def parse_options(args):
     group.add_option("--nograph", action="store_true",
                      dest="nograph", default=False,
                      help="Do not generate transition graph")
+    group.add_option("--create-mnemonics", action="store_true",
+                     dest="create_mnemonics", default=False,
+                     help="If mnemonics are not specified, they will be"
+                     " created and used for plotting")
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Output")
@@ -132,6 +139,11 @@ def parse_options(args):
                      default=None,
                      help="If specified, labels will be shown using"
                      " mnemonics found in this file")
+    group.add_option("--trackname-translation", dest="translation_file",
+                     default=None, metavar="FILE",
+                     help="Should be a file with rows <old-trackname>"
+                     "<TAB><new-trackname>. Tracknames will be translated"
+                     " using this mapping before plotting the stats plot")
     group.add_option("-o", "--outdir",
                      dest="outdir", default="%s" % MODULE,
                      help="File output directory (will be created"
@@ -178,7 +190,9 @@ def main(args=sys.argv[1:]):
               "clobber": options.clobber,
               "noplot": options.noplot,
               "nograph": options.nograph,
+              "create_mnemonics": options.create_mnemonics,
               "gene_graph": options.gene_graph,
+              "translation_file": options.translation_file,
               "mnemonicfilename": options.mnemonic_file}
     validate(*args, **kwargs)
 

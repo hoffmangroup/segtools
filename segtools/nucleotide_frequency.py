@@ -95,7 +95,6 @@ def calc_nucleotide_frequencies(segmentation, genome,
         try:
             segments = segmentation.chromosomes[chrom]
         except KeyError:
-            print >>sys.stderr, "\t\tskipping: no data"
             continue
 
         for segment in segments:
@@ -166,7 +165,7 @@ def make_summary_row(label, nuc_counts, dinuc_counts, fieldnames=FIELDNAMES):
     nuc_sum = nuc_counts.sum()
     dinuc_sum = dinuc_counts.sum()
     for i, field in enumerate(fieldnames):
-        if field == "label": 
+        if field == "label":
             row[field] = label
         elif i <= len(nuc_counts):
             # Compensate for "label" field

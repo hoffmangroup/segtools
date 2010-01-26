@@ -55,12 +55,56 @@ read.mnemonics <- function(filename, stringsAsFactors = NULL, colClasses = NULL,
              ...)[, 1:2]
 }
 
+read.comment.lines <- function(filename, comment.char = "#", ...) {
+  ## Comment lines must begin with:
+  # ...
+  conn <- file(filename)
+  lines <- NULL
+  line <- readLines(conn, n = 1)
+  while (length(line) > 0) {
+    lineConn <- textConnection(line)
+    tokens <- scan(lineConn, what = character(0), quiet = TRUE)
+    close(lineConn)
+    if (substr(tokens[1], 1, 2) == comment.char) {
+      lines <- c(lines, line)
+      line <- readLines(conn, n = 1)
+    } else {
+      break
+    }
+    close(lineConn)
+  }
+  close(conn)
+  lines
+}
+
+read.matrix <- function(filename, nrow = NULL, ncol = NULL,
+                        comment.char = "#") {
+  comment.lines <- read.comment.lines(filename, comment.char = comment.char)
+  skip <- length(comment.lines)
+  
+  if (is.null(ncol)) {
+    ## Read first line to determine number of columns
+    first.line <- scan(filename, quiet = TRUE, skip = skip, nlines = 1)
+    ncol <- length(first.line)
+  }
+  if (!is.null(nrow)) {
+    n <- as.integer(nrow * ncol)
+  } else {
+    n <- -1
+  }
+  ## Read data
+  data <- scan(filename, n = n, quiet = TRUE, skip = skip)
+  if (is.null(nrow)) {
+    n <- length(data)
+    nrow <- as.integer(n / ncol)
+  }
+  matrix(data, nrow, ncol, byrow = TRUE)
+}
+
 # Given a list of labels (e.g. levels(data$label)), returns a dataframe
 # with group and index fields, corresponding to the character and numeric 
 # components of each label.
-labels.classify <-
-  function(labels)
-{
+labels.classify <- function(labels) {
   labels.str <- as.character(labels)
   labels.split <- matrix(nrow = length(labels.str), ncol = 2)
 
@@ -94,53 +138,77 @@ labels.classify <-
              stringsAsFactors = FALSE)
 }
 
-# Substitutes names for mnemonics and reorders to match mnemonic ordering
-# Usage: x$factor <- relabel.factor(x$factor, mnemonics)
-relabel.factor <- function(field, mnemonics) {
-  # Order by mnemonics
-  mnemonics <- data.frame(old=as.character(mnemonics[,1]),
-                          new=as.character(mnemonics[,2]),
-                          stringsAsFactors=FALSE)
-  # Substitute label names
-  levels.raw <- as.character(levels(field))
-  mapping.rows <- match(levels.raw, mnemonics$old)
-  mapping.valid <- is.finite(mapping.rows)
-  levels.mapped <- mnemonics$new[mapping.rows[mapping.valid]]
-  levels(field)[mapping.valid] <- levels.mapped
-
-  # Fix level ordering
-  levels.ordered <- c(levels(reorder(levels.mapped, 
-                                     mapping.rows[mapping.valid])),
-                      levels.raw[!mapping.valid])
-  factor(field, levels=levels.ordered)
+relevel.mnemonics <- function(labels, mnemonics = NULL) {
+  if (!is.factor(labels)) stop("Expected labels as factor")
+  label.map <- map.mnemonics(levels(labels), mnemonics = mnemonics)
+  levels(labels) <- label.map$labels
+  factor(labels, levels(labels)[label.map$order])
 }
 
-# Reorders factor first numerically, and then lexicographically
-# Usage: x$factor <- smart.factor.reorder(x$factor)
-smart.factor.reorder <- function(field) {
-  levels.raw <- levels(field)
-  suppressWarnings(levels.int <- as.integer(levels.raw))
-  levels.valid <- (is.finite(levels.int) &
-                   as.character(levels.int) == as.character(levels.raw))
-  levels.full <- c(sort(levels.int[levels.valid]), 
-                   sort(levels.raw[!levels.valid]))
-  # Reordered factor
-  factor(field, levels=levels.full)
+map.mnemonics <- function(labels, mnemonics = NULL) {
+  ## Given a vector of string labels and a mnemonics data.frame,
+  ## Returns a list with two elements:
+  ##   labels: a vector of new string labels
+  ##   order: the order these new string labels should then be arranged in
+  labels.raw <- as.character(labels)
+  labels.new <- labels.raw
+  labels.order <- 1:length(labels)
+  if (length(mnemonics) > 0) {
+    if (ncol(mnemonics) < 2) stop("Mnemonics should have at least 2 columns")
+    
+    ## Order by mnemonics
+    mnemonics <- data.frame(old=as.character(mnemonics[,1]),
+                            new=as.character(mnemonics[,2]),
+                            stringsAsFactors=FALSE)
+    
+    ## Map the labels that we can
+    mapping.rows <- match(labels.raw, mnemonics$old)
+    mapping.valid <- is.finite(mapping.rows)
+    labels.mapped <- mnemonics$new[mapping.rows[mapping.valid]]
+    labels.new[mapping.valid] <- labels.mapped
+    ## Leave the labels we can't
+    
+    ## Order the mapped labels
+    labels.order[mapping.valid] <- order(mapping.rows[mapping.valid])
+  } else {
+    mapping.valid <- vector(length = length(labels))
+  }
+  
+  ## Order the unmapped labels, first numerically
+  nmapped <- sum(mapping.valid)
+  labels.unmapped <- labels.new[!mapping.valid]
+  labels.num <- suppressWarnings(as.numeric(labels.unmapped))
+  labels.num.valid <- is.finite(labels.num)
+  labels.order[!mapping.valid][labels.num.valid] <-
+    order(labels.num[labels.num.valid]) + nmapped
+  ## ... then lexicographically
+  nmapped <- nmapped + sum(labels.num.valid)
+  labels.order[!mapping.valid][!labels.num.valid] <-
+    order(labels.unmapped[!labels.num.valid]) + nmapped
+  
+  list(labels = labels.new, order = labels.order)
 }
 
 ## Create a dendrogram legend
-ddgram.legend <- function(dd.row, dd.col, row.ord, col.ord)
-{
-  legend <-
-    list(right = list(fun = dendrogramGrob,
-           args = list(x = dd.row, 
-             ord = row.ord,
-             side = "right",
-             size = 10)),
-         top = list(fun = dendrogramGrob,
-           args = list(x = dd.col, 
-             ord = col.ord,
-             side = "top")))
+ddgram.legend <- function(dd.row = NULL, row.ord = NULL,
+                          dd.col = NULL, col.ord = NULL) {
+  ## if dd.row or dd.col is NULL, that dendrogram is not drawn
+  legend <- list()
+
+  if (!is.null(dd.row)) {
+    legend$right <- list(fun = dendrogramGrob,
+                         args = list(x = dd.row, 
+                           ord = row.ord,
+                           side = "right",
+                           size = 10))
+  }
+  if (!is.null(dd.col)) {
+    legend$top <- list(fun = dendrogramGrob,
+                       args = list(x = dd.col, 
+                         ord = col.ord,
+                         side = "top"))
+  }
+  
   legend
 }
 

@@ -7,46 +7,28 @@ library(reshape)
 
 ############### OVERLAP ANALYSIS ##############
 
-relabel.cols <- function(mat, mnemonics = NULL) {
-  mnemonics.frame <- data.frame(old = as.integer(mnemonics[,1]),
-                                new = as.character(mnemonics[,2]),
-                                stringsAsFactors = FALSE)
-
-  labels.raw <- colnames(mat)
-  mapping.cols <- match(labels.raw, mnemonics.frame$old)
-  mapping.valid <- is.finite(mapping.cols)
-  levels.mapped <- mnemonics.frame$new[mapping.cols[mapping.valid]]
-  
-  colnames(mat)[mapping.valid] <- levels.mapped
-  cbind(mat[, mapping.valid], mat[, !mapping.valid])
-}
-
 read.overlap <- function(filename, mnemonics = NULL, col_mnemonics = NULL,
                          ..., check.names = FALSE, colClasses = "character")
 {
   res <- read.delim(filename, ..., check.names = check.names,
                     colClasses = colClasses)
-  
-  if (length(col_mnemonics) > 0) {
-    res <- cbind(res[, 1], relabel.cols(res[, -1]))
-  }
-  colnames(res)[1] <- "label"
-  
-  # Order by file order
-  res$label <- factor(res$label, levels = unique(res$label))
 
+  # Substitute colnames and reorder cols
+  colname.map <- map.mnemonics(colnames(res)[-1], col_mnemonics)
+  colnames(res) <- c("label", colname.map$labels)
+  res <- res[, c(1, colname.map$order + 1)]
+
+  # Substitute rownames and reorder rows
+  label.map <- map.mnemonics(res$label, mnemonics)
+  res$label <- label.map$labels
+  res <- res[label.map$order,]
+  
   if (ncol(res) == 2) {
     res[, 2] <- as.numeric(res[, 2])
   } else{
     res[, 2:ncol(res)] <- apply(res[, 2:ncol(res)], 2, as.numeric)
   }
   
-  if (length(mnemonics) > 0) {
-    res$label <- relabel.factor(res$label, mnemonics)
-  } else {
-    res$label <- smart.factor.reorder(res$label)
-  }
-
   res
 }
 
@@ -214,16 +196,23 @@ xyplot.overlap <-
          ...)
 }
 
-plot.overlap <- 
-  function(tabfile, dirpath = ".", basename = NULL, mnemonics = NULL, ...) 
+plot.overlap <-  function(tabfile, mnemonics = NULL, col_mnemonics = NULL, ...) 
 {
-  counts <- read.overlap(tabfile, mnemonics = mnemonics)
+  ## Plot the predictive ability of each segment label for each feature class
+  ##   in ROC space
+  ##
+  ## tabfile: a tab file containing overlap data with segment labels on the rows
+  ##   and feature classes on the columns and the overlap "count" at the
+  ##   intersection. Row and columns should have labels.
+  
+  counts <- read.overlap(tabfile, mnemonics = mnemonics,
+                         col_mnemonics = col_mnemonics)
   stats <- overlap.stats(counts)
 
-  stat.df <- stat.data.frame(stats)
-  if (!is.null(basename)) {
-    write.stats(tabbasename = basename, dirpath = dirpath, stat.df)
-  }
+  #stat.df <- stat.data.frame(stats)
+  #if (!is.null(basename)) {
+  #  write.stats(tabbasename = basename, dirpath = dirpath, stat.df)
+  #}
 
   xyplot.overlap(data = stats, ...)
 }
@@ -247,22 +236,26 @@ panel.pvalues <- function(x, y, subscripts = NULL, groups = NULL,
                  stacked = FALSE, col = col[y], ...)
 }
 
-barchart.pvalues <-
-  function(data,
-           x = reorder(label, -value) ~ value,
-           groups = if (ngroups > 1) variable else NULL,
-           as.table = TRUE,
-           main = "Approximate significance of overlap",
-           panel = panel.pvalues,
-           xlab = "p-value",
-           ylab = "Segment label",
-           reference = 0.01,
-           origin = 0,
-           auto.key = if (ngroups > 1) list(points = FALSE) else FALSE,
-           colors = label.colors(data.melted$label),
-           scales = list(x = list(log = TRUE)),
-           ...)
+barchart.pvalues <- function(data,
+                             x = reorder(label, -value) ~ value,
+                             groups = if (ngroups > 1) variable else NULL,
+                             as.table = TRUE,
+                             main = "Approximate significance of overlap",
+                             panel = panel.pvalues,
+                             xlab = "p-value",
+                             ylab = "Segment label",
+                             reference = 0.01,
+                             origin = 0,
+                             auto.key = if (ngroups > 1) list(points = FALSE)
+                                        else FALSE,
+                             colors = label.colors(data.melted$label),
+                             scales = list(x = list(log = TRUE)),
+                             ...)
 {
+  ## Create a barchart from overlap pvalue data
+  ##
+  ## data: a data frame containing pvalue data
+  
   data.melted <- melt(data, id.vars = "label")
   ngroups = nlevels(data.melted$variable)
   
@@ -284,15 +277,99 @@ barchart.pvalues <-
          ...)
 }
 
-plot.overlap.pvalues <- function(tabfile, mnemonics = NULL, ...)
-{
-  pvalues <- read.pvalues(tabfile, mnemonics = mnemonics)
+plot.overlap.pvalues <- function(tabfile, mnemonics = NULL,
+                                 col_mnemonics = NULL, ...) {
+  ## Plot the overlap pvalue data
+  pvalues <- read.pvalues(tabfile, mnemonics = mnemonics,
+                          col_mnemonics = col_mnemonics)
   barchart.pvalues(pvalues, ...)
 }
 
-plot.overlap.pvalues <-
-  function(tabfile, mnemonics = NULL, ...)
+
+############### OVERLAP HEATMAP ############
+
+levelplot.overlap <- function(mat,
+                              mode = "segments",
+                              sub = paste("Fraction of", mode, "in subject",
+                                "label that overlap at least one in query",
+                                "label"),
+                              xlab = "label in query file",
+                              ylab = "label in subject file",
+                              num.colors = 100,
+                              col.range = NULL,
+                              scales = list(x = list(rot = 90)),
+                              palette = colorRampPalette(
+                                rev(brewer.pal(11, "RdYlBu")),
+                                interpolate = "spline",
+                                space = "Lab")(num.colors),
+                              cuts = num.colors - 1,
+                              ...)
 {
-  pvalues <- read.pvalues(tabfile, mnemonics = mnemonics)
-  barchart.pvalues(pvalues, ...)
+  ## Create a levelplot showing overlap proportions
+  ##
+  ## mat: matrix with subject labels on rows, query labels on cols, and
+  ##   proportion of coverage at intersection
+  ## mode: "segments", "bases" or whatever the units of overlap are
+  ## col.range: NULL sets the colorscale to the range of the data, else
+  ##   it should be a vector or list of two integers which specify the
+  ##   lower and upper bounds of the color scale
+  row.ord <- nrow(mat):1
+  col.ord <- 1:ncol(mat)
+
+  if (!is.null(col.range)) {
+    if (length(col.range) != 2) stop("Invalid value of col.range")
+    at <- seq(col.range[[1]], col.range[[2]], length = num.colors - 1)
+    
+    levelplot(t(mat[row.ord, col.ord]),
+              sub = sub,
+              xlab = xlab,
+              ylab = ylab,
+              cuts = cuts,
+              at = at,
+              scales = scales,
+              col.regions = palette,
+              ...)
+  } else {
+    levelplot(t(mat[row.ord, col.ord]),
+              sub = sub,
+              xlab = xlab,
+              ylab = ylab,
+              cuts = cuts,
+              scales = scales,
+              col.regions = palette,
+              ...)
+  }
+}
+
+plot.overlap.heatmap <- function(filename, mnemonics = NULL,
+                                 col_mnemonics = NULL,
+                                 none_col = FALSE,
+                                 row_normalize = (ncol(data.mat) > 1),
+                                 max_contrast = !row_normalize,
+                                 ...) {
+  ## Plot a heatmap from overlap data
+  ##
+  ## filename: overlap table file
+  ## mnemonics, col_mnemonics: mnemonic list (as per read.mnemonics)
+  ## none_col: include the none column (TRUE) or not (FALSE)
+  ## row_normalize: always (TRUE), never (FALSE), or only when there are
+  ##   at least two columns (default).
+  ## max_contrast: set color range to range of data instead of [0, 1]
+  
+  data <- read.overlap(filename, mnemonics = mnemonics,
+                       col_mnemonics = col_mnemonics)
+
+  # Convert to matrix
+  data.mat <- subset(data, select = -c(label, total))
+  if (!none_col) {
+    data.mat <- subset(data.mat, select = -c(none))
+  }
+  
+  if (row_normalize) {
+    data.mat <- data.mat / data$total
+  }
+  rownames(data.mat) <- data$label
+  
+  col.range <- if (max_contrast) NULL else c(0, 1)
+  levelplot.overlap(data.mat, col.range = col.range, ...)
 }

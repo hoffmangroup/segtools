@@ -49,21 +49,22 @@ segtools-html-report = segtools.html:main
 
 install_requires = ["genomedata", "numpy", "path", "rpy2", "textinput", "tables>=2.1"]
 
-setup(name=name,
-      version=__version__,
-      description=short_description,
-      author="Michael Hoffman",
-      author_email="mmh1@washington.edu",
-      maintainer="Orion Buske",
-      maintainer_email="stasis@uw.edu",
-      url=url,
-      download_url=download_url,
-      classifiers=classifiers,
-      long_description=long_description,
-      dependency_links=dependency_links,
-      install_requires=install_requires,
-      zip_safe=False,
-      packages=find_packages("."),
-      include_package_data=True,
-      entry_points=entry_points
-      )
+if __name__ == "__main__":
+    setup(name=name,
+          version=__version__,
+          description=short_description,
+          author="Michael Hoffman",
+          author_email="mmh1@washington.edu",
+          maintainer="Orion Buske",
+          maintainer_email="stasis@uw.edu",
+          url=url,
+          download_url=download_url,
+          classifiers=classifiers,
+          long_description=long_description,
+          dependency_links=dependency_links,
+          install_requires=install_requires,
+          zip_safe=False,  # For R files to source others, they can't be zip'd
+          packages=find_packages("."),
+          include_package_data=True,
+          entry_points=entry_points
+          )

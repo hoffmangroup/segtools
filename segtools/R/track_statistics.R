@@ -5,105 +5,129 @@ library(cluster)
 COLNAMES <- c("label", "trackname", "mean", "sd")
 
 ## File should have fields: label, trackname, mean, sd, ...
-read.track.stats <- function(filename, mnemonics = NULL, ...,
-                        colClasses = list(label = "character"))
+read.track.stats <- function(filename, mnemonics = NULL,
+                             ...,
+                             colClasses = list(label = "factor",
+                               trackname = "factor",
+                               mean = "numeric",
+                               sd = "numeric"))
 {
   stats <- read.delim(filename, colClasses = colClasses)
   if (!all(names(stats) == COLNAMES)) {
     stop("Unrecognized track statistic file format")
   }
+  stats$label <- relevel.mnemonics(stats$label, mnemonics)
+  stats <- rename.tracks(stats, ...)
   
-  stats$label <- factor(stats$label)
-
-  if (length(mnemonics) > 0) {
-    stats$label <- relabel.factor(stats$label, mnemonics)
-  }
-  stats.renamed <- rename.tracks(stats, ...)
-  stats.melted <- melt.track.stats(stats.renamed)
-  
-  stats.melted
-}
-
-read.gmtk.track.stats <- function(filename, normalize = TRUE, mnemonics = NULL, 
-                                  cov = FALSE, ...) {
-  data <- parse.gmtk.track.stats(filename)
-  data$label <- factor(data$label)
-  
-  if (length(mnemonics) > 0) {
-    data$label <- relabel.factor(data$label, mnemonics)
-  }
-  data <- rename.tracks(data, ...)
-  data.shaped <- cast(data, trackname ~ label ~ variable)
-  
-  res <- covar2sd(data.shaped)
-  if (normalize) res <- normalize.track.stats(res, cov = cov) 
-  
-  res
-}
-
-covar2sd <- function(stats) {
-  ## Convert covar to sd
-  stats[, , "covar"] <- sqrt(stats[, , "covar"])
-  dimnames(stats)[[3]] <- sub("covar", "sd", dimnames(stats)[[3]])
-
   stats
 }
 
-parse.gmtk.track.stats <- function(filename) {
+read.gmtk.track.stats <- function(filename, mnemonics = NULL,
+                                  cov = FALSE, ...) {
+  means <- parse.gmtk.means(filename)
+  covars <- parse.gmtk.covars(filename)
+  data <- merge.gmtk.track.stats(means, covars)
+  
+  data$label <- relevel.mnemonics(data$label, mnemonics)
+  data <- rename.tracks(data, ...)
+  data <- covar2sd(data)
+  
+  data
+}
+
+
+merge.gmtk.track.stats <- function(means, covars) {
+  if (!all(means$trackname[1:nrow(covars)] == covars$trackname)) {
+    stop("Track ordering different between means and covars!")
+  } else {
+    ## Implicit replication across all segs and subsegs
+    stats <- subset(means, select=-value)
+    stats$mean <- means$value
+    stats$covar <- covars$value
+    
+    stats
+  }
+}
+
+is.hierarchical.gmtk <- function(filename) {
   lines <- readLines(filename)
-  start <- grep("% means", lines) + 1
-  end <- grep("% Components", lines) - 1
-  lines.norm <- lines[start:end]
+  hierarchical <- length(grep("^seg_subseg $", lines)) > 0
+
+  hierarchical
+}
+
+parse.gmtk.means <- function(filename, hierarchical =
+                             is.hierarchical.gmtk(filename)) {
+  ## hierarchical:
+  ##   TRUE: parse the params file expecting a hierarchical format
+  ##   FALSE: parse the params file as a normal format
+  
+  lines <- readLines(filename)
+  
+  if (hierarchical) {
+    pattern <- "^mean_seg([^_ ]+)_subseg([^_ ]+)_([^ ]+) 1 (.*)"
+    replacement <- "\\1_\\2\t\\3\t\\4"
+  } else {
+    pattern <- "^mean_seg([^_ ]+)_([^ ]+) 1 (.*)"
+    replacement <- "\\1\t\\2\t\\3"
+  }
+  
+  start <- grep("^% means$", lines) + 1
+  lines.norm <- lines[start:length(lines)]
 
   anonfile <- file()
-  lines.interesting.mean <-
-    lines.norm[grep("^[^_ ]+_seg[^_ ]+_[^ ]+ 1 .* $", lines.norm)]
+  lines.interesting <-
+    lines.norm[grep(pattern, lines.norm)]
 
-  reformulated <- gsub("^([^_ ]+)_seg([^_ ]+)_([^ ]+) 1 (.*)",
-                       "\\1\t\\2\t\\3\t\\4", lines.interesting.mean,
-                       perl = TRUE)
-  writeLines(reformulated, anonfile)
-  lines.interesting.covar <-
-    lines.norm[grep("^covar_[^ ]+ 1 .* $", lines.norm)]
-  reformulated <- gsub("^(covar)_([^ ]+) 1 (.*)",
-                      "\\1\t0\t\\2\t\\3", lines.interesting.covar, perl = TRUE)
+  reformulated <- gsub(pattern, replacement, lines.interesting, perl = TRUE)
   writeLines(reformulated, anonfile)
   
-  stats <- read.delim(anonfile, header = FALSE,
-                      col.names = c("variable", "label", "trackname", "value"))
+  means <- read.delim(anonfile, header = FALSE,
+                      col.names = c("label", "trackname", "value"),
+                      colClasses = c("factor", "factor", "numeric"))
   close(anonfile)
 
-  ## replicate covar for other seg labels
-  stats.covar <- subset(stats, variable == "covar")
-  copy.covar <- function(label) {
-    res <- stats.covar
-    res$label <- label
-    res
-  }
-  res <- do.call(rbind, c(list(stats),
-                          lapply(1:max(stats$label), copy.covar)))
-
-  res
+  means
 }
 
-hclust.track.stats <- function(stats) {
-  stats.mean <- t(stats[,,"mean"])
-  hclust(dist(stats.mean))
+
+parse.gmtk.covars <- function(filename) {
+  lines <- readLines(filename)
+  start <- grep("^% diagonal covariance matrices$", lines) + 1
+  lines.norm <- lines[start:length(lines)]
+
+  anonfile <- file()
+  lines.interesting <-
+    lines.norm[grep("^covar_[^ ]+ 1 .* $", lines.norm)]
+  reformulated <- gsub("^covar_([^ ]+) 1 (.*)",
+                      "\\1\t\\2", lines.interesting, perl = TRUE)
+  writeLines(reformulated, anonfile)
+  
+  covars <- read.delim(anonfile, header = FALSE,
+                       col.names = c("trackname", "value"),
+                       colClasses = c("factor", "numeric"))
+  close(anonfile)
+
+  covars
 }
 
-seq.0based <- function(x) {
-  seq(0, x - 1)
-}
-
-## Creates mnemonics from 3d stats array
 ## You should probably normalize with normalize.track.stats() first
-generate.mnemonics <- function(stats)
-{
-  hclust.col <- hclust.track.stats(stats)
-  cut.height <- median(hclust.col$height)
+generate.mnemonics <- function(stats, hierarchical = FALSE, ...) {
+  if (!is.array(stats)) {
+    stats <- as.stats.array(stats)
+  }
+  
+  stats.mean <- t(stats[, , "mean"])
+  dist.func <- if (hierarchical) hierarchical.dist else dist
+  hclust.col <- hclust(dist.func(stats.mean))
+  
+  cut.height <- mean(range(hclust.col$height))
   stems <- (cutree(hclust.col, h = cut.height) - 1)[hclust.col$order]
   stems.reorder <- as.integer(factor(stems, levels = unique(stems))) - 1
-  
+
+  seq.0based <- function(x) {
+    seq(0, x - 1)
+  }
   stem.starts <- c(0, which(diff(stems.reorder) == 1), length(stems.reorder))
   leaves <- do.call(c, lapply(diff(stem.starts), seq.0based))
   stems.leaves <- paste(stems.reorder, leaves, sep = ".")
@@ -118,8 +142,13 @@ generate.mnemonics <- function(stats)
 ## or a translation table (a Nx2 array, where a trackname found at [i,1]
 ## are replaced by the string at [i,2])
 ## If both a translation table and regex replacements are specified, the
-## transition table is applied first
-rename.tracks <- function(stats, patterns = "_", replacements = ".", translation = NULL, ...) {
+## translation table is applied first
+rename.tracks <- function(stats, patterns = "_", replacements = ".",
+                          translation = NULL, ...) {
+  if (!is.data.frame(stats)) {
+    stop("rename.tracks expected stats as data.frame")
+  }
+  
   tracknames <- levels(stats$trackname)
   # Apply translation table substitutions
   if (!is.null(translation)) {
@@ -143,7 +172,35 @@ rename.tracks <- function(stats, patterns = "_", replacements = ".", translation
   stats
 }
 
+as.stats.array <- function(data) {
+  if (!is.data.frame(data)) {
+    stop("as.stats.array expected data as data.frame")
+  }
+  data.melted <- melt(data, id.vars = c("label", "trackname"))
+  cast(data.melted, trackname ~ label ~ variable)
+}
+
+as.stats.data.frame <- function(stats) {
+  if (!is.array(data)) {
+    stop("as.stats.data.frame expected data as array")
+  }
+  stats.melted <- melt(stats)
+  cast(stats.melted, label + trackname ~ variable)
+}
+
+covar2sd <- function(stats) {
+  ## Convert covar to sd
+  stats$sd <- sqrt(stats$covar)
+  stats$covar <- NULL
+
+  stats
+}
+
 normalize.track.stats <- function(stats, cov = FALSE) {
+  if (!is.array(stats)) {
+    stop("normalize.track.stats expected stats in array format!")
+  }
+  
   ## Normalize mean
   mean <- stats[, , "mean"]
   mean.range <- t(apply(mean, 1, range))
@@ -159,7 +216,7 @@ normalize.track.stats <- function(stats, cov = FALSE) {
     } else {  # Normalize same as mean
       sds <- sds / (mean.max - mean.min)
       ## If any are over 1, scale all down
-      if (any(sds > 1)) {
+      if (any(is.finite(sds)) && any(sds > 1)) {
         sds <- sds / max(sds, na.rm = TRUE)
       }
     }
@@ -169,18 +226,49 @@ normalize.track.stats <- function(stats, cov = FALSE) {
   stats
 }
 
-melt.track.stats <- function(data) {
-  stats.melted <- melt(data, id.vars = c("label", "trackname"))
-  stats.cast <- cast(stats.melted, trackname ~ label ~ variable)
+hierarchical.dist <- function(mat) {
+  ## Returns a distance matrix, accomodating a hierarchical model
   
-  stats.cast
+  ## Hierarchy is denoted in the rownames, with "a_b" specifying a's child, b
+  ## All nodes of a given level must have the same number of children
+  levels.tokens <- strsplit(rownames(mat), "_", fixed = TRUE)
+  depth <- length(levels.tokens[[1]])
+  for (level.row in levels.tokens) {
+    if (length(level.row) != depth) {
+      stop("Hierarchy tree does not have a uniform depth")
+    }
+  }
+  if (depth == 1) {
+    dist(mat)
+  } else {
+    ## Convert the list of arrays to a single array,
+    ##   since all depths are the same
+    levels.mat <- matrix(unlist(levels.tokens), ncol = depth, byrow = TRUE)
+    
+    mat.dist <- as.matrix(dist(mat))
+    dist.thresh <- max(mat.dist) + 1  # Separate hierarchy levels this far
+    
+    for (row.i in 1:nrow(mat)) {
+      diff.rows <- rep(FALSE, nrow(mat))
+      for (depth.i in 1:(depth - 1)) {
+        cur.level <- levels.mat[row.i, depth.i]
+        ## Which rows are different at this level
+        diff.level <- levels.mat[, depth.i] != cur.level
+        ## Add to distance of rows that are different at this level or a
+        ##   higher one
+        diff.rows <- diff.rows | diff.level
+        mat.dist[diff.rows, row.i] <- mat.dist[diff.rows, row.i] + dist.thresh
+      }
+    }
+    as.dist(mat.dist)
+  }
 }
 
 panel.track.stats <-
   function(x, y, z, subscripts, at = pretty(z), sds = NULL, 
            ncolors = 2, threshold = FALSE, sd.shape = "box", 
            panel.fill = "mean", box.fill = "gradient", 
-           sd.box.size = 0.4, sd.scale = 1, sd.line.size = 0.15,
+           sd.box.size = 0.4, sd.scale = 1, sd.line.size = 0.18,
            panel.outline = FALSE, horizontal.sd = TRUE, ...)
 {
   require("grid", quietly = TRUE)
@@ -246,8 +334,8 @@ panel.track.stats <-
       grad.just <- "bottom"
       panel.grad.width <- 1
       panel.grad.height <- panel.grad.size
-      line.width <- sd.size
-      line.height <- sd.line.size
+      line.width <- sd.line.size
+      line.height <- sd.size
     }
 
     if (panel.fill == "mean") {
@@ -301,22 +389,28 @@ levelplot.track.stats <-
            scale.cex = 1.0,
            xlab = list("Segment label", cex = axis.cex),
            ylab = list("Signal track", cex = axis.cex),
+           hclust.label = TRUE,
+           hclust.track = TRUE,
+           hierarchical = FALSE,
            aspect = "iso",
            sd.shape = "line",
            box.fill = NULL,
            scales = list(x = list(rot = 90), cex = scale.cex),
            panel = panel.track.stats,
            threshold = FALSE,
-           legend = ddgram.legend(dd.row, dd.col, row.ord, col.ord),
+           legend = ddgram.legend(dd.row,  row.ord, dd.col,col.ord),
            colorkey = list(space = "left", at = colorkey.at),
            palette = colorRampPalette(rev(brewer.pal(11, "RdYlBu")),
                                       interpolate = "spline", 
                                       space = "Lab")(100),
            ...)
 {
+  if (!is.array(track.stats)) {
+    track.stats <- as.stats.array(track.stats)
+  }
   stats.norm <- normalize.track.stats(track.stats)
-  means <- stats.norm[,,"mean"]
-  sds <- stats.norm[,,"sd"]
+  means <- stats.norm[, , "mean"]
+  sds <- stats.norm[, , "sd"]
 
   if (!any(is.finite(means))) {
     stop("No finite mean values found. Nothing to plot!")
@@ -339,12 +433,20 @@ levelplot.track.stats <-
   }
   colorkey.at <- seq(from = z.range[1], to = z.range[2], length = 101)
 
-  dd.row <- as.dendrogram(hclust(dist(means)))
-  row.ord <- order.dendrogram(dd.row)
-
-  dd.col <- as.dendrogram(hclust(dist(t(means))))
-  col.ord <- order.dendrogram(dd.col)
-
+  # Set up dendrogram
+  dd.row <- NULL
+  dd.col <- NULL
+  row.ord <- 1:nrow(means)
+  col.ord <- 1:ncol(means)
+  if (hclust.track) {
+    dd.row <- as.dendrogram(hclust(dist(means)))
+    row.ord <- order.dendrogram(dd.row)
+  }
+  if (hclust.label) {
+    dist.func <- if (hierarchical) hierarchical.dist else dist
+    dd.col <- as.dendrogram(hclust(dist.func(t(means))))
+    col.ord <- order.dendrogram(dd.col)
+  }
   par(oma = c(1, 1, 1, 1))  # Add a margin
 
   sds.ordered = NULL
@@ -368,15 +470,27 @@ levelplot.track.stats <-
             ...)
 }
 
-plot.track.stats <- function(filename, mnemonics = NULL, gmtk = FALSE, ...)
-{
+plot.track.stats <- function(filename, mnemonics = NULL,
+                             translation_file = NULL,
+                             gmtk = FALSE, ...) {
+  translation <-
+    if (length(translation_file) > 0 && nchar(translation_file) > 0) {
+      read.mnemonics(translation_file)
+    } else {
+      NULL
+    }
+  
   if (gmtk) {
-    stats <- read.gmtk.track.stats(filename, mnemonics = mnemonics, ...)
+    stats <- read.gmtk.track.stats(filename, mnemonics = mnemonics,
+                                   translation = translation, ...)
+    hierarchical <- is.hierarchical.gmtk(filename)
   } else {
-    stats <- read.track.stats(filename, mnemonics = mnemonics, ...)
+    stats <- read.track.stats(filename, mnemonics = mnemonics,
+                              translation = translation, ...)
+    hierarchical <- FALSE
   }
   
-  levelplot.track.stats(stats, ...)
+  levelplot.track.stats(stats, hierarchical = hierarchical, ...)
 }
 
 ## infilename: stats data.frame tab file
@@ -385,11 +499,14 @@ make.mnemonic.file <- function(infilename, outfilename, gmtk = FALSE, ...)
 {
   if (gmtk) {
     stats <- read.gmtk.track.stats(infilename, ...)
+    hierarchical <- is.hierarchical.gmtk(infilename)
   } else {
     stats <- read.track.stats(infilename, ...)
+    hierarchical <- FALSE
   }
+  stats <- as.stats.array(stats)
   stats.norm <- normalize.track.stats(stats)
-  mnemonics <- generate.mnemonics(stats.norm, ...)
+  mnemonics <- generate.mnemonics(stats.norm, hierarchical = hierarchical, ...)
   write.table(mnemonics, file = outfilename, quote = FALSE, 
               col.names = TRUE, row.names = FALSE, sep = "\t")
   
