@@ -115,7 +115,7 @@ levelplot.transition <-
     }
   
   par(oma=c(1, 1, 1, 1))  # Add a margin
-  levelplot(t(data[row.ord, col.ord]),
+  levelplot(t(data[row.ord, col.ord, drop = FALSE]),
             aspect = aspect,
             scales = scales,
             xlab = "End label", 

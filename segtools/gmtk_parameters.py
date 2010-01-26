@@ -81,9 +81,9 @@ def validate(gmtk_file, dirpath, p_thresh=P_THRESH, q_thresh=Q_THRESH,
     if not os.path.isfile(gmtk_file):
         die("Could not find GMTK file: %s" % gmtk_file)
 
-    print "Loading gmtk transitions...",
+    print >>sys.stderr, "Loading gmtk transitions...",
     labels, probs = load_gmtk_transitions(gmtk_file)
-    print "done"
+    print >>sys.stderr, "done"
 
     # If mnemonics weren't specified, let's create a mnemonic file!
     if mnemonicfilename is None and create_mnemonics:

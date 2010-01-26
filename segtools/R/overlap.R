@@ -290,7 +290,8 @@ plot.overlap.pvalues <- function(tabfile, mnemonics = NULL,
 
 levelplot.overlap <- function(mat,
                               mode = "segments",
-                              sub = paste("Fraction of", mode, "in subject",
+                              y.mode = "Fraction",
+                              sub = paste(y.mode, "of", mode, "in subject",
                                 "label that overlap at least one in query",
                                 "label"),
                               xlab = "label in query file",
@@ -316,21 +317,10 @@ levelplot.overlap <- function(mat,
   row.ord <- nrow(mat):1
   col.ord <- 1:ncol(mat)
 
-  if (!is.null(col.range)) {
-    if (length(col.range) != 2) stop("Invalid value of col.range")
-    at <- seq(col.range[[1]], col.range[[2]], length = num.colors - 1)
-    
-    levelplot(t(mat[row.ord, col.ord]),
-              sub = sub,
-              xlab = xlab,
-              ylab = ylab,
-              cuts = cuts,
-              at = at,
-              scales = scales,
-              col.regions = palette,
-              ...)
-  } else {
-    levelplot(t(mat[row.ord, col.ord]),
+  
+  
+  plot.levelplot <- function(...) {
+    levelplot(t(mat[row.ord, col.ord, drop = FALSE]),
               sub = sub,
               xlab = xlab,
               ylab = ylab,
@@ -339,13 +329,22 @@ levelplot.overlap <- function(mat,
               col.regions = palette,
               ...)
   }
+  
+  if (!is.null(col.range)) {
+    if (length(col.range) != 2) stop("Invalid value of col.range")
+    at <- seq(col.range[[1]], col.range[[2]], length = num.colors - 1)
+
+    plot.levelplot(at = at)
+  } else {
+    plot.levelplot()
+  }
 }
 
 plot.overlap.heatmap <- function(filename, mnemonics = NULL,
                                  col_mnemonics = NULL,
                                  none_col = FALSE,
                                  row_normalize = (ncol(data.mat) > 1),
-                                 max_contrast = !row_normalize,
+                                 max_contrast = TRUE,
                                  ...) {
   ## Plot a heatmap from overlap data
   ##
@@ -364,12 +363,17 @@ plot.overlap.heatmap <- function(filename, mnemonics = NULL,
   if (!none_col) {
     data.mat <- subset(data.mat, select = -c(none))
   }
+  data.mat <- as.matrix(data.mat)
   
   if (row_normalize) {
     data.mat <- data.mat / data$total
+    y.mode <- "Fraction"
+  } else {
+    y.mode <- "Number"
   }
   rownames(data.mat) <- data$label
   
   col.range <- if (max_contrast) NULL else c(0, 1)
-  levelplot.overlap(data.mat, col.range = col.range, ...)
+  levelplot.overlap(data.mat, col.range = col.range,
+                    y.mode = y.mode, ...)
 }

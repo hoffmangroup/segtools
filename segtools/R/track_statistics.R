@@ -413,7 +413,8 @@ levelplot.track.stats <-
   sds <- stats.norm[, , "sd"]
 
   if (!any(is.finite(means))) {
-    stop("No finite mean values found. Nothing to plot!")
+    warning("No finite mean values found. Nothing to plot!")
+    return(NULL)
   } else if (!any(is.finite(sds))) {
     ## Pretent no sds were specified
     sds <- NULL
@@ -453,7 +454,7 @@ levelplot.track.stats <-
   if (! is.null(sds)) {
     sds.ordered = t(sds[row.ord, col.ord])
   }
-  levelplot(t(means[row.ord, col.ord]),
+  levelplot(t(means[row.ord, col.ord, drop = FALSE]),
             sds = sds.ordered,
             aspect = aspect,
             scales = scales,

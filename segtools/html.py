@@ -268,25 +268,29 @@ def parse_args(args):
                       dest="clobber", default=False,
                       help="Overwrite existing output files if the specified"
                       " directory already exists.")
-    parser.add_option("--mnemonic-file", dest="mnemonicfile", default=None,
+    parser.add_option("--mnemonic-file", dest="mnemonicfile",
+                      default=None, metavar="FILE",
                       help="If specified, this mnemonic mapping will be"
                       " included in the report (this should be the same"
                       " mnemonic file used by the individual modules)")
-    parser.add_option("-L", "--layered-bed", dest="layeredbed", default=None,
+    parser.add_option("-L", "--layered-bed", dest="layeredbed",
+                      default=None, metavar="FILE",
                       help="If specified, this layered BED file will be linked"
                       " into the the HTML document (assumed to be the same"
                       " data as in BEDFILE)")
-    parser.add_option("-B", "--big-bed", dest="bigbed", default=None,
+    parser.add_option("-B", "--big-bed", dest="bigbed",
+                      default=None, metavar="FILE",
                       help="If specified, this bigBed file will be linked into"
                       " the the HTML document and a UCSC genome brower link"
                       " will be generated for it (assumed to be the same data"
                       " as in BEDFILE)")
-    parser.add_option("--results-dir", dest="resultsdir", default=".",
+    parser.add_option("--results-dir", dest="resultsdir",
+                      default=".", metavar="DIR",
                       help="This should be the directory containing all the"
                       " module output directories (`ls` should return things"
                       " like \"length_distribution/\", etc)"
                       " [default: %default]")
-    parser.add_option("-o", "--outfile",
+    parser.add_option("-o", "--outfile", metavar="FILE",
                       dest="outfile", default="index.html",
                       help="HTML report file (must be in current directory"
                       " or the links will break [default: %default]")
