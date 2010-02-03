@@ -3,8 +3,9 @@
 
 
 0.1.2:
-
-
+Allowed parallelization of signal distribution
+Added overlap heatmaps
+Removed GSC interfacing for overlap significance
 
 0.1.1:
 
