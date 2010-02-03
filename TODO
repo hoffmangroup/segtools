@@ -1,11 +1,15 @@
-Lengths:
 
-* report mad.len as well as mean.len (use rpy2 for mad)
+Feature aggregation:
+* Update interface to use new load_features array-based structure
+* Improve speed (should be easy)
 
-Additional analyses:
+Signal distribution:
+* Improve speed
+* Re-enable signal distribution plot
+* Try Q-Q plot in each cell
 
-* kernel density plot of change points
 
 Overall:
 
+* Improve documentation
 * Add ability to analyze multiple segmentations at once => run it on the cluster
