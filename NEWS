@@ -2,6 +2,10 @@
 
 
 
+1.0.0:
+
+
+
 0.1.2:
 Allowed parallelization of signal distribution
 Added overlap heatmaps
