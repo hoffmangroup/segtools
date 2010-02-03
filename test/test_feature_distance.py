@@ -143,7 +143,7 @@ class TestOverlapping(MainTester):
 
 class TestStrandCorrect(MainTester):
     def init(self):
-        self.kwargs["strand_correct"] = True
+        self.kwargs["correct_strands"] = [0]
         self.segments = [(1, 60, 100, 0),
                          (1, 90, 100, 0)]
         self.features_list = [("gtf", [(1, 1, 10, 1, "+"),
