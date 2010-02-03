@@ -849,18 +849,17 @@ def bed2arraydict(filename, verbose=True):
             except KeyError:
                 pass
 
-            if label_dict is not None:
-                try:
-                    label = str(datum.name)
-                except AttributeError:
-                    # No name column, read as BED3 (no labels)
-                    label_dict = None
-                else:
-                    try:  # Lookup label key
-                        label_key = label_dict[label]
-                    except KeyError:  # Map new label to key
-                        label_key = len(label_dict)
-                        label_dict[label] = label_key
+            try:
+                label = str(datum.name)
+            except AttributeError:
+                # No name column, read as BED3 (no labels)
+                label = ""
+
+            try:  # Lookup label key
+                label_key = label_dict[label]
+            except KeyError:  # Map new label to key
+                label_key = len(label_dict)
+                label_dict[label] = label_key
 
             segment = (datum.chromStart, datum.chromEnd, label_key)
             data[datum.chrom].append(segment)

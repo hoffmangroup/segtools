@@ -343,7 +343,7 @@ levelplot.overlap <- function(mat,
 plot.overlap.heatmap <- function(filename, mnemonics = NULL,
                                  col_mnemonics = NULL,
                                  none_col = FALSE,
-                                 row_normalize = (ncol(data.mat) > 1),
+                                 row_normalize = TRUE,
                                  max_contrast = TRUE,
                                  ...) {
   ## Plot a heatmap from overlap data
