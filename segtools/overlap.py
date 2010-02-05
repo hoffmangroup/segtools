@@ -681,26 +681,26 @@ Overlap_analysis_tool_specification"
                      " if it does not exist) [default: %default]")
     parser.add_option_group(group)
 
-    group = OptionGroup(parser, "GSC Options")
-    group.add_option("--region-file", dest="regionfilename",
-                     default=None,
-                     help="If specified, this file will be used to calculate"
-                     " overlap significance using GSC. This must be a BED file")
-    group.add_option("-s", "--samples", type="int",
-                     dest="samples", default=SAMPLES_DEFAULT,
-                     help="The number of samples for GSC to use to estimate"
-                     " the significance of the overlap [default: %default]")
-    group.add_option("--region-fraction", type="float",
-                     dest="region_fraction",
-                     default=REGION_FRACTION_DEFAULT,
-                     help="The region_fraction to use with GSC"
-                     " [default: %default]")
-    group.add_option("--subregion-fraction", type="float",
-                     dest="subregion_fraction",
-                     default=SUBREGION_FRACTION_DEFAULT,
-                     help="The subregion_fraction to use with GSC"
-                     " [default: %default]")
-    parser.add_option_group(group)
+#     group = OptionGroup(parser, "GSC Options")
+#     group.add_option("--region-file", dest="regionfilename",
+#                      default=None,
+#                      help="If specified, this file will be used to calculate"
+#                      " overlap significance using GSC. This must be a BED file")
+#     group.add_option("-s", "--samples", type="int",
+#                      dest="samples", default=SAMPLES_DEFAULT,
+#                      help="The number of samples for GSC to use to estimate"
+#                      " the significance of the overlap [default: %default]")
+#     group.add_option("--region-fraction", type="float",
+#                      dest="region_fraction",
+#                      default=REGION_FRACTION_DEFAULT,
+#                      help="The region_fraction to use with GSC"
+#                      " [default: %default]")
+#     group.add_option("--subregion-fraction", type="float",
+#                      dest="subregion_fraction",
+#                      default=SUBREGION_FRACTION_DEFAULT,
+#                      help="The subregion_fraction to use with GSC"
+#                      " [default: %default]")
+#     parser.add_option_group(group)
 
     (options, args) = parser.parse_args(args)
 
