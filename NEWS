@@ -1,14 +1,8 @@
 1.0.0:
-
-
-
-1.0.0:
-
-
-
-1.0.0:
-
-
+Added additional functionality to feature-distance
+Added flatten-bed module
+Improved g[ft]f handling of comments
+Improved overlap appoximation of false positives
 
 0.1.2:
 Allowed parallelization of signal distribution

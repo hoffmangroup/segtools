@@ -13,7 +13,7 @@ Segtools |version| documentation
 
 Description
 ===========
-Segtools is a python package designed to put genomic segmentations back
+Segtools is a Python package designed to put genomic segmentations back
 in the context of the genome! Using R for graphics, segtools provides a
 number of modules to analyze a segmentation in various ways and help
 you interpret its biological relevance.
