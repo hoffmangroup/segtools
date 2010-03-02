@@ -118,11 +118,12 @@ overlap.stats <-
   function(counts)
 {
   total.counts <- counts$total
+  none.counts <- counts$none
   feature.counts <- subset(counts, select = -c(label, total, none))
   total.sum <- sum(as.numeric(total.counts))
   feature.sums <- colSums(feature.counts)
   tp <- feature.counts
-  fp <- total.counts - feature.counts
+  fp <- none.counts
   fn <- t(feature.sums - t(feature.counts))
   tn <- total.sum - total.counts - fn
 
@@ -167,7 +168,7 @@ xyplot.overlap <-
            small.cex = 1.0,
            large.cex = 1.0,
            as.table = TRUE,
-           aspect = "iso",
+           aspect = "fill",
            auto.key = FALSE, #list(space = "right"),
            xlab = list("False positive rate (FP / (FP + TN))", cex = large.cex),
            ylab = list("True positive rate (TP / (TP + FN))", cex = large.cex),

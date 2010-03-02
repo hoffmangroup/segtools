@@ -78,10 +78,10 @@ panel.scales <- function(data, layout, num_panels, x.axis = FALSE)
 }
 
 transpose.levels <-
-  function(data.factor, dim.length)
+  function(data.group, dim.length)
 {
-  lev <- levels(data.factor)
-  nlev <- nlevels(data.factor)
+  lev <- levels(data.group)
+  nlev <- nlevels(data.group)
   res <- vector(mode = "character", length = nlev)
   num.added <- 0
   for (i in seq(from = 1, length = dim.length)) {
@@ -91,7 +91,7 @@ transpose.levels <-
     num.added <- num.added + length(dest.indices)
   }
   
-  factor(data.factor, levels = res)
+  factor(data.group, levels = res)
 }
 
 melt.aggregation <- function(data.raw) {
@@ -100,7 +100,7 @@ melt.aggregation <- function(data.raw) {
   colnames(data)[(colnames(data) == "variable")] <- "label"
   colnames(data)[(colnames(data) == "value")] <- "count"
 
-  data$factor <- factor(data$factor)
+  data$group <- factor(data$group)
   data$component <- factor(data$component)
   data$label <- factor(data$label)
 
@@ -108,7 +108,7 @@ melt.aggregation <- function(data.raw) {
 }
 
 cast.aggregation <- function(data.df) {
-  cast(data.df, factor + component + offset ~ label, value = "count")
+  cast(data.df, group + component + offset ~ label, value = "count")
 }
 
 ## Given an aggregation data frame, normalize the counts over all labels
@@ -138,7 +138,7 @@ xyplot.aggregation <-
     par.settings = list(add.text = list(cex = text.cex),
                         layout.heights = list(axis.panel = axis.panel,
                                               strip = strips.heights)),
-    auto.key = if (nlevels(data$factor) < 2) FALSE
+    auto.key = if (nlevels(data$group) < 2) FALSE
                else list(points = FALSE, lines = TRUE),
     strip = strip.custom(horizontal = FALSE),
     strip.height = 10,
@@ -196,7 +196,7 @@ xyplot.aggregation <-
   trellis.raw <- xyplot(x, 
                         data = data, 
                         type = "l",
-                        groups = factor, 
+                        groups = group, 
                         auto.key = auto.key,
                         as.table = TRUE,
                         strip = strip,

@@ -202,19 +202,19 @@ normalize.track.stats <- function(stats, cov = FALSE) {
   }
   
   ## Normalize mean
-  mean <- stats[, , "mean"]
-  mean.range <- t(apply(mean, 1, range))
-  mean.min <- mean.range[, 1]
-  mean.max <- mean.range[, 2]
-  stats[, , "mean"] <- (mean - mean.min) / (mean.max - mean.min) 
+  means <- stats[, , "mean"]
+  means.range <- t(apply(means, 1, range))
+  means.min <- means.range[, 1]
+  means.max <- means.range[, 2]
+  stats[, , "mean"] <- (means - means.min) / (means.max - means.min) 
 
   if ("sd" %in% dimnames(stats)[[3]]) {
     sds <- stats[, , "sd"]
     if (cov) {  # Make sd into coefficient of variation (capped at 1)
-      sds <- sds / rowMeans(mean)
+      sds <- sds / rowMeans(means)
       sds[sds > 1] <- 1
     } else {  # Normalize same as mean
-      sds <- sds / (mean.max - mean.min)
+      sds <- sds / (means.max - means.min)
       ## If any are over 1, scale all down
       if (any(is.finite(sds)) && any(sds > 1)) {
         sds <- sds / max(sds, na.rm = TRUE)
@@ -222,6 +222,27 @@ normalize.track.stats <- function(stats, cov = FALSE) {
     }
     stats[, , "sd"] <- sds
   }
+
+  stats
+}
+
+normalize.binary.track.stats <- function(stats, cov = FALSE) {
+  if (!is.array(stats)) {
+    stop("normalize.binary.track.stats expected stats in array format!")
+  }
+  if (! "sd" %in% dimnames(stats)[[3]]) {
+    stop("normalize.binary.track.stats expected standard deviations!")
+  }
+  ## Compute normalization statistic
+  means <- stats[, , "mean"]
+  sds <- stats[, , "sd"]
+  if (dim(means)[2] != 2) {
+    stop("normalize.binary.track.stats expected 2-label segmentation results!")
+  }
+
+  means.diff <- apply(means, 1, diff)
+  stats[, , "mean"] <- cbind(-means.diff, means.diff) / sds
+  stats[, , "sd"] <- NA
 
   stats
 }
@@ -293,10 +314,10 @@ panel.track.stats <-
   zcol <- level.colors(z, at = at, ...)
   for (i in seq(along = z))
   {
-    if (is.null(sds) || !is.finite(sds)) {
-      sd.size <- 0
-    } else {
+    if (is.finite(sds[i])) {
       sd.size <- sds[i] * sd.scale
+    } else {
+      sd.size <- 0
     }
     col.mean <- zcol[i]
     z.range <- seq(from = z.low[i], to = z.high[i], length = ncolors)
@@ -395,6 +416,7 @@ levelplot.track.stats <-
            aspect = "iso",
            sd.shape = "line",
            box.fill = NULL,
+           symmetric = FALSE,
            scales = list(x = list(rot = 90), cex = scale.cex),
            panel = panel.track.stats,
            threshold = FALSE,
@@ -408,7 +430,13 @@ levelplot.track.stats <-
   if (!is.array(track.stats)) {
     track.stats <- as.stats.array(track.stats)
   }
-  stats.norm <- normalize.track.stats(track.stats)
+  if (dim(track.stats[, , "mean"])[2] == 2) {
+    norm.func <- normalize.binary.track.stats
+    symmetric <- TRUE
+  } else {
+    norm.func <- normalize.track.stats
+  }
+  stats.norm <- norm.func(track.stats)
   means <- stats.norm[, , "mean"]
   sds <- stats.norm[, , "sd"]
 
@@ -431,6 +459,11 @@ levelplot.track.stats <-
     z.range <- range(means, na.rm = TRUE)
   } else {
     z.range <- c(min(means, means - sds), max(means + sds))
+  }
+  
+  if (symmetric) {
+    z.max <- max(abs(z.range))
+    z.range <- c(-z.max, z.max)
   }
   colorkey.at <- seq(from = z.range[1], to = z.range[2], length = 101)
 

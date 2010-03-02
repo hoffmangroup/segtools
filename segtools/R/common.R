@@ -2,6 +2,7 @@ library(grDevices)
 library(lattice)
 library(RColorBrewer)
 library(latticeExtra)
+library(plyr)
 
 # Set default theme
 lattice.options(default.theme = "theme.dark2",
@@ -141,6 +142,10 @@ labels.classify <- function(labels) {
 relevel.mnemonics <- function(labels, mnemonics = NULL) {
   if (!is.factor(labels)) stop("Expected labels as factor")
   label.map <- map.mnemonics(levels(labels), mnemonics = mnemonics)
+  if (nunique(label.map$labels) != length(label.map$labels)) {
+    stop(paste("Error: mnemonic replacement labels are not unique:",
+               paste(label.map$labels, collapse = ", ")))
+  }
   levels(labels) <- label.map$labels
   factor(labels, levels(labels)[label.map$order])
 }
