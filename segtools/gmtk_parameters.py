@@ -1,11 +1,13 @@
 #!/usr/bin/env python
-from __future__ import division, with_statement
-
-__version__ = "$Revision$"
 
 """
 gmtk_parameters.py
 """
+
+from __future__ import division, with_statement
+
+__version__ = "$Revision$"
+
 
 # A package-unique, descriptive module name used for filenames, etc
 # Must be the same as the folder containing this script
@@ -69,7 +71,8 @@ def save_html(dirpath, gmtk_file, p_thresh, q_thresh, clobber=False):
 
     save_html_div(HTML_TEMPLATE_FILENAME, dirpath, NAMEBASE, clobber=clobber,
                   module=MODULE, extra_namebases=extra_namebases,
-                  title=HTML_TITLE, thresh=thresh, gmtk_file=gmtk_file)
+                  title=HTML_TITLE, thresh=thresh,
+                  gmtk_file=os.path.basename(gmtk_file))
 
 ## Package entry point
 def validate(gmtk_file, dirpath, p_thresh=P_THRESH, q_thresh=Q_THRESH,

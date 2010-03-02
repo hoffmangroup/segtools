@@ -242,146 +242,6 @@ def calc_overlap(subseg, qryseg, quick=False, clobber=False, by=BY_DEFAULT,
 
     return (counts, totals, nones)
 
-# def split_bed_regions(filename, labels, lengths):
-#     """Simultaneously splits a bed file into region objects for each label.
-
-#     Mostly a direct copy of code in Nathan Boley's GSC
-#     (encode.py:parse_bed_file)
-#     Should be ~25 times faster than re-parsing with the 'group' arg for each
-#     label
-#     """
-#     from encode import binary_region, interval, regions
-
-#     # Initialize dict of regions
-#     chrom_dict = {}
-#     for label in labels.values():
-#         chrom_dict[label] = regions()
-#         for chName in lengths.keys():
-#             length = lengths[chName].length
-#             chrom_dict[label][chName] = binary_region((), chName, length)
-
-#     with maybe_gzip_open(filename) as infile:
-#         for datum in read_native(infile):
-#             feature = interval(int(datum.chromStart), int(datum.chromEnd))
-#             chName = datum.chrom
-#             name = datum.name
-#             if not lengths.has_key( chName ):
-#                 continue
-
-#             shifted_feature = lengths[chName].intersection(feature)
-#             # if there is no intersection, there is nothing else to do
-#             if shifted_feature == None: continue
-#             else:
-#                 try:
-#                     chrom_dict[name][chName].add(shifted_feature)
-#                 # This assumes that, if the region name is not present
-#                 # in the lengths file, then we want to ignore it
-#                 except KeyError:
-#                     pass
-
-#     return chrom_dict
-
-# def parse_file_regions(parser, filename, labels, lengths):
-#     regions = {}
-#     for key, label in labels.iteritems():
-#         print >>sys.stderr, "\t%s" % label
-#         with maybe_gzip_open(filename) as file:
-#             regions[key] = parser(file, lengths,
-#                                   group=label,
-#                                   force_binary=True)
-#     return regions
-
-# def calc_significance(seg_labels, feature_labels, bedfilename,
-#                       featurefilename, regionfilename,
-#                       num_samples=SAMPLES_DEFAULT,
-#                       region_fraction=REGION_FRACTION_DEFAULT,
-#                       subregion_fraction=SUBREGION_FRACTION_DEFAULT,
-#                       quick=False, by=BY_DEFAULT):
-#     """Use Genome Structure Correction tool to measure overlap significance.
-
-#     If GSC is not in the user's PYTHONPATH or the user failed to provide a
-#     region file for GSC, skip this part of validation and move on.
-
-#     Returns a nested dictionary mapping label-feature pairs to p_values:
-#       dict ( seg_label_key -> dict ( feature_label_key -> p_value ) )
-#     """
-#     try:
-#         import block_bootstrap
-#     except ImportError:
-#         print >> sys.stderr, "GSC not on PYTHONPATH. \
-# Skipping significance statistics."
-#         return None
-#     else:
-#         print >>sys.stderr, "Found GSC"
-
-#     from block_bootstrap import marginal_bp_overlap_stat, \
-#         marginal_resample_region_overlap_stat
-#     block_bootstrap.output = OutputMasker()  # Block GSC stdout output
-#     from encode import parse_lengths_file
-
-#     if regionfilename is None:
-#         print >> sys.stderr, "A region file must be specified to use GSC. \
-# Skipping significance statistics."
-#         return None
-#     elif not os.path.isfile(regionfilename):
-#         print >> sys.stderr, "Could not locate region file: %s. \
-# Skipping significance statistics." % regionfilename
-#         return None
-#     else:
-#         print >>sys.stderr, "Using region file: %s" % regionfilename
-
-#     # Parse region file
-#     print >>sys.stderr, "Loading region file...",
-#     sys.stdout.flush()
-#     with maybe_gzip_open(regionfilename) as regionfile:
-#         lengths = parse_lengths_file(regionfile)
-#     print >>sys.stderr, "done"
-
-#     # Preprocess both input BED files, splitting by labels
-
-#     # Parse segmentation BED file, once for each label
-#     seg_regions = split_bed_regions(bedfilename, seg_labels, lengths)
-
-#     # Parse feature BED file, once for each label
-#     feature_regions = split_bed_regions(featurefilename,
-#                                         feature_labels, lengths)
-
-#     # Calculate p-value for every label-feature pair
-#     p_values = {}
-#     print >>sys.stderr, "Calculating p-values:"
-#     for seg_label_key, seg_label in seg_labels.iteritems():
-#         print >>sys.stderr, "\t%s" % seg_label
-#         p_values[seg_label_key] = {}
-#         for feature_label_key, feature_label in feature_labels.iteritems():
-#             # Use GSC to calculate p-value
-#             try:
-#                 sys.stdout = OutputMasker(sys.stdout)  # Kill stdout prints
-#                 if by == "segments":
-#                     z, p = marginal_resample_region_overlap_stat(
-#                         seg_regions[seg_label], feature_regions[feature_label],
-#                         region_fraction, subregion_fraction, num_samples)
-#                 elif by == "bases":
-#                     z, p = marginal_bp_overlap_stat(
-#                         seg_regions[seg_label], feature_regions[feature_label],
-#                         region_fraction, num_samples)
-#                 else:
-#                     print >> sys.stderr, "Unrecognized mode: %s.\
-#  Skipping significance testing." % by
-#                     return None
-
-#             except Exception, e:
-#                 print >> sys.stderr, "GSC raised the following exception:\
-#  %s.\nSkipping significance testing." % e
-#                 return None
-#             finally:
-#                 sys.stdout = sys.stdout.restore()
-
-#             p_values[seg_label_key][feature_label_key] = p
-
-#         if quick: break
-
-#     return p_values
-
 def make_tab_row(col_indices, data, none, total):
     row = [data[col_i] for col_i in col_indices]
     row.extend([none, total])
@@ -403,29 +263,6 @@ def save_tab(dirpath, row_labels, col_labels, counts, totals, nones,
                                nones[row_label_key], totals[row_label_key])
             row.insert(0, row_labels[row_label_key])
             count_saver.writerow(row)
-
-# ## Saves the significance data to a tab file
-# def save_significance_tab(dirpath, row_labels, col_labels, p_values,
-#              namebase=SIGNIFICANCE_NAMEBASE, clobber=False,
-#              row_mnemonics=[], col_mnemonics=[]):
-#     assert p_values is not None
-
-#     row_ordered_keys, row_labels = get_ordered_labels(row_labels,
-#                                                       row_mnemonics)
-#     col_ordered_keys, col_labels = get_ordered_labels(col_labels,
-#                                                       col_mnemonics)
-
-#     # Set up fieldnames based upon feature groups
-#     fieldnames = list(col_labels[col_key] for col_key in col_ordered_keys)
-#     fieldnames.insert(0, ROW_NAME_COL)
-#     with tab_saver(dirpath, namebase, fieldnames,
-#                    clobber=clobber) as count_saver:
-#         for row_key in row_ordered_keys:
-#             if row_key in p_values:
-#                 count_row = make_tab_row(row_labels, row_key, col_labels,
-#                                          col_ordered_keys, p_values,
-#                                          formatstr="%.0e")
-#                 count_saver.writerow(count_row)
 
 def save_plot(dirpath, num_panels, clobber=False,
               row_mnemonics=[], col_mnemonics=[]):
@@ -463,23 +300,6 @@ def save_heatmap_plot(dirpath, clobber=False,
                                          mnemonics=row_mnemonics,
                                          col_mnemonics=col_mnemonics))
 
-# def save_significance_plot(dirpath, clobber=False,
-#                            row_mnemonics=[], col_mnemonics=[]):
-#     start_R()
-
-#     tabfilename = make_tabfilename(dirpath, SIGNIFICANCE_NAMEBASE)
-#     if not os.path.isfile(tabfilename):
-#         print >> sys.stderr, "Unable to find tab file: %s. \
-# Skipping significance plot." % tabfilename
-#         return
-
-#     # Plot data in file
-#     with image_saver(dirpath, SIGNIFICANCE_NAMEBASE, clobber=clobber,
-#                      width=SIGNIFICANCE_PNG_SIZE,
-#                      height=SIGNIFICANCE_PNG_SIZE):
-#         r.plot(r["plot.overlap.pvalues"](tabfilename, mnemonics=row_mnemonics,
-#                                          col_mnemonics=col_mnemonics))
-
 def save_html(dirpath, bedfilename, featurefilename, by, clobber=False):
     bedfilename = os.path.basename(bedfilename)
     featurebasename = os.path.basename(featurefilename)
@@ -487,13 +307,6 @@ def save_html(dirpath, bedfilename, featurefilename, by, clobber=False):
 
     title = "%s (%s)" % (HTML_TITLE_BASE, featurebasename)
 
-#     # Insert significance results if they were made
-#     tabfilename = make_tabfilename(dirpath, SIGNIFICANCE_NAMEBASE)
-#     if os.path.isfile(tabfilename):
-#         files = find_output_files(dirpath, SIGNIFICANCE_NAMEBASE)
-#         significance = template_substitute(
-#             SIGNIFICANCE_TEMPLATE_FILENAME)(files)
-#     else:
     significance = ""
     save_html_div(HTML_TEMPLATE_FILENAME, dirpath, NAMEBASE, clobber=clobber,
                   title=title, tablenamebase=NAMEBASE,
@@ -520,16 +333,17 @@ def validate(bedfilename, featurefilename, dirpath, regionfilename=None,
              subregion_fraction=SUBREGION_FRACTION_DEFAULT,
              min_overlap=1, min_overlap_fraction=None,
              mnemonic_filename=None, feature_mnemonic_filename=None,
-             replot=False, noplot=False):
+             replot=False, noplot=False, verbose=True):
     setup_directory(dirpath)
     segmentation = load_segmentation(bedfilename)
 
     if is_file_type(featurefilename, 'bed'):
-        features = load_segmentation(featurefilename)
+        features = load_segmentation(featurefilename, verbose=verbose)
     elif is_file_type(featurefilename, 'gff'):
-        features = load_features(featurefilename)
+        features = load_features(featurefilename, verbose=verbose)
     elif is_file_type(featurefilename, 'gtf'):
-        features = load_features(featurefilename, gtf=True, sort=True)
+        features = load_features(featurefilename, gtf=True,
+                                 sort=True, verbose=verbose)
     else:
         raise NotImplementedError("Only bed, gff, and gtf files are supported \
 for FEATUREFILE. If the file is in one of these formats, please use the \
@@ -551,27 +365,10 @@ appropriate extension")
                          by=by, min_overlap=min_overlap,
                          min_overlap_fraction=min_overlap_fraction,
                          print_segments=print_segments,
-                         quick=quick, dirpath=dirpath)
+                         quick=quick, dirpath=dirpath, verbose=verbose)
 
         save_tab(dirpath, seg_labels, feature_labels,
                  counts, nones, totals, clobber=clobber)
-
-#         # GSC significance of forward overlap
-#         print >>sys.stderr, "Measuring significance of overlap..."
-#         p_values = calc_significance(seg_labels,
-#                                      feature_labels,
-#                                      bedfilename,
-#                                      featurefilename,
-#                                      regionfilename,
-#                                      num_samples=samples,
-#                                      region_fraction=region_fraction,
-#                                      subregion_fraction=subregion_fraction,
-#                                      quick=quick, by=by)
-#         if p_values is not None:
-#             save_significance_tab(dirpath, seg_labels, feature_labels,
-#                                   p_values=p_values, clobber=clobber,
-#                                   row_mnemonics=mnemonics,
-#                                   col_mnemonics=feature_mnemonics)
 
     if not noplot:
         save_plot(dirpath, num_panels=len(feature_labels),
@@ -580,9 +377,6 @@ appropriate extension")
         save_heatmap_plot(dirpath, clobber=clobber,
                           row_mnemonics=mnemonics,
                           col_mnemonics=feature_mnemonics)
-#         save_significance_plot(dirpath, clobber=clobber,
-#                                row_mnemonics=mnemonics,
-#                                col_mnemonics=feature_mnemonics)
 
     print >>sys.stderr, "Saving HTML div...",
     sys.stdout.flush()  # Necessary to make sure html errors don't clobber print
@@ -615,6 +409,9 @@ Overlap_analysis_tool_specification"
     group.add_option("--quick", action="store_true",
                      dest="quick", default=False,
                      help="Compute values only for one chromosome.")
+    group.add_option("-v", "--verbose", action="store_true",
+                     dest="verbose", default=False,
+                     help="Print status and diagnostic messages.")
     group.add_option("--replot", action="store_true",
                      dest="replot", default=False,
                      help="Load data from output tab files and"
@@ -624,8 +421,7 @@ Overlap_analysis_tool_specification"
                      help="Do not generate plots")
     group.add_option("-p", "--print-segments", action="store_true",
                      dest="print_segments", default=False,
-                     help=("Treat features in FEATUREFILE as gene annotations"
-                     " with gene_ids in the feature column. For each group"
+                     help=("For each group"
                      " in the BEDFILE, a separate output file will be"
                      " created that contains a list of all the segments that"
                      " the group was found to overlap with. Output files"
@@ -681,33 +477,10 @@ Overlap_analysis_tool_specification"
                      " if it does not exist) [default: %default]")
     parser.add_option_group(group)
 
-#     group = OptionGroup(parser, "GSC Options")
-#     group.add_option("--region-file", dest="regionfilename",
-#                      default=None,
-#                      help="If specified, this file will be used to calculate"
-#                      " overlap significance using GSC. This must be a BED file")
-#     group.add_option("-s", "--samples", type="int",
-#                      dest="samples", default=SAMPLES_DEFAULT,
-#                      help="The number of samples for GSC to use to estimate"
-#                      " the significance of the overlap [default: %default]")
-#     group.add_option("--region-fraction", type="float",
-#                      dest="region_fraction",
-#                      default=REGION_FRACTION_DEFAULT,
-#                      help="The region_fraction to use with GSC"
-#                      " [default: %default]")
-#     group.add_option("--subregion-fraction", type="float",
-#                      dest="subregion_fraction",
-#                      default=SUBREGION_FRACTION_DEFAULT,
-#                      help="The subregion_fraction to use with GSC"
-#                      " [default: %default]")
-#     parser.add_option_group(group)
-
     (options, args) = parser.parse_args(args)
 
     if len(args) < 2:
         parser.error("Insufficient number of arguments")
-
-    if options.print_segments: assert options.by == "segments"
 
     mof = options.min_overlap_fraction
     if mof is not None and (mof < 0 or mof > 1):
@@ -719,20 +492,17 @@ Overlap_analysis_tool_specification"
 def main(args=sys.argv[1:]):
     (options, args) = parse_options(args)
     args = [args[0], args[1], options.outdir]
-    kwargs = {"regionfilename": options.regionfilename,
-              "clobber": options.clobber,
+    kwargs = {"clobber": options.clobber,
               "quick": options.quick,
               "replot": options.replot,
               "noplot": options.noplot,
               "print_segments": options.print_segments,
               "by": options.by,
               "min_overlap": options.min_overlap,
-              "samples": options.samples,
               "min_overlap_fraction": options.min_overlap_fraction,
-              "region_fraction": options.region_fraction,
-              "subregion_fraction": options.subregion_fraction,
               "mnemonic_filename": options.mnemonic_filename,
-              "feature_mnemonic_filename": options.feature_mnemonic_filename}
+              "feature_mnemonic_filename": options.feature_mnemonic_filename,
+              "verbose": options.verbose}
     validate(*args, **kwargs)
 
 if __name__ == "__main__":

@@ -2,9 +2,7 @@
 from __future__ import division, with_statement
 
 """
-validate.py:
-
-This modules aggregates segmentation data around features, generating
+This module aggregates segmentation data around features, generating
 a histogram for each segmentation label that shows the frequency of
 observing that label at that position relative the the feature.
 
@@ -33,7 +31,7 @@ from .common import die, fill_array, get_ordered_labels, image_saver, load_gff_d
 from .html import list2html, save_html_div
 
 NAMEBASE = "%s" % MODULE
-STATIC_FIELDNAMES = ["factor", "component", "offset"]
+STATIC_FIELDNAMES = ["group", "component", "offset"]
 
 HTML_TITLE_BASE = "Feature aggregation"
 HTML_TEMPLATE_FILENAME = "aggregation_div.tmpl"
@@ -104,8 +102,8 @@ def print_bed_from_gene_component(features, component="terminal exon"):
                                                       feature["end"],
                                                       feature["name"])
 
-# Given a feature, returns the factor it is in
-def get_feature_factor(feature, mode):
+# Given a feature, returns the group it is in
+def get_feature_group(feature, mode):
     if mode == GENE_MODE:
         return feature["source"]
     else:
@@ -589,13 +587,13 @@ def load_gtf_data(gtf_filename, min_exons=MIN_EXONS, min_cdss=MIN_CDSS):
 ##     flanking regions before the 1st and after the last component in the list
 ##     Each feature's component entry must match one of these exactly
 ## component_bins is a dict: component -> number of bins for that component
-## If nofactor: all factors found are treated as only factor in factors
+## If not by_groups: all groups found are treated as only group in groups
 ## Returns:
-##   factors: a list of the factors (groups) aggregated over
+##   groups: a list of the groups aggregated over
 ##   counts: dict(label_key -> dict(feature -> dict(component -> histogram)))
-def calc_aggregation(segmentation, mode, features, factors, components=[],
-                     component_bins=None, quick=False, nofactor=False):
-    assert len(factors) > 0
+def calc_aggregation(segmentation, mode, features, groups, components=[],
+                     component_bins=None, quick=False, by_groups=False):
+    assert len(groups) > 0
 
     if component_bins is None:
         component_bins = get_component_bins(components=components)
@@ -603,12 +601,12 @@ def calc_aggregation(segmentation, mode, features, factors, components=[],
         for component in components:
             assert component in component_bins
 
-    if nofactor:
-        assert len(factors) == 1
+    if not by_groups:
+        assert len(groups) == 1
 
     labels = segmentation.labels
 
-    print >>sys.stderr, "\tFactors: %s" % factors
+    print >>sys.stderr, "\tGroups: %s" % groups
     print >>sys.stderr, "\tComponents and bins:"
     for component in components:
         print >>sys.stderr, "\t\t",
@@ -620,14 +618,14 @@ def calc_aggregation(segmentation, mode, features, factors, components=[],
                                             component_bins[component])
 
     # dict:
-    #   key: feature_factor
+    #   key: feature_group
     #   value: dict:
     #      key: component_name
     #      value: numpy.array histogram [bin, label_key]
-    counts = dict([(factor,
+    counts = dict([(group,
                     dict([(component, fill_array(0, (bins, len(labels))))
                           for component, bins in component_bins.iteritems()]))
-                   for factor in factors])
+                   for group in groups])
 
     counted_features = 0
 
@@ -652,19 +650,19 @@ def calc_aggregation(segmentation, mode, features, factors, components=[],
                     feature["start"] > segmentation_end:
                 continue  # Feature outside segmentation
 
-            if nofactor:
-                factor = factors[0]
+            if by_groups:
+                group = get_feature_group(feature, mode)
             else:
-                factor = get_feature_factor(feature, mode)
+                group = groups[0]
 
-            factor_counts = counts[factor]
+            group_counts = counts[group]
 
             # Spread internal bins throughout feature
             component_windows = calc_feature_windows(feature, mode, components,
                                                      component_bins)
             # Scan window, tallying segments observed
             for component, window in component_windows.iteritems():
-                component_counts = factor_counts[component]
+                component_counts = group_counts[component]
                 for bin, bp in enumerate(window):
                     try:
                         label_key = segment_map[bp]
@@ -698,9 +696,9 @@ def save_tab(labels, counts, components, component_bins,
                                       for label_key in label_keys]
     with tab_saver(dirpath, namebase, fieldnames=fieldnames, metadata=metadata,
                    clobber=clobber) as saver:
-        for factor in counts:
+        for group in counts:
             for component in components:
-                hist = counts[factor][component]
+                hist = counts[group][component]
                 # Try to substitute component bins into component names
                 try:
                     component_name = component % component_bins[component]
@@ -714,7 +712,7 @@ def save_tab(labels, counts, components, component_bins,
 
                 for offset, row_data in zip(offsets, hist):
                     row = make_row(labels, row_data)
-                    row["factor"] = factor
+                    row["group"] = group
                     row["component"] = component_name
                     row["offset"] = offset
                     saver.writerow(row)
@@ -743,11 +741,11 @@ def save_plot(dirpath, num_labels, mode, spacers=len(EXON_COMPONENTS),
                                      spacers=spacers,
                                      normalize=normalize))
 
-def save_html(dirpath, featurefilename, mode, num_features, factors,
+def save_html(dirpath, featurefilename, mode, num_features, groups,
               components, clobber=False, normalize=False):
     featurebasename = os.path.basename(featurefilename)
     title = "%s (%s)" % (HTML_TITLE_BASE, featurebasename)
-    factorlist = list2html(factors, code=True)
+    grouplist = list2html(groups, code=True)
     if normalize:
         yaxis = "proportion"
     else:
@@ -755,7 +753,7 @@ def save_html(dirpath, featurefilename, mode, num_features, factors,
 
     save_html_div(HTML_TEMPLATE_FILENAME, dirpath, NAMEBASE, clobber=clobber,
                   module=MODULE, featurefilename=featurebasename,
-                  numfeatures=num_features, mode=mode, factorlist=factorlist,
+                  numfeatures=num_features, mode=mode, grouplist=grouplist,
                   title=title, yaxis=yaxis)
 
 def print_array(arr, tag="", type="%d"):
@@ -771,7 +769,7 @@ def print_array(arr, tag="", type="%d"):
 def validate(bedfilename, featurefilename, dirpath,
              flank_bins=FLANK_BINS, region_bins=REGION_BINS,
              intron_bins=INTRON_BINS, exon_bins=EXON_BINS,
-             nofactor=False, mode=DEFAULT_MODE, clobber=False,
+             by_groups=False, mode=DEFAULT_MODE, clobber=False,
              quick=False, replot=False, noplot=False, normalize=False,
              min_exons=MIN_EXONS, min_cdss=MIN_CDSS,
              mnemonicfilename=None):
@@ -789,22 +787,18 @@ def validate(bedfilename, featurefilename, dirpath,
         features = load_gff_data(featurefilename)
     assert features is not None
 
-    if nofactor:
-        factors = ["factor"]
-
+    groups = ["features"]
     # Parse components from features
     if mode == GENE_MODE:
         components = GENE_COMPONENTS
-        if not nofactor:
-            factors = feature_field_values(features, "source")
     elif mode == REGION_MODE:
         components = REGION_COMPONENTS
-        if not nofactor:
-            factors = feature_field_values(features, "name")
+        if by_groups:
+            groups = feature_field_values(features, "name")
     elif mode == POINT_MODE:
         components = POINT_COMPONENTS
-        if not nofactor:
-            factors = feature_field_values(features, "name")
+        if by_groups:
+            groups = feature_field_values(features, "name")
 
     labels = segmentation.labels
     mnemonics = map_mnemonics(labels, mnemonicfilename)
@@ -822,20 +816,20 @@ def validate(bedfilename, featurefilename, dirpath,
                                             exon_bins=exon_bins)
 
         res = calc_aggregation(segmentation, mode=mode, features=features,
-                               factors=factors, components=components,
+                               groups=groups, components=components,
                                component_bins=component_bins, quick=quick,
-                               nofactor=nofactor)
+                               by_groups=by_groups)
         counts, counted_features = res
-        for factor in factors:
+        for group in groups:
             for component in components:
                 # Allow component bin substitution
                 try:
                     component_name = component % component_bins[component]
                 except TypeError:
                     component_name = component
-                component_counts = counts[factor][component].sum(axis=1)
+                component_counts = counts[group][component].sum(axis=1)
                 print_array(component_counts, tag="%s:%s count" % \
-                                (factor, component_name))
+                                (group, component_name))
 
         save_tab(labels, counts, components, component_bins,
                  counted_features, dirpath, clobber=clobber)
@@ -844,7 +838,7 @@ def validate(bedfilename, featurefilename, dirpath,
         save_plot(dirpath, len(labels), mode, clobber=clobber,
                   mnemonics=mnemonics, normalize=normalize)
 
-    save_html(dirpath, featurefilename, mode=mode, factors=factors,
+    save_html(dirpath, featurefilename, mode=mode, groups=groups,
               components=components, num_features=num_features,
               clobber=clobber, normalize=normalize)
 
@@ -856,8 +850,8 @@ def parse_options(args):
                    " the position of features in FEATUREFILE."
                    " BEDFILE is a BED4+ segmentation, where the name column"
                    " corresponds to the segment group. FEATUREFILE should"
-                   " be in GFF or GTF format and will be grouped by the"
-                   " feature column unless --no-factor is specified.")
+                   " be in GFF or GTF format and can be grouped by the"
+                   " feature column by supplying --groups.")
     version = "%%prog %s" % __version__
     parser = OptionParser(usage=usage, version=version,
                           description=description)
@@ -888,9 +882,12 @@ def parse_options(args):
     group.add_option("--noplot", action="store_true",
                      dest="noplot", default=False,
                      help="Do not generate plots")
-    group.add_option("--no-factor", action="store_true",
-                     dest="nofactor", default=False,
-                     help="Do not separate data into different factors")
+    group.add_option("--groups", action="store_true",
+                     dest="by_groups", default=False,
+                     help="Separate data into different groups based upon"
+                     " FEATUREFILE feature field"
+                     " if --mode=region or --mode=point. Does"
+                     " nothing if --mode=gene.")
     group.add_option("--normalize", action="store_true",
                      dest="normalize", default=False,
                      help="Plot the relative frequency instead of the counts"
@@ -924,14 +921,14 @@ def parse_options(args):
                      help="Aggregate over each exon"
                      "using this many evenly-spaced bins"
                      " [default: %default]")
-    group.add_option("--min-exons", type="int",
-                     dest="min_exons", default=MIN_EXONS,
-                     help="Only consider genes with at least this many exons"
-                     " [default: %default]")
-    group.add_option("--min-coding-exons", type="int",
-                     dest="min_cdss", default=MIN_CDSS,
-                     help="Only consider genes with at least this many coding"
-                     " exon [default: %default]")
+#     group.add_option("--min-exons", type="int",
+#                      dest="min_exons", default=MIN_EXONS,
+#                      help="Only consider genes with at least this many exons"
+#                      " [default: %default]")
+#     group.add_option("--min-coding-exons", type="int",
+#                      dest="min_cdss", default=MIN_CDSS,
+#                      help="Only consider genes with at least this many coding"
+#                      " exon [default: %default]")
     parser.add_option_group(group)
 
     (options, args) = parser.parse_args(args)
@@ -957,11 +954,11 @@ def main(args=sys.argv[1:]):
               "quick": options.quick,
               "replot": options.replot,
               "noplot": options.noplot,
-              "nofactor": options.nofactor,
+              "by_groups": options.by_groups,
               "normalize": options.normalize,
               "mode": options.mode,
-              "min_exons": options.min_exons,
-              "min_cdss": options.min_cdss,
+#               "min_exons": options.min_exons,
+#               "min_cdss": options.min_cdss,
               "mnemonicfilename": options.mnemonicfilename}
     validate(bedfilename, featurefilename, options.outdir, **kwargs)
 

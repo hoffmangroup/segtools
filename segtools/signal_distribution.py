@@ -767,11 +767,14 @@ def save_stats_plot(dirpath, basename=NAMEBASE_STATS, datafilename=None,
                                      translation_file=translation_file,
                                      gmtk=gmtk))
 
-def save_html(dirpath, nseg_dps=None, ecdf=False, clobber=False):
+def save_html(dirpath, genomedatadir, nseg_dps=None,
+              ecdf=False, clobber=False):
     if ecdf:
         title = "%s (ECDF mode)" % HTML_TITLE
     else:
         title = HTML_TITLE
+
+    title = "%s (%s)" % (title, os.path.basename(genomedatadir))
 
     if nseg_dps is None:
         nseg_dps = "???"
@@ -827,6 +830,8 @@ def validate(bedfilename, genomedatadir, dirpath, group_labels=False,
                                               calc_ranges=calc_ranges,
                                               value_range=value_range,
                                               quick=quick, chroms=chroms)
+    else:
+        histogram = None
 
     if not replot:
         histogram.save(dirpath, clobber=clobber)
@@ -853,7 +858,8 @@ def validate(bedfilename, genomedatadir, dirpath, group_labels=False,
             nseg_dps = histogram.metadata["nseg_dps"]
         except KeyError:
             nseg_dps = None
-        save_html(dirpath, nseg_dps=nseg_dps, ecdf=ecdf, clobber=clobber)
+        save_html(dirpath, genomedatadir, nseg_dps=nseg_dps,
+                  ecdf=ecdf, clobber=clobber)
 
 
 def parse_options(args):

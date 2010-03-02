@@ -53,15 +53,10 @@ class NativeDatum(Datum):
 
 def read(iterator, datum_cls=Datum, *args, **kwargs):
     for line in iterator:
-        try:  # Ignore comment lines
-            comment_start = line.index("#")
-            line = line[:comment_start]
-            if not line:
-                continue
-        except ValueError:
-            pass
+        line = line.split("#", 1)[0].rstrip() # Ignore comments
+        if not line: continue
 
-        words = line.rstrip().split("\t")  # Tab-delimited
+        words = line.split("\t")  # Tab-delimited
         if words[0] == "track":  # Ignore any track lines
             continue
 

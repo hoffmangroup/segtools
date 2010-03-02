@@ -14,6 +14,8 @@ import re
 import sys
 import time
 
+from shutil import copy
+
 from .common import check_clobber, die, get_bed_metadata, make_divfilename, make_id, make_filename, make_tabfilename, NICE_EXTS, template_substitute
 
 MNEMONIC_TEMPLATE_FILENAME = "mnemonic_div.tmpl"
@@ -167,9 +169,23 @@ def save_html_div(template_filename, dirpath, namebase,
 
     write_html_div(dirpath, namebase, html, clobber=clobber)
 
-def form_mnemonic_div(mnemonicfile):
+def form_mnemonic_div(mnemonicfile, results_dir, clobber=False):
+    """Copy mnemonic file to results_dir and create the HTML div with a link"""
+    filebase = os.path.basename(mnemonicfile)
+    link_file = os.path.join(results_dir, filebase)
+    check_clobber(link_file, clobber)
+
+    try:
+        copy(mnemonicfile, link_file)
+    except (IOError, os.error):
+        print >>sys.stderr, ("Error: could not copy %s to %s. Linking"
+                             " the the former." % (mnemonicfile, link_file))
+        link_file = mnemonicfile  # Link to the existing file
+    else:
+        print >>sys.stderr, "Copied %s to %s" % (mnemonicfile, link_file)
+
     fields = {}
-    fields["tabfilename"] = mnemonicfile
+    fields["tabfilename"] = link_file
     fields["table"] = tab2html(mnemonicfile)
     div = template_substitute(MNEMONIC_TEMPLATE_FILENAME)(fields)
     return div
@@ -311,9 +327,11 @@ def main(args=sys.argv[1:]):
     bedfilename = args[0]
     mnemonicfile = options.mnemonicfile
     outfile = options.outfile
-    check_clobber(outfile, options.clobber)
+    results_dir = options.resultsdir
+    clobber = options.clobber
+    check_clobber(outfile, clobber)
 
-    divs = find_divs(options.resultsdir)
+    divs = find_divs(results_dir)
     if len(divs) == 0:
         die("Unable to find any module .div files."
             " Make sure to run this from the parent directory of the"
@@ -322,7 +340,7 @@ def main(args=sys.argv[1:]):
     body = []
     modules = []
     if mnemonicfile is not None:
-        body.append(form_mnemonic_div(mnemonicfile))
+        body.append(form_mnemonic_div(mnemonicfile, results_dir, clobber))
 
     regex = re.compile('"module" id="(.*?)".*?<h.>.*?</a>\s*(.*?)\s*</h.>',
                        re.DOTALL)

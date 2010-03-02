@@ -899,7 +899,7 @@ def load_segmentation(filename, verbose=True):
     # first get the tracks that were used for this segmentation
     segtool, tracks = get_bed_metadata(filename)
 
-    labels, chromosomes = bed2arraydict(filename)
+    labels, chromosomes = bed2arraydict(filename, verbose=verbose)
 
     if verbose:
 #         print >>sys.stderr, "\n\tMapped labels to integer keys:"

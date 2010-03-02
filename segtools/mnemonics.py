@@ -13,7 +13,7 @@ import sys
 
 from rpy2.robjects import r, rinterface, numpy2ri
 
-from .common import check_clobber, make_tabfilename, r_source
+from .common import check_clobber, r_source
 
 def create_mnemonic_file(datafile, dirpath, clobber=False,
                          namebase=None, gmtk=False):
@@ -38,7 +38,7 @@ def create_mnemonic_file(datafile, dirpath, clobber=False,
 
     mnemonic_base = os.extsep.join([namebase, "mnemonics"])
 
-    filename = make_tabfilename(dirpath, mnemonic_base)
+    filename = os.path.join(dirpath, mnemonic_base)
     check_clobber(filename, clobber)
 
     # Create mnemonic file via R
