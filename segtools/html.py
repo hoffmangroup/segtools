@@ -16,7 +16,8 @@ import time
 
 from shutil import copy
 
-from .common import check_clobber, die, get_bed_metadata, make_divfilename, make_id, make_filename, make_tabfilename, NICE_EXTS, template_substitute
+from . import Segmentation
+from .common import check_clobber, die, make_divfilename, make_id, make_filename, make_tabfilename, NICE_EXTS, template_substitute
 
 MNEMONIC_TEMPLATE_FILENAME = "mnemonic_div.tmpl"
 HEADER_TEMPLATE_FILENAME = "html_header.tmpl"
@@ -203,7 +204,7 @@ def make_genomebrowser_url(options, urltype):
     return url
 
 def form_html_header(bedfilename, modules, layeredbed=None, bigbed=None):
-    segtool, segtracks = get_bed_metadata(bedfilename)
+    segtool, segtracks = Segmentation.get_bed_metadata(bedfilename)
     bedfilebase = os.path.basename(bedfilename)
     fields = {}
     fields["bedfilename"] = bedfilebase

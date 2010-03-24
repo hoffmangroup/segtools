@@ -20,13 +20,14 @@ import os
 import sys
 
 from collections import defaultdict
-#from contextlib import contextmanager
+from genomedata import Genome
 from itertools import repeat
 from functools import partial
 from numpy import array, ceil, floor, fromiter, histogram, isfinite, NAN, nanmax, nanmin, nansum, NINF, PINF
 from rpy2.robjects import r, numpy2ri
 
-from .common import die, image_saver, load_segmentation, load_genome, iter_segments_continuous, make_tabfilename, map_mnemonics, r_source, setup_directory, tab_reader, tab_saver
+from . import Segmentation
+from .common import die, image_saver, iter_segments_continuous, make_tabfilename, map_mnemonics, r_source, setup_directory, tab_reader, tab_saver
 from .html import save_html_div
 from .mnemonics import create_mnemonic_file
 
@@ -793,11 +794,8 @@ def validate(bedfilename, genomedatadir, dirpath, group_labels=False,
              create_mnemonics=False, chroms=None):
 
     setup_directory(dirpath)
-    genome = load_genome(genomedatadir)
-    segmentation = load_segmentation(bedfilename)
-
-    assert genome is not None
-    assert segmentation is not None
+    genome = Genome(genomedatadir)
+    segmentation = Segmentation(bedfilename)
 
     ntracks = genome.num_tracks_continuous  # All tracks; not just segtracks
     segtracks = segmentation.tracks

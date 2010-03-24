@@ -34,7 +34,6 @@ except NameError:
 PKG_R = os.extsep.join([PKG, "R"])
 PKG_RESOURCE = os.extsep.join([PKG, "resources"])
 
-from .bed import read_native as read_bed
 from .gff import read_native as read_gff
 
 EXT_GZ = "gz"
@@ -73,29 +72,6 @@ DTYPE_TRANSCRIPT_ID = '|S%d' % MAXLEN_ID_DTYPE
 r_filename = partial(resource_filename, PKG_R)
 template_string = partial(resource_string, PKG_RESOURCE)
 
-
-## Wrapper for segmentation data object
-class Segmentation(object):
-    """
-    chromosomes: a dict
-      key: chromosome name
-      val: segments: numpy.ndarray, (each row is a (start, end, key) struct)
-           sorted by start, end
-    labels: a dict
-      key: int ("label_key")  (a unique id; segment['end'])
-      val: printable (str or int)  (what's in the actual BED file)
-
-    tracks: a list of track names that were used to obtain the segmentation
-    segtool: the tool that was used to obtain this segmentation (e.g. segway)
-    name: the filename of the se
-    """
-
-    def __init__(self, chromosomes, labels, tracks, segtool, name):
-        self.chromosomes = chromosomes
-        self.labels = labels
-        self.tracks = tracks
-        self.segtool = segtool
-        self.name = name
 
 ## Wrapper for gff/gtf feature data
 class Features(object):
@@ -351,17 +327,12 @@ def image_saver(dirpath, basename, clobber=False, verbose=True,
     Generator to save an R plot to both png and pdf with only one plot
     Yields to caller to plot, then saves images
     """
-    # Make sure there is no silent overwrite
-    filenames = list(make_filename(dirpath, basename, ext)
-                     for ext in IMG_EXTS)
-    for filename in filenames:
-        check_clobber(filename, clobber)
-
     if verbose:
         print >>sys.stderr, "Creating images...",
 
+    png_filename = make_pngfilename(dirpath, basename)
+    check_clobber(png_filename, clobber)
     try:
-        png_filename = make_pngfilename(dirpath, basename)
         r.png(png_filename, **kwargs)
         png_device = r["dev.cur"]()
         r["dev.control"]("enable")
@@ -375,30 +346,13 @@ def image_saver(dirpath, basename, clobber=False, verbose=True,
     # Use R routine to create all the other images (pdf, slide, etc)
     try:
         r["dev.print.images"](basename=basename, dirname=dirpath,
-                              downsample=downsample, **kwargs)
+                              downsample=downsample, clobber=clobber, **kwargs)
         r["dev.off"](png_device)
     except rinterface.RRuntimeError:
         print >> sys.stderr, 'ERROR: Images might not have been saved!'
 
     if verbose:
         print >>sys.stderr, "done"
-
-def get_bed_metadata(bedfilename):
-    with maybe_gzip_open(bedfilename) as ifp:
-        return parse_bed_header(ifp.readline())
-
-## Gets track/tool info from BED file header if it exists
-def parse_bed_header(line):
-    regexp = re.compile('description="(.*) segmentation of (.*)"')
-
-    segtool = "Missing from BED file"
-    tracks = ["Missing from BED file"]
-
-    matching = regexp.search(line)
-    if matching:
-        segtool = matching.group(1)
-        tracks = matching.group(2).split(', ')
-    return (segtool, tracks)
 
 
 ## Maps label_keys over segments
@@ -826,98 +780,3 @@ def load_features(filename, verbose=True, *args, **kwargs):
         print >>sys.stderr, "done"
 
     return Features(sequences, features, sources)
-
-def bed2arraydict(filename, verbose=True):
-    """Parses a bedfile and returns a dict of numpy arrays for each chrom.
-
-    Returns labels, chromosomes, where:
-      labels: a dict from label_key -> label string
-      chromosomes: a dict from chrom_name -> segments (numpy array)
-        (segments: structured array with start, end, and key fields)
-
-    If the file is in BED3 format, labels will be None
-    """
-    data = defaultdict(list)  # A dictionary-like object
-    label_dict = {}
-    last_segment_start = {}  # per chromosome
-    unsorted_chroms = set()
-    with maybe_gzip_open(filename) as infile:
-        for datum in read_bed(infile):
-            try:
-                if datum.chromStart < last_segment_start[datum.chrom]:
-                    unsorted_chroms.add(datum.chrom)
-            except KeyError:
-                pass
-
-            try:
-                label = str(datum.name)
-            except AttributeError:
-                # No name column, read as BED3 (no labels)
-                label = ""
-
-            try:  # Lookup label key
-                label_key = label_dict[label]
-            except KeyError:  # Map new label to key
-                label_key = len(label_dict)
-                label_dict[label] = label_key
-
-            segment = (datum.chromStart, datum.chromEnd, label_key)
-            data[datum.chrom].append(segment)
-            last_segment_start[datum.chrom] = datum.chromStart
-
-    # Create reverse dict for return
-    labels = inverse_dict(label_dict)
-
-    # convert lists of tuples to array
-    dtype = [('start', DTYPE_SEGMENT_START),
-             ('end', DTYPE_SEGMENT_END),
-             ('key', DTYPE_SEGMENT_KEY)]
-    chromosomes = dict((chrom, array(segments, dtype=dtype))
-                       for chrom, segments in data.iteritems())
-
-    # Sort segments within each chromosome
-    for chrom, segments in chromosomes.iteritems():
-        if chrom in unsorted_chroms:
-            if verbose:
-                print >>sys.stderr, "Segments were unsorted relative to \
-%s. Sorting..." % chrom,
-            segments.sort(order=['start'])
-            if verbose:
-                print >>sys.stderr, "done"
-
-    return labels, chromosomes
-
-def load_segmentation(filename, verbose=True):
-    """Returns a segmentation object derived from the given BED4+ file
-
-    label_keys are integers corresponding to the order observed.
-    """
-
-    if verbose:
-        print >>sys.stderr, "Loading segmentation...",
-
-    # first get the tracks that were used for this segmentation
-    segtool, tracks = get_bed_metadata(filename)
-
-    labels, chromosomes = bed2arraydict(filename, verbose=verbose)
-
-    if verbose:
-#         print >>sys.stderr, "\n\tMapped labels to integer keys:"
-#         for key, label in labels.iteritems():
-#             print >>sys.stderr, "\t\t\"%s\" -> %d" % (label, key)
-        print >>sys.stderr, "done."
-
-    # wrap in a Segmentation object
-    return Segmentation(chromosomes, labels, tracks, segtool, filename)
-
-## Returns a Genome object from data in a genomedata directory
-def load_genome(genomedatadir):
-    if genomedatadir is not None and os.path.isdir(genomedatadir):
-        genome = Genome(genomedatadir)
-        if not genome or genome is None:
-            die("Error: Unable to load genome data from directory: %s" % \
-                    genomedatadir)
-        else:
-            return genome
-    else:
-        die("Error: Could not find genome data directory: %s" % genomedatadir)

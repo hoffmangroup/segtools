@@ -22,7 +22,8 @@ from collections import defaultdict
 from numpy import concatenate, median
 from rpy2.robjects import r, numpy2ri
 
-from .common import die, get_ordered_labels, image_saver, LABEL_ALL, load_segmentation, make_namebase_summary, make_tabfilename, map_mnemonics, r_source, setup_directory, tab_saver
+from . import Segmentation
+from .common import die, get_ordered_labels, image_saver, LABEL_ALL, make_tabfilename, map_mnemonics, r_source, setup_directory, tab_saver
 
 from .html import save_html_div
 
@@ -30,14 +31,11 @@ FIELDNAMES_SUMMARY = ["label", "num.segs", "mean.len", "median.len",
                      "stdev.len", "num.bp", "frac.bp"]
 FIELDNAMES = ["label", "length"]
 NAMEBASE = "%s" % MODULE
-NAMEBASE_SUMMARY = make_namebase_summary(NAMEBASE)
 NAMEBASE_SIZES = "segment_sizes"
 TEMPLATE_FILENAME = "length_div.tmpl"
 
 HTML_TITLE = "Length distribution"
 
-SIZE_PNG_WIDTH = 800
-SIZE_PNG_HEIGHT = 600
 PNG_WIDTH = 600
 PNG_HEIGHT_BASE = 100  # Axes and label
 PNG_HEIGHT_PER_LABEL = 45
@@ -76,7 +74,7 @@ def segmentation_lengths(segmentation):
     return lengths, num_bp
 
 ## Specifies the format of a row of the summary tab file
-def make_summary_row(label, lengths, num_bp, total_bp):
+def make_size_row(label, lengths, num_bp, total_bp):
     return {"label": label,
             "num.segs": len(lengths),
             "mean.len": "%.3f" % lengths.mean(),
@@ -86,16 +84,16 @@ def make_summary_row(label, lengths, num_bp, total_bp):
             "frac.bp": "%.3f" % (num_bp / total_bp)}
 
 ## Saves the length summary data to a tab file, using mnemonics if specified
-def save_summary_tab(lengths, labels, num_bp, dirpath,
-                     clobber=False, mnemonics=None):
+def save_size_tab(lengths, labels, num_bp, dirpath,
+                     namebase=NAMEBASE_SIZES, clobber=False, mnemonics=None):
     # Get mnemonic ordering and labels, if specified
     ordered_keys, labels = get_ordered_labels(labels, mnemonics)
-    with tab_saver(dirpath, NAMEBASE_SUMMARY, FIELDNAMES_SUMMARY,
+    with tab_saver(dirpath, namebase, FIELDNAMES_SUMMARY,
                    clobber=clobber) as saver:
         # "all" row first
         total_bp = sum(num_bp.itervalues())
         all_lengths = concatenate(lengths.values())
-        row = make_summary_row(LABEL_ALL, all_lengths,
+        row = make_size_row(LABEL_ALL, all_lengths,
                                total_bp, total_bp)
         saver.writerow(row)
 
@@ -104,7 +102,7 @@ def save_summary_tab(lengths, labels, num_bp, dirpath,
             label = labels[label_key]
             label_lengths = lengths[label_key]
             num_bp_label = num_bp[label_key]
-            row = make_summary_row(label, label_lengths,
+            row = make_size_row(label, label_lengths,
                                    num_bp_label, total_bp)
             saver.writerow(row)
 
@@ -131,63 +129,58 @@ def save_tab(lengths, labels, num_bp, dirpath, clobber=False):
             saver.writerow(row)
 
 ## Generates and saves an R plot of the length distributions
-def save_plot(num_labels, dirpath, clobber=False, mnemonics=[]):
+def save_plot(dirpath, namebase=NAMEBASE, clobber=False,
+              mnemonic_file=""):
     start_R()
 
     # Load data from corresponding tab file
-    tabfilename = make_tabfilename(dirpath, NAMEBASE)
+    tabfilename = make_tabfilename(dirpath, namebase)
     if not os.path.isfile(tabfilename):
         die("Unable to find tab file: %s" % tabfilename)
 
-    with image_saver(dirpath, NAMEBASE,
-                     width=PNG_WIDTH,
-                     height=num_labels * PNG_HEIGHT_PER_LABEL + \
-                         PNG_HEIGHT_BASE,
-                     clobber=clobber):
-        r.plot(r["plot.length"](tabfilename, mnemonics=mnemonics))
+    if not mnemonic_file:
+        mnemonic_file = ""  # None cannot be passed to R
+
+    r["save.length"](dirpath, namebase, tabfilename,
+                     mnemonic_file=mnemonic_file,
+                     clobber=clobber)
 
 ## Generates and saves an R plot of the length distributions
-def save_size_plot(dirpath, clobber=False):
+def save_size_plot(dirpath, namebase=NAMEBASE_SIZES, clobber=False):
     start_R()
 
     # Load data from corresponding tab file
-    tabfilename = make_tabfilename(dirpath, NAMEBASE_SUMMARY)
+    tabfilename = make_tabfilename(dirpath, namebase)
     if not os.path.isfile(tabfilename):
         die("Unable to find tab file: %s" % tabfilename)
 
-    with image_saver(dirpath, NAMEBASE_SIZES,
-                     width=SIZE_PNG_WIDTH,
-                     height=SIZE_PNG_HEIGHT,
-                     clobber=clobber):
-        r.plot(r["plot.segment.sizes"](tabfilename))
+    r["save.segment.sizes"](dirpath, namebase, tabfilename,
+                            clobber=clobber)
 
 def save_html(dirpath, clobber=False):
     extra_namebases = {"sizes": NAMEBASE_SIZES}
     save_html_div(TEMPLATE_FILENAME, dirpath, namebase=NAMEBASE,
                   extra_namebases=extra_namebases,
-                  tablenamebase=NAMEBASE_SUMMARY, module=MODULE,
+                  tablenamebase=NAMEBASE_SIZES, module=MODULE,
                   clobber=clobber, title=HTML_TITLE)
 
 ## Package entry point
 def validate(bedfilename, dirpath, clobber=False, replot=False, noplot=False,
              mnemonicfilename=None):
-    setup_directory(dirpath)
-    segmentation = load_segmentation(bedfilename)
-
-    assert segmentation is not None
-
-    labels = segmentation.labels
-    mnemonics = map_mnemonics(labels, mnemonicfilename)
-
     if not replot:
+        setup_directory(dirpath)
+        segmentation = Segmentation(bedfilename)
+
+        labels = segmentation.labels
+        mnemonics = map_mnemonics(labels, mnemonicfilename)
+
         lengths, num_bp=segmentation_lengths(segmentation)
         save_tab(lengths, labels, num_bp, dirpath, clobber=clobber)
-        save_summary_tab(lengths, labels, num_bp, dirpath,
+        save_size_tab(lengths, labels, num_bp, dirpath,
                          clobber=clobber, mnemonics=mnemonics)
 
     if not noplot:
-        save_plot(len(labels), dirpath, clobber=clobber,
-                  mnemonics=mnemonics)
+        save_plot(dirpath, clobber=clobber, mnemonic_file=mnemonicfilename)
         save_size_plot(dirpath, clobber=clobber)
 
     save_html(dirpath, clobber=clobber)

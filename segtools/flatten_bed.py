@@ -20,7 +20,8 @@ import sys
 
 from numpy import concatenate
 
-from .common import die, load_segmentation
+from . import Segmentation
+from .common import die
 
 
 DEFAULT_HELPFILE = "README"
@@ -254,7 +255,7 @@ def flatten_bed(bedfiles, outfile=None, helpfile=DEFAULT_HELPFILE):
     for bedfile in bedfiles:
         assert os.path.isfile(bedfile)
         nice_filename = os.path.basename(bedfile)
-        segmentations[nice_filename] = load_segmentation(bedfile)
+        segmentations[nice_filename] = Segmentation(bedfile)
 
     labels, segments = merge_segments(segmentations)
     print_bed(segments, filename=outfile)

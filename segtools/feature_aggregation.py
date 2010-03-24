@@ -12,7 +12,6 @@ as provided by exporting UCSC gene data in GFF format.
 """
 
 # A package-unique, descriptive module name used for filenames, etc
-# Must be the same as the folder containing this script
 MODULE="feature_aggregation"
 
 __version__ = "$Revision$"
@@ -26,7 +25,8 @@ from functools import partial
 from operator import itemgetter
 from rpy2.robjects import r, numpy2ri
 
-from .common import die, fill_array, get_ordered_labels, image_saver, load_gff_data, load_segmentation, make_tabfilename, map_mnemonics, map_segments, maybe_gzip_open, r_source, setup_directory, tab_saver
+from . import Segmentation
+from .common import die, fill_array, get_ordered_labels, image_saver, load_gff_data, make_tabfilename, map_mnemonics, map_segments, maybe_gzip_open, r_source, setup_directory, tab_saver
 
 from .html import list2html, save_html_div
 
@@ -85,8 +85,6 @@ FLANK_BINS = 500
 REGION_BINS = 50
 INTRON_BINS = 50
 EXON_BINS = 25
-PNG_BLOCK_SIZE = 200
-
 
 def start_R():
     r_source("common.R")
@@ -685,13 +683,19 @@ def make_row(labels, row_data):
     return values
 
 ## Saves the data to a tab file
-def save_tab(labels, counts, components, component_bins,
-             counted_features, dirpath, clobber=False, namebase=NAMEBASE):
-    metadata = {"num_features": counted_features}
+def save_tab(segmentation, labels, counts, components, component_bins,
+             counted_features, dirpath, clobber=False, namebase=NAMEBASE,
+             spacers=len(EXON_COMPONENTS)):
+    metadata = {"num_features": counted_features,
+                "spacers": spacers}
     label_keys, labels = get_ordered_labels(labels)
-    for label in labels.values():
+    for label_key in label_keys:
+        label = labels[label_key]
         assert label not in STATIC_FIELDNAMES
+        assert label not in metadata
+        metadata[label] = segmentation.num_label_bases(label)
 
+    print >>sys.stderr, "Saving metadata: %r" % metadata
     fieldnames = STATIC_FIELDNAMES + [labels[label_key]
                                       for label_key in label_keys]
     with tab_saver(dirpath, namebase, fieldnames=fieldnames, metadata=metadata,
@@ -718,28 +722,21 @@ def save_tab(labels, counts, components, component_bins,
                     saver.writerow(row)
 
 ## Plots aggregation data from tab file
-def save_plot(dirpath, num_labels, mode, spacers=len(EXON_COMPONENTS),
-              clobber=False, mnemonics=[], normalize=False):
+def save_plot(dirpath, namebase=NAMEBASE, clobber=False,
+              mnemonicfilename=None, normalize=False):
     start_R()
 
-    tabfilename = make_tabfilename(dirpath, NAMEBASE)
+    tabfilename = make_tabfilename(dirpath, namebase)
     if not os.path.isfile(tabfilename):
         die("Unable to find tab file: %s" % tabfilename)
 
-    png_size = int(PNG_BLOCK_SIZE * math.ceil(math.sqrt(num_labels)))
-    # Plot data in tab file
-    with image_saver(dirpath, NAMEBASE,
-                     height=png_size,
-                     width=png_size,
-                     clobber=clobber):
-        if mode != GENE_MODE:
-            spacers = []
+    if not mnemonicfilename:
+        mnemonicfilename = ""
 
-        r.plot(r["plot.aggregation"](tabfilename,
-                                     mnemonics=mnemonics,
-                                     genemode=(mode == GENE_MODE),
-                                     spacers=spacers,
-                                     normalize=normalize))
+    # Plot data in tab file
+    r["save.aggregation"](dirpath, namebase, tabfilename,
+                          mnemonic_file=mnemonicfilename,
+                          normalize=normalize, clobber=clobber)
 
 def save_html(dirpath, featurefilename, mode, num_features, groups,
               components, clobber=False, normalize=False):
@@ -747,7 +744,7 @@ def save_html(dirpath, featurefilename, mode, num_features, groups,
     title = "%s (%s)" % (HTML_TITLE_BASE, featurebasename)
     grouplist = list2html(groups, code=True)
     if normalize:
-        yaxis = "proportion"
+        yaxis = "enrichment"
     else:
         yaxis = "count"
 
@@ -773,42 +770,43 @@ def validate(bedfilename, featurefilename, dirpath,
              quick=False, replot=False, noplot=False, normalize=False,
              min_exons=MIN_EXONS, min_cdss=MIN_CDSS,
              mnemonicfilename=None):
-    setup_directory(dirpath)
-    segmentation = load_segmentation(bedfilename)
-
-    assert segmentation is not None
-
-    print >>sys.stderr, "Using file %s" % featurefilename
-    if mode == "gene":
-        features = load_gtf_data(featurefilename,
-                                 min_exons=min_exons,
-                                 min_cdss=min_cdss)
-    else:
-        features = load_gff_data(featurefilename)
-    assert features is not None
-
-    groups = ["features"]
-    # Parse components from features
-    if mode == GENE_MODE:
-        components = GENE_COMPONENTS
-    elif mode == REGION_MODE:
-        components = REGION_COMPONENTS
-        if by_groups:
-            groups = feature_field_values(features, "name")
-    elif mode == POINT_MODE:
-        components = POINT_COMPONENTS
-        if by_groups:
-            groups = feature_field_values(features, "name")
-
-    labels = segmentation.labels
-    mnemonics = map_mnemonics(labels, mnemonicfilename)
-
-    num_features = 0
-    for chrom_features in features.itervalues():
-        num_features += len(chrom_features)
-    print >>sys.stderr, "\tAggregating over %d features" % num_features
 
     if not replot:
+        setup_directory(dirpath)
+        segmentation = Segmentation(bedfilename)
+
+        assert segmentation is not None
+
+        print >>sys.stderr, "Using file %s" % featurefilename
+        if mode == "gene":
+            features = load_gtf_data(featurefilename,
+                                     min_exons=min_exons,
+                                     min_cdss=min_cdss)
+        else:
+            features = load_gff_data(featurefilename)
+        assert features is not None
+
+        groups = ["features"]
+        # Parse components from features
+        if mode == GENE_MODE:
+            components = GENE_COMPONENTS
+        elif mode == REGION_MODE:
+            components = REGION_COMPONENTS
+            if by_groups:
+                groups = feature_field_values(features, "name")
+        elif mode == POINT_MODE:
+            components = POINT_COMPONENTS
+            if by_groups:
+                groups = feature_field_values(features, "name")
+
+        labels = segmentation.labels
+        mnemonics = map_mnemonics(labels, mnemonicfilename)
+
+        num_features = 0
+        for chrom_features in features.itervalues():
+            num_features += len(chrom_features)
+        print >>sys.stderr, "\tAggregating over %d features" % num_features
+
         component_bins = get_component_bins(components,
                                             flank_bins=flank_bins,
                                             region_bins=region_bins,
@@ -831,16 +829,18 @@ def validate(bedfilename, featurefilename, dirpath,
                 print_array(component_counts, tag="%s:%s count" % \
                                 (group, component_name))
 
-        save_tab(labels, counts, components, component_bins,
+        save_tab(segmentation, labels, counts, components, component_bins,
                  counted_features, dirpath, clobber=clobber)
 
     if not noplot:
-        save_plot(dirpath, len(labels), mode, clobber=clobber,
-                  mnemonics=mnemonics, normalize=normalize)
+        save_plot(dirpath, clobber=clobber,
+                  mnemonicfilename=mnemonicfilename,
+                  normalize=normalize)
 
-    save_html(dirpath, featurefilename, mode=mode, groups=groups,
-              components=components, num_features=num_features,
-              clobber=clobber, normalize=normalize)
+    if not replot:
+        save_html(dirpath, featurefilename, mode=mode, groups=groups,
+                  components=components, num_features=num_features,
+                  clobber=clobber, normalize=normalize)
 
 def parse_options(args):
     from optparse import OptionParser, OptionGroup
@@ -890,8 +890,10 @@ def parse_options(args):
                      " nothing if --mode=gene.")
     group.add_option("--normalize", action="store_true",
                      dest="normalize", default=False,
-                     help="Plot the relative frequency instead of the counts"
-                     " for each BEDFILE group (normalize over BEDFILE groups)")
+                     help="Plot the relative frequency of BEDFILE group,"
+                     " normalized by the number of segments in that group"
+                     " instead of the raw counts"
+                     " (normalize over BEDFILE groups)")
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Main aggregation options")

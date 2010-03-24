@@ -1,5 +1,8 @@
-read.length <- function(filename, mnemonics = NULL, ...) 
-{
+read.length <- function(filename, mnemonics = NULL, ...) {
+  filename <- as.character(filename)
+  if (!file.exists(filename)) {
+    stop(paste("Error: missing length file:", filename))
+  }
   res <- read.delim(filename, ...)
 
   res$label <- relevel.mnemonics(factor(res$label), mnemonics)
@@ -95,12 +98,27 @@ violinplot.length <-
          ...)
 }
 
-plot.length <- function(filename, mnemonics = NULL) {
+plot.length <- function(filename, mnemonics = NULL, ...) {
   data <- read.length(filename, mnemonics = mnemonics)
-
-  violinplot.length(data = data)
+  violinplot.length(data = data, ...)
 }
 
+save.length <- function(dirpath, namebase, tabfilename,
+                        mnemonic_file = NULL,
+                        clobber = FALSE,
+                        label.height = 35,
+                        image.width = 600,
+                        ...) {
+  mnemonics <- read.mnemonics(mnemonic_file)
+  data <- read.length(tabfilename, mnemonics = mnemonics)
+
+  save.images(dirpath, namebase,
+              violinplot.length(data = data, ...),
+              height = label.height * nlevels(data$label) + 75,
+              width = image.width,
+              clobber = clobber)
+}
+  
 
 ############### SEGMENT SIZES ###############
 
@@ -157,9 +175,20 @@ barchart.segment.sizes <-
            ...)
 }
 
-plot.segment.sizes <-
-  function(filename, ...)
-{
+plot.segment.sizes <- function(filename, ...) {
   data <- read.segment.sizes(filename)
   barchart.segment.sizes(data = data, ...)
 }
+
+save.segment.sizes <- function(dirpath, namebase, tabfilename,
+                               clobber = FALSE,
+                               height = 600, width = 800,
+                               ...) {
+  data <- read.segment.sizes(tabfilename)
+  save.images(dirpath, namebase,
+              barchart.segment.sizes(data = data, ...),
+              height = height,
+              width = width,
+              clobber = clobber)
+}
+  

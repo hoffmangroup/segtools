@@ -16,10 +16,12 @@ import os
 import sys
 
 from collections import defaultdict
+from genomedata import Genome
 from numpy import zeros
 from rpy2.robjects import r, numpy2ri
 
-from .common import die, get_ordered_labels, image_saver, load_segmentation, load_genome, make_namebase_summary, make_tabfilename, map_mnemonics, r_source, setup_directory, tab_saver
+from . import Segmentation
+from .common import die, get_ordered_labels, image_saver, make_namebase_summary, make_tabfilename, map_mnemonics, r_source, setup_directory, tab_saver
 
 from .html import save_html_div
 
@@ -210,18 +212,17 @@ def save_html(dirpath, clobber=False):
 def validate(bedfilename, genomedatadir, dirpath, clobber=False, quick=False,
              replot=False, noplot=False, mnemonicfilename=None):
     setup_directory(dirpath)
-    segmentation = load_segmentation(bedfilename)
-    genome = load_genome(genomedatadir)
-
-    assert segmentation is not None
-    assert genome is not None
-
-    labels = segmentation.labels
-    mnemonics = map_mnemonics(labels, mnemonicfilename)
-
     if not replot:
-        nuc_counts, dinuc_counts = calc_nucleotide_frequencies(
-            segmentation, genome, quick=quick)
+        segmentation = Segmentation(bedfilename)
+
+        labels = segmentation.labels
+        mnemonics = map_mnemonics(labels, mnemonicfilename)
+
+        with Genome(genomedatadir) as genome:
+            nuc_counts, dinuc_counts = \
+                        calc_nucleotide_frequencies(segmentation,
+                                                    genome, quick=quick)
+
         save_tab(labels, nuc_counts, dinuc_counts, dirpath, clobber=clobber)
         save_summary_tab(labels, nuc_counts, dinuc_counts, dirpath,
                          clobber=clobber, mnemonics=mnemonics)

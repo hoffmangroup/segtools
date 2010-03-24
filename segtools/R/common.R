@@ -50,29 +50,55 @@ labels.log <- function(...) {
   sapply(at.log(...), label.log)
 }
 
-read.mnemonics <- function(filename, stringsAsFactors = NULL, colClasses = NULL,
-                           ...) {
-  read.delim(filename, stringsAsFactors = FALSE, colClasses = "character",
-             ...)[, 1:2]
+read.mnemonics <- function(filename, stringsAsFactors = NULL,
+                           colClasses = NULL, ...) {
+  filename <- as.character(filename)
+  if (length(filename) > 0 && nchar(filename) > 0) {
+    if (!file.exists(filename)) {
+      stop(paste("Error: could not find mnemonic file:", filename))
+    }
+    read.delim(filename, stringsAsFactors = FALSE, colClasses = "character",
+               ...)[, 1:2]
+  } else {
+    NULL
+  }
+}
+
+read.metadata <- function(filename, ...) {
+  ## Read metadata of the form: # <variable>=<value> <variable>=<value>
+  if (!file.exists(filename)) {
+    stop(paste("Error reading metadata: file not found:", filename))
+  }
+  lines <- read.comment.lines(filename, ...)
+  metadata <- list()
+  for (line in lines) {
+    tokens.split <- strsplit(line, "=")
+    for (tokens in tokens.split) {
+      if (length(tokens) != 2) stop("Error occurred processing file metadata")
+      variable <- tokens[1]
+      value <- tokens[2]
+      metadata[[variable]] <- value
+    }
+  }
+  metadata
 }
 
 read.comment.lines <- function(filename, comment.char = "#", ...) {
   ## Comment lines must begin with:
   # ...
-  conn <- file(filename)
-  lines <- NULL
+  conn <- file(filename, "r")
+  lines <- list()
   line <- readLines(conn, n = 1)
   while (length(line) > 0) {
-    lineConn <- textConnection(line)
-    tokens <- scan(lineConn, what = character(0), quiet = TRUE)
-    close(lineConn)
-    if (substr(tokens[1], 1, 2) == comment.char) {
-      lines <- c(lines, line)
+    if (substr(line, 1, 1) == comment.char) {
+      lineConn <- textConnection(substr(line, 2, nchar(line)))
+      tokens <- scan(lineConn, what = character(0), quiet = TRUE)
+      close(lineConn)
+      lines[[length(lines) + 1]] <- tokens
       line <- readLines(conn, n = 1)
     } else {
       break
     }
-    close(lineConn)
   }
   close(conn)
   lines
@@ -309,11 +335,17 @@ calc.slide.scale <- function(width, height, pivot.dim = 1000) {
 }
 
 save.image <- 
-  function(basename, ext, dirname, device, as.slide = FALSE, ...) 
+  function(basename, ext, dirname, device, as.slide = FALSE, ...,
+           clobber = FALSE) 
 {
   filename.ext <- extpaste(basename, ext)
   filename.fq <- file.path(dirname, filename.ext)
 
+  if (!clobber && file.exists(filename.fq)) {
+    stop(paste("Error:", filename.fq, "already exists!",
+               "Specify --clobber to overwrite."))
+  }
+  
   if (as.slide) {
     device(filename.fq, ...)
     print(as.slide())
@@ -332,18 +364,19 @@ dev.print.images <- function(basename, dirname,
                              device.png = png,
                              device.pdf = pdf, 
                              downsample = FALSE,
-                             make.png = FALSE,  # PNG made in python by default
+                             make.png = TRUE,
                              make.slide = TRUE,
                              make.pdf = TRUE,
                              make.thumb = TRUE,
                              pdf.as.slide = TRUE,
-                             ...)
-{
+                             clobber = FALSE,
+                             ...) {
   # No need for PNG plot since it is done python-side
   if (make.png) {
     filename.raster <-
       save.image(basename, "png", dirname, device.png, 
-                 width = width, height = height, units = "px", ...)
+                 width = width, height = height, units = "px",
+                 ..., clobber = clobber)
   }
 
   if (downsample && make.slide) {
@@ -355,19 +388,21 @@ dev.print.images <- function(basename, dirname,
     filename.slide <-
       save.image(basename, "slide.png", dirname, device.png, 
                  width = width.slide, height = height.slide, 
-                 units = "in", res = res.slide, ...)
+                 units = "in", res = res.slide, ..., clobber = clobber)
   } else if (make.slide) {
     filename.slide <-
       save.image(basename, "slide.png", dirname, device.png, 
                  width = width.slide, height = height.slide, 
-                 units = "px", as.slide = pdf.as.slide, ...)
+                 units = "px", as.slide = pdf.as.slide,
+                 ..., clobber = clobber)
   }
 
   if (make.pdf) {
     filename.pdf <-
       save.image(basename, "pdf", dirname, device.pdf,
                  width = width.pdf, height = height.pdf,
-                 useDingbats = FALSE, as.slide = TRUE, ...)
+                 useDingbats = FALSE, as.slide = TRUE, ...,
+                 clobber = clobber)
   }
 
   if (make.thumb) {
@@ -376,6 +411,13 @@ dev.print.images <- function(basename, dirname,
       suppressWarnings(
         save.image(basename, "thumb.png", dirname, device.png, 
                    width = 10, height = 10, 
-                   units = "in", res = 10, ...))
+                   units = "in", res = 10, ..., clobber = clobber))
   }
-} 
+}
+
+save.images <- function(dirpath, basename, image, ..., clobber = FALSE) {
+  cat("Saving images...", file=stderr())
+  plot(image)
+  dev.print.images(basename, dirpath, ..., clobber = clobber)
+  cat("... done saving images.", file=stderr())
+}

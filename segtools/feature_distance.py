@@ -22,7 +22,8 @@ import sys
 from numpy import array, NaN, ndarray
 from warnings import warn
 
-from .common import load_features, load_segmentation
+from . import Segmentation
+from .common import load_features
 
 EXT_BED = "bed"
 EXT_GFF = "gff"
@@ -122,7 +123,7 @@ def get_file_ext(filename):
 def load_data(filename, verbose=False):
     ext = get_file_ext(filename)
     if ext == EXT_BED:
-        return load_segmentation(filename, verbose=verbose)
+        return Segmentation(filename, verbose=verbose)
     elif ext == EXT_GFF or ext == EXT_GTF:
         return load_features(filename, verbose=verbose)
     else:

@@ -12,7 +12,7 @@ __version__ = "$Revision$"
 
 import sys
 
-from .common import load_segmentation
+from . import Segmentation
 
 def bases_in_segments(segments):
     """Return the number of bases in a segment array"""
@@ -23,7 +23,7 @@ def bases_in_segments(segments):
 
 def edit_distance(bedfile1, bedfile2, quick=False, verbose=False):
     """Given two segmentations, returns the edit distance (bp) between them"""
-    segmentations = [load_segmentation(bedfile, verbose=verbose)
+    segmentations = [Segmentation(bedfile, verbose=verbose)
                      for bedfile in [bedfile1, bedfile2]]
 
     for segmentation in segmentations:

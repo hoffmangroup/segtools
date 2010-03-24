@@ -20,8 +20,8 @@ from math import ceil
 from numpy import bincount, cast, iinfo, invert, logical_or, zeros
 from rpy2.robjects import r, numpy2ri
 
-from .common import check_clobber, die, get_ordered_labels, image_saver, load_features, load_segmentation, make_tabfilename, map_mnemonics, r_source, setup_directory, SUFFIX_GZ, tab_saver
-
+from . import Segmentation
+from .common import check_clobber, die, get_ordered_labels, image_saver, load_features, make_tabfilename, map_mnemonics, r_source, setup_directory, SUFFIX_GZ, tab_saver
 from .html import save_html_div
 
 # A package-unique, descriptive module name used for filenames, etc
@@ -42,8 +42,8 @@ SIGNIFICANCE_TEMPLATE_FILENAME = "overlap_significance.tmpl"
 NONE_COL = "none"
 TOTAL_COL = "total"
 
-BY_CHOICES = ["segments", "bases"]
-BY_DEFAULT = "segments"
+MODE_CHOICES = ["segments", "bases"]
+MODE_DEFAULT = "segments"
 MIDPOINT_CHOICES = ["1", "2", "both"]
 SAMPLES_DEFAULT = 5000
 REGION_FRACTION_DEFAULT = 0.2
@@ -57,16 +57,10 @@ def start_R():
     r_source("common.R")
     r_source("overlap.R")
 
-def calc_overlap(subseg, qryseg, quick=False, clobber=False, by=BY_DEFAULT,
+def calc_overlap(subseg, qryseg, quick=False, clobber=False, mode=MODE_DEFAULT,
                  print_segments=False, dirpath=None, verbose=True,
-                 min_overlap=1, min_overlap_fraction=None):
-    # Ensure either min_overlap or _fraction, but not both
-    if min_overlap_fraction is None:
-        min_overlap = int(min_overlap)
-    else:
-        min_overlap = None
-        min_overlap_fraction = float(min_overlap_fraction)
-        assert min_overlap_fraction >= 0 and min_overlap_fraction <= 1
+                 min_overlap=1):
+    min_overlap = int(min_overlap)
 
     if print_segments: assert dirpath is not None
 
@@ -107,17 +101,20 @@ def calc_overlap(subseg, qryseg, quick=False, clobber=False, by=BY_DEFAULT,
             segment_keys = cast['int32'](segment_keys)
 
             # Assumes segment keys are non-negative, consecutive integers
-            if by == "segments":
+            if mode == "segments":
                 key_scores = bincount(segment_keys)
 
-            elif by == "bases":
+            elif mode == "bases":
                 # Weight each segment by its length
                 weights = segments['end'] - segments['start']
                 key_scores = bincount(segment_keys, weights=weights)
                 key_scores.astype("int")
+            else:
+                raise NotImplementedError("Unknown mode: %r" % mode)
 
-            totals += key_scores
-            nones += key_scores
+            num_scores = key_scores.shape[0]
+            totals[0:num_scores] += key_scores
+            nones[0:num_scores] += key_scores
             continue
 
         # Track upper and lower bounds on range of segments that might
@@ -131,15 +128,11 @@ def calc_overlap(subseg, qryseg, quick=False, clobber=False, by=BY_DEFAULT,
             sublabelkey = sub_segment['key']
             sublength = subend - substart
             # Compute min-overlap in terms of bases, if conversion required
-            if min_overlap is None:
-                # Be conservative with ceil
-                min_overlap_bp = ceil(min_overlap_fraction * sublength)
-            else:
-                min_overlap_bp = min_overlap
+            min_overlap_bp = min_overlap
 
-            if by == "segments":
+            if mode == "segments":
                 full_score = 1
-            elif by == "bases":
+            elif mode == "bases":
                 full_score = sublength
 
             # Add subject segment to the total count
@@ -207,12 +200,12 @@ def calc_overlap(subseg, qryseg, quick=False, clobber=False, by=BY_DEFAULT,
                 label_overlaps[segment['key']].append(segment)
             label_overlaps = dict(label_overlaps)  # Remove defaultdict
 
-            if by == "segments":
+            if mode == "segments":
                 # Add 1 to count for each group that overlaps at least
                 # one segment
                 for qrylabelkey in label_overlaps:
                     counts[sublabelkey, qrylabelkey] += 1
-            elif by == "bases":
+            elif mode == "bases":
                 # Keep track of total covered by any labels
                 covered = zeros(sublength, dtype="bool")
                 for qrylabelkey, segments in label_overlaps.iteritems():
@@ -248,14 +241,16 @@ def make_tab_row(col_indices, data, none, total):
     return row
 
 ## Saves the data to a tab file
-def save_tab(dirpath, row_labels, col_labels, counts, totals, nones,
+def save_tab(dirpath, row_labels, col_labels, counts, totals, nones, mode,
              namebase=NAMEBASE, clobber=False):
     assert counts is not None and totals is not None and nones is not None
 
     row_label_keys, row_labels = get_ordered_labels(row_labels)
     col_label_keys, col_labels = get_ordered_labels(col_labels)
     colnames = [col_labels[label_key] for label_key in col_label_keys]
-    with tab_saver(dirpath, namebase, clobber=clobber) as count_saver:
+    metadata = {"mode": mode}
+    with tab_saver(dirpath, namebase, clobber=clobber,
+                   metadata=metadata) as count_saver:
         header = [""] + colnames + [NONE_COL, TOTAL_COL]
         count_saver.writerow(header)
         for row_label_key in row_label_keys:
@@ -264,43 +259,44 @@ def save_tab(dirpath, row_labels, col_labels, counts, totals, nones,
             row.insert(0, row_labels[row_label_key])
             count_saver.writerow(row)
 
-def save_plot(dirpath, num_panels, clobber=False,
-              row_mnemonics=[], col_mnemonics=[]):
+def save_plot(dirpath, namebase=NAMEBASE, clobber=False,
+              row_mnemonic_file="", col_mnemonic_file=""):
     start_R()
 
-    tabfilename = make_tabfilename(dirpath, NAMEBASE)
+    tabfilename = make_tabfilename(dirpath, namebase)
     if not os.path.isfile(tabfilename):
         die("Unable to find tab file: %s" % tabfilename)
 
-    panels_sqrt = math.sqrt(num_panels)
-    width = math.ceil(panels_sqrt)
-    height = math.floor(panels_sqrt)
+    if not row_mnemonic_file:
+        row_mnemonic_file=""
+    if not col_mnemonic_file:
+        col_mnemonic_file=""
 
-    # Plot data in file
-    with image_saver(dirpath, NAMEBASE, clobber=clobber,
-                     width=PNG_SIZE_PER_PANEL * width,
-                     height=PNG_SIZE_PER_PANEL * height):
-        r.plot(r["plot.overlap"](tabfilename,
-                                 mnemonics=row_mnemonics,
-                                 col_mnemonics=col_mnemonics))
+    r["save.overlap"](dirpath, namebase, tabfilename,
+                      mnemonic_file=row_mnemonic_file,
+                      col_mnemonic_file=col_mnemonic_file,
+                      clobber=clobber)
 
-def save_heatmap_plot(dirpath, clobber=False,
-                      row_mnemonics=[], col_mnemonics=[]):
+def save_heatmap_plot(dirpath, namebase=NAMEBASE, clobber=False,
+                      row_mnemonic_file="", col_mnemonic_file="",
+                      cluster=False):
     start_R()
 
-    tabfilename = make_tabfilename(dirpath, NAMEBASE)
+    tabfilename = make_tabfilename(dirpath, namebase)
     if not os.path.isfile(tabfilename):
         die("Unable to find tab file: %s" % tabfilename)
 
-    # Plot data in file
-    with image_saver(dirpath, HEATMAP_NAMEBASE, clobber=clobber,
-                     width=HEATMAP_PNG_SIZE,
-                     height=HEATMAP_PNG_SIZE):
-        r.plot(r["plot.overlap.heatmap"](tabfilename,
-                                         mnemonics=row_mnemonics,
-                                         col_mnemonics=col_mnemonics))
+    if not row_mnemonic_file:
+        row_mnemonic_file=""
+    if not col_mnemonic_file:
+        col_mnemonic_file=""
 
-def save_html(dirpath, bedfilename, featurefilename, by, clobber=False):
+    r["save.overlap.heatmap"](dirpath, HEATMAP_NAMEBASE, tabfilename,
+                              mnemonic_file=row_mnemonic_file,
+                              col_mnemonic_file=col_mnemonic_file,
+                              clobber=clobber, cluster=cluster)
+
+def save_html(dirpath, bedfilename, featurefilename, mode, clobber=False):
     bedfilename = os.path.basename(bedfilename)
     featurebasename = os.path.basename(featurefilename)
     extra_namebases = {"heatmap": HEATMAP_NAMEBASE}
@@ -311,7 +307,7 @@ def save_html(dirpath, bedfilename, featurefilename, by, clobber=False):
     save_html_div(HTML_TEMPLATE_FILENAME, dirpath, NAMEBASE, clobber=clobber,
                   title=title, tablenamebase=NAMEBASE,
                   extra_namebases = extra_namebases,
-                  module=MODULE, by=by, significance=significance,
+                  module=MODULE, by=mode, significance=significance,
                   bedfilename=bedfilename, featurefilename=featurebasename)
 
 def is_file_type(filename, ext):
@@ -326,61 +322,60 @@ def is_file_type(filename, ext):
     return base.endswith("." + ext)
 
 ## Package entry point
-def validate(bedfilename, featurefilename, dirpath, regionfilename=None,
-             clobber=False, quick=False, print_segments=False,
-             by=BY_DEFAULT, samples=SAMPLES_DEFAULT,
-             region_fraction=REGION_FRACTION_DEFAULT,
-             subregion_fraction=SUBREGION_FRACTION_DEFAULT,
-             min_overlap=1, min_overlap_fraction=None,
-             mnemonic_filename=None, feature_mnemonic_filename=None,
-             replot=False, noplot=False, verbose=True):
-    setup_directory(dirpath)
-    segmentation = load_segmentation(bedfilename)
+def overlap(bedfilename, featurefilename, dirpath, regionfilename=None,
+            clobber=False, quick=False, print_segments=False,
+            mode=MODE_DEFAULT, samples=SAMPLES_DEFAULT,
+            region_fraction=REGION_FRACTION_DEFAULT,
+            subregion_fraction=SUBREGION_FRACTION_DEFAULT, min_overlap=1,
+            mnemonic_filename=None, feature_mnemonic_filename=None,
+            replot=False, noplot=False, cluster=False, verbose=True):
 
-    if is_file_type(featurefilename, 'bed'):
-        features = load_segmentation(featurefilename, verbose=verbose)
-    elif is_file_type(featurefilename, 'gff'):
-        features = load_features(featurefilename, verbose=verbose)
-    elif is_file_type(featurefilename, 'gtf'):
-        features = load_features(featurefilename, gtf=True,
-                                 sort=True, verbose=verbose)
-    else:
-        raise NotImplementedError("Only bed, gff, and gtf files are supported \
-for FEATUREFILE. If the file is in one of these formats, please use the \
-appropriate extension")
-
-    assert segmentation is not None
-    assert features is not None
-
-    seg_labels = segmentation.labels
-    feature_labels = features.labels
-    mnemonics = map_mnemonics(seg_labels, mnemonic_filename)
-    feature_mnemonics = map_mnemonics(feature_labels,
-                                      feature_mnemonic_filename)
     if not replot:
+        setup_directory(dirpath)
+
+        segmentation = Segmentation(bedfilename)
+
+        if is_file_type(featurefilename, 'bed'):
+            features = Segmentation(featurefilename, verbose=verbose)
+        elif is_file_type(featurefilename, 'gff'):
+            features = load_features(featurefilename, verbose=verbose)
+        elif is_file_type(featurefilename, 'gtf'):
+            features = load_features(featurefilename, gtf=True,
+                                     sort=True, verbose=verbose)
+        else:
+            raise NotImplementedError("Only bed, gff, and gtf files are supported \
+            for FEATUREFILE. If the file is in one of these formats, please use the \
+            appropriate extension")
+
+        seg_labels = segmentation.labels
+        feature_labels = features.labels
+        mnemonics = map_mnemonics(seg_labels, mnemonic_filename)
+        feature_mnemonics = map_mnemonics(feature_labels,
+                                          feature_mnemonic_filename)
+
         # Overlap of segmentation with features
         print >>sys.stderr, "Measuring overlap..."
         counts, nones, totals = \
             calc_overlap(segmentation, features, clobber=clobber,
-                         by=by, min_overlap=min_overlap,
-                         min_overlap_fraction=min_overlap_fraction,
+                         mode=mode, min_overlap=min_overlap,
                          print_segments=print_segments,
                          quick=quick, dirpath=dirpath, verbose=verbose)
 
         save_tab(dirpath, seg_labels, feature_labels,
-                 counts, nones, totals, clobber=clobber)
+                 counts, nones, totals, mode=mode, clobber=clobber)
 
     if not noplot:
-        save_plot(dirpath, num_panels=len(feature_labels),
-                  clobber=clobber, row_mnemonics=mnemonics,
-                  col_mnemonics=feature_mnemonics)
+        save_plot(dirpath, clobber=clobber,
+                  row_mnemonic_file=mnemonic_filename,
+                  col_mnemonic_file=feature_mnemonic_filename)
         save_heatmap_plot(dirpath, clobber=clobber,
-                          row_mnemonics=mnemonics,
-                          col_mnemonics=feature_mnemonics)
+                          row_mnemonic_file=mnemonic_filename,
+                          col_mnemonic_file=feature_mnemonic_filename,
+                          cluster=cluster)
 
     print >>sys.stderr, "Saving HTML div...",
     sys.stdout.flush()  # Necessary to make sure html errors don't clobber print
-    save_html(dirpath, bedfilename, featurefilename, by=by, clobber=clobber)
+    save_html(dirpath, bedfilename, featurefilename, mode=mode, clobber=clobber)
     print >>sys.stderr, "done"
 
 def parse_options(args):
@@ -419,6 +414,9 @@ Overlap_analysis_tool_specification"
     group.add_option("--noplot", action="store_true",
                      dest="noplot", default=False,
                      help="Do not generate plots")
+    group.add_option("--cluster", action="store_true",
+                     dest="cluster", default=False,
+                     help="Cluster rows and columns in heatmap plot")
     group.add_option("-p", "--print-segments", action="store_true",
                      dest="print_segments", default=False,
                      help=("For each group"
@@ -430,9 +428,9 @@ Overlap_analysis_tool_specification"
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Parameters")
-    group.add_option("-b", "--by", choices=BY_CHOICES,
-                     dest="by", type="choice", default=BY_DEFAULT,
-                     help="One of: "+str(BY_CHOICES)+", which determines the"
+    group.add_option("-b", "--by", choices=MODE_CHOICES,
+                     dest="mode", type="choice", default=MODE_DEFAULT,
+                     help="One of: "+str(MODE_CHOICES)+", which determines the"
                      " definition of overlap. @segments: The value"
                      " associated with two features overlapping will be 1 if"
                      " they overlap, and 0 otherwise. @bases: The value"
@@ -454,12 +452,6 @@ Overlap_analysis_tool_specification"
                      " are no more than this many bases between them). Both"
                      " a negative min-overlap and --by=bases cannot be"
                      " specified together. [default: %default]")
-    group.add_option("--min-overlap-fraction", type="float",
-                     dest="min_overlap_fraction", default=None,
-                     help="The minimum fraction of the base pairs in the"
-                     " subject feature that overlap with the query feature"
-                     " in order to be counted as overlapping. Overrides"
-                     "--min-overlap.")
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Files")
@@ -482,10 +474,6 @@ Overlap_analysis_tool_specification"
     if len(args) < 2:
         parser.error("Insufficient number of arguments")
 
-    mof = options.min_overlap_fraction
-    if mof is not None and (mof < 0 or mof > 1):
-        parser.error("Min-overlap-fraction: %.3f out of range: [0, 1]" % mof)
-
     return (options, args)
 
 ## Command-line entry point
@@ -496,14 +484,14 @@ def main(args=sys.argv[1:]):
               "quick": options.quick,
               "replot": options.replot,
               "noplot": options.noplot,
+              "cluster": options.cluster,
               "print_segments": options.print_segments,
-              "by": options.by,
+              "mode": options.mode,
               "min_overlap": options.min_overlap,
-              "min_overlap_fraction": options.min_overlap_fraction,
               "mnemonic_filename": options.mnemonic_filename,
               "feature_mnemonic_filename": options.feature_mnemonic_filename,
               "verbose": options.verbose}
-    validate(*args, **kwargs)
+    overlap(*args, **kwargs)
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -52,17 +52,21 @@ class NativeDatum(Datum):
             raise
 
 def read(iterator, datum_cls=Datum, *args, **kwargs):
-    for line in iterator:
-        line = line.split("#", 1)[0].rstrip() # Ignore comments
-        if not line: continue
+    try:
+        for line in iterator:
+            line = line.split("#", 1)[0].rstrip() # Ignore comments
+            if not line: continue
 
-        words = line.split("\t")  # Tab-delimited
-        if words[0] == "track":  # Ignore any track lines
-            continue
+            words = line.split("\t")  # Tab-delimited
+            if words[0] == "track":  # Ignore any track lines
+                continue
 
-        assert len(words) >= 5
+            assert len(words) >= 5
 
-        yield datum_cls(words, *args, **kwargs)
+            yield datum_cls(words, *args, **kwargs)
+    except:
+        print >>sys.stderr, "Error processing line: %s" % line
+        raise
 
 def read_native(*args, **kwargs):
     return read(datum_cls=NativeDatum, *args, **kwargs)

@@ -5,7 +5,8 @@ import unittest
 from numpy import array
 from tempfile import NamedTemporaryFile
 
-from segtools.common import load_features, load_segmentation
+from segtools import Segmentation
+from segtools.common import load_features
 from segtools.overlap import calc_overlap
 
 def data2bed(lines):
@@ -42,7 +43,7 @@ class OverlapTester(unittest.TestCase):
             if type == "bed":
                 new_file.write(data2bed(data))
                 new_file.flush()
-                features = load_segmentation(new_file.name, verbose=False)
+                features = Segmentation(new_file.name, verbose=False)
             elif type == "gff":
                 new_file.write(data2gff(data))
                 new_file.flush()

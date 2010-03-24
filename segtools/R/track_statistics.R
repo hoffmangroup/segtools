@@ -112,14 +112,14 @@ parse.gmtk.covars <- function(filename) {
 }
 
 ## You should probably normalize with normalize.track.stats() first
-generate.mnemonics <- function(stats, hierarchical = FALSE, ...) {
+generate.mnemonics <- function(stats, hierarchical = FALSE, clust.func = hclust, ...) {
   if (!is.array(stats)) {
     stats <- as.stats.array(stats)
   }
   
   stats.mean <- t(stats[, , "mean"])
   dist.func <- if (hierarchical) hierarchical.dist else dist
-  hclust.col <- hclust(dist.func(stats.mean))
+  hclust.col <- clust.func(dist.func(stats.mean))
   
   cut.height <- mean(range(hclust.col$height))
   stems <- (cutree(hclust.col, h = cut.height) - 1)[hclust.col$order]
@@ -196,7 +196,7 @@ covar2sd <- function(stats) {
   stats
 }
 
-normalize.track.stats <- function(stats, cov = FALSE) {
+normalize.track.stats <- function(stats, cov = FALSE, sd.scale = TRUE) {
   if (!is.array(stats)) {
     stop("normalize.track.stats expected stats in array format!")
   }
@@ -216,7 +216,7 @@ normalize.track.stats <- function(stats, cov = FALSE) {
     } else {  # Normalize same as mean
       sds <- sds / (means.max - means.min)
       ## If any are over 1, scale all down
-      if (any(is.finite(sds)) && any(sds > 1)) {
+      if (sd.scale && any(is.finite(sds)) && any(sds > 1)) {
         sds <- sds / max(sds, na.rm = TRUE)
       }
     }
@@ -412,6 +412,7 @@ levelplot.track.stats <-
            ylab = list("Signal track", cex = axis.cex),
            hclust.label = TRUE,
            hclust.track = TRUE,
+           clust.func = hclust,
            hierarchical = FALSE,
            aspect = "iso",
            sd.shape = "line",
@@ -430,6 +431,7 @@ levelplot.track.stats <-
   if (!is.array(track.stats)) {
     track.stats <- as.stats.array(track.stats)
   }
+
   if (dim(track.stats[, , "mean"])[2] == 2) {
     norm.func <- normalize.binary.track.stats
     symmetric <- TRUE
@@ -437,6 +439,7 @@ levelplot.track.stats <-
     norm.func <- normalize.track.stats
   }
   stats.norm <- norm.func(track.stats)
+  
   means <- stats.norm[, , "mean"]
   sds <- stats.norm[, , "sd"]
 
@@ -473,12 +476,12 @@ levelplot.track.stats <-
   row.ord <- 1:nrow(means)
   col.ord <- 1:ncol(means)
   if (hclust.track) {
-    dd.row <- as.dendrogram(hclust(dist(means)))
+    dd.row <- as.dendrogram(clust.func(dist(means)))
     row.ord <- order.dendrogram(dd.row)
   }
   if (hclust.label) {
     dist.func <- if (hierarchical) hierarchical.dist else dist
-    dd.col <- as.dendrogram(hclust(dist.func(t(means))))
+    dd.col <- as.dendrogram(clust.func(dist.func(t(means))))
     col.ord <- order.dendrogram(dd.col)
   }
   par(oma = c(1, 1, 1, 1))  # Add a margin
@@ -506,7 +509,7 @@ levelplot.track.stats <-
 
 plot.track.stats <- function(filename, mnemonics = NULL,
                              translation_file = NULL,
-                             gmtk = FALSE, ...) {
+                             gmtk = FALSE, symmetric = FALSE, ...) {
   translation <-
     if (length(translation_file) > 0 && nchar(translation_file) > 0) {
       read.mnemonics(translation_file)
@@ -524,7 +527,8 @@ plot.track.stats <- function(filename, mnemonics = NULL,
     hierarchical <- FALSE
   }
   
-  levelplot.track.stats(stats, hierarchical = hierarchical, ...)
+  levelplot.track.stats(stats, hierarchical = hierarchical,
+                        symmetric = symmetric, ...)
 }
 
 ## infilename: stats data.frame tab file

@@ -37,8 +37,8 @@ from numpy import empty, loadtxt, where, zeros
 from subprocess import call
 from rpy2.robjects import r, numpy2ri
 
-# XXX: Do this without the kludgy constants
-from .common import check_clobber, die, get_ordered_labels, image_saver, load_segmentation, make_dotfilename, make_pdffilename, make_pngfilename, make_namebase_summary, make_tabfilename, map_mnemonics, r_source, setup_directory, tab_saver
+from . import Segmentation
+from .common import check_clobber, die, get_ordered_labels, image_saver, make_dotfilename, make_pdffilename, make_pngfilename, make_namebase_summary, make_tabfilename, map_mnemonics, r_source, setup_directory, tab_saver
 from .html import save_html_div
 from .mnemonics import create_mnemonic_file
 
@@ -271,7 +271,7 @@ def validate(bedfilename, dirpath, ddgram=False, p_thresh=P_THRESH,
             mnemonicfilename = create_mnemonic_file(bedfilename, dirpath,
                                                     clobber=clobber, gmtk=gmtk)
     else:
-        segmentation = load_segmentation(bedfilename)
+        segmentation = Segmentation(bedfilename)
         assert segmentation is not None
 
         if replot:
