@@ -323,7 +323,8 @@ levelplot.overlap <- function(data,
                               metadata = NULL,
                               mode = metadata[["mode"]],
                               row.normalize = TRUE,
-                              y.mode = if (row.normalize) "Frequency" else "Count",
+                              y.mode = if (row.normalize) "Frequency"
+                                       else "Count",
                               sub = paste(y.mode, "of", mode, "in subject",
                                 "label that overlap at least one in query",
                                 "label"),
@@ -336,9 +337,10 @@ levelplot.overlap <- function(data,
                               num.colors = 100,
                               max.contrast = FALSE,  # Saturate color range
                               col.range = if (max.contrast) NULL else c(0, 1),
-                              colorkey = list(space = "left", at = colorkey.at),
+                              colorkey = list(space = "left",at = colorkey.at),
                               scales = list(x = list(rot = 90)),
-                              legend = ddgram.legend(dd.row,  row.ord, dd.col, col.ord),
+                              legend = ddgram.legend(dd.row, row.ord,
+                                dd.col, col.ord),
                               palette = colorRampPalette(
                                 rev(brewer.pal(11, "RdYlBu")),
                                 interpolate = "spline",
@@ -389,7 +391,6 @@ levelplot.overlap <- function(data,
   }
 
   colorkey.at <- seq(col.range[[1]], col.range[[2]], length = num.colors - 1)
-  
   levelplot(t(mat[row.ord, col.ord, drop = FALSE]),
             sub = sub,
             xlab = xlab,
@@ -397,6 +398,7 @@ levelplot.overlap <- function(data,
             cuts = cuts,
             scales = scales,
             legend = legend,
+            at = colorkey.at,
             colorkey = colorkey,
             col.regions = palette,
             ...)
