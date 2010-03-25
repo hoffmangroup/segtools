@@ -4,7 +4,6 @@ library(latticeExtra)
 library(plyr)
 library(reshape)
 
-
 ############### OVERLAP ANALYSIS ##############
 
 read.overlap <- function(filename, mnemonics = NULL, col_mnemonics = NULL,
@@ -332,15 +331,12 @@ levelplot.overlap <- function(data,
                               ylab = "label in subject file",
                               none.col = TRUE,  # Include 'none' column
                               cluster = FALSE,  # Cluster both dimensions
-                              hclust.rows = cluster,
-                              hclust.cols = cluster,
+                              cluster.rows = cluster,
+                              cluster.cols = cluster,
                               num.colors = 100,
                               max.contrast = FALSE,  # Saturate color range
                               col.range = if (max.contrast) NULL else c(0, 1),
-                              colorkey = list(space = "left",at = colorkey.at),
                               scales = list(x = list(rot = 90)),
-                              legend = ddgram.legend(dd.row, row.ord,
-                                dd.col, col.ord),
                               palette = colorRampPalette(
                                 rev(brewer.pal(11, "RdYlBu")),
                                 interpolate = "spline",
@@ -359,10 +355,11 @@ levelplot.overlap <- function(data,
 
   if (is.null(mode)) stop("Overlap file missing 'mode' metadata.")
   
-  # Convert to matrix
+  ## Convert to matrix
   mat <- subset(data, select = -c(label, total))
+  mat.nonone <- subset(mat, select = -c(none))
   if (!none.col) {
-    mat <- subset(mat, select = -c(none))
+    mat <- mat.nonone
   }
   mat <- as.matrix(mat)
   if (row.normalize) {
@@ -370,20 +367,21 @@ levelplot.overlap <- function(data,
   }
   rownames(mat) <- data$label
   
-  # Set up dendrogram
-  dd.row <- NULL
-  dd.col <- NULL
+  ## Order rows and columns
   row.ord <- nrow(mat):1
   col.ord <- 1:ncol(mat)
-  if (hclust.rows) {
-    dd.row <- as.dendrogram(hclust(dist(mat)))
-    row.ord <- order.dendrogram(dd.row)
+  
+  ## Cluster, holding out none col
+  if (cluster.rows) {
+    row.ord <- order(cmdscale(dist(mat.nonone), k = 1))
   }
-  if (hclust.cols) {
-    dd.col <- as.dendrogram(hclust(dist(t(mat))))
-    col.ord <- order.dendrogram(dd.col)
+  if (cluster.cols) {
+    col.ord <- rev(order(cmdscale(dist(t(mat.nonone)), k = 1)))
   }
-
+  if (none.col) {  # Re-add none col to end
+    col.ord <- c(col.ord, length(col.ord) + 1)
+  }
+  
   if (is.null(col.range)) {
     col.range <- range(mat)
   } else if (length(col.range) != 2) {
@@ -397,9 +395,7 @@ levelplot.overlap <- function(data,
             ylab = ylab,
             cuts = cuts,
             scales = scales,
-            legend = legend,
             at = colorkey.at,
-            colorkey = colorkey,
             col.regions = palette,
             ...)
 }
