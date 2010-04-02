@@ -51,14 +51,14 @@ labels.log <- function(...) {
 }
 
 read.mnemonics <- function(filename, stringsAsFactors = NULL,
-                           colClasses = NULL, ...) {
+                           colClasses = NULL, na.strings = NULL, ...) {
   filename <- as.character(filename)
   if (length(filename) > 0 && nchar(filename) > 0) {
     if (!file.exists(filename)) {
       stop(paste("Error: could not find mnemonic file:", filename))
     }
     read.delim(filename, stringsAsFactors = FALSE, colClasses = "character",
-               ...)[, 1:2]
+               na.strings = NULL, ...)[, 1:2]
   } else {
     NULL
   }

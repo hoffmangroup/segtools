@@ -147,15 +147,28 @@ def print_line(labels, chrom, segment, distances, extra=[]):
 def die(msg):
     raise Exception("ERROR: %s" % msg)
 
-def feature_distance(segment_file, feature_files, verbose=False,
-                     correct_strands=[], print_nearest=False):
-    correct_strands = set([int(col) for col in correct_strands])
-    correct_strand = [False] * len(feature_files)
-    for col in correct_strands:
-        if col < 0 or col >= len(feature_files):
-            die("Strand correction column: %d is invalid" % col)
+def indices_to_bools(indices, length):
+    indices = set([int(index) for index in indices])
+    bools = [False] * length
+    for index in indices:
+        if index < 0 or index >= length:
+            raise ValueError(index)
         else:
-            correct_strand[col] = True
+            bools[index] = True
+
+    return bools
+
+def feature_distance(segment_file, feature_files, verbose=False,
+                     correct_strands=[], print_nearest=[]):
+    try:
+        correct_strand = indices_to_bools(correct_strands, len(feature_files))
+    except ValueError, e:
+            die("File index for strand correction: %d is invalid" % e)
+
+    try:
+        print_nearest = indices_to_bools(print_nearest, len(feature_files))
+    except ValueError, e:
+        die("File index for print nearest: %d is invalid" % e)
 
     # Load segment file
     segment_obj = load_data(segment_file, verbose=verbose)
@@ -190,8 +203,7 @@ def feature_distance(segment_file, feature_files, verbose=False,
                 distance = NaN
                 if feature is not None:
                     distance = FeatureScanner.distance(segment, feature)
-                    col_correct_strand = correct_strand[features_i]
-                    if col_correct_strand:
+                    if correct_strand[features_i]:
                         try:
                             strand = feature['strand']
                             if strand == ".":
@@ -210,7 +222,7 @@ def feature_distance(segment_file, feature_files, verbose=False,
                                      feature['end'] > segment['end']):
                             distance = -distance
 
-                    if print_nearest:
+                    if print_nearest[features_i]:
                         name = feature_objs[features_i].labels[feature['key']]
                         distance = "%s %s" % (distance, name)
 
@@ -242,10 +254,11 @@ def parse_options(args):
                       " whereas a negative value indicates the segment is"
                       " nearest the 3' end of the feature.")
     parser.add_option("-p", "--print-nearest", dest="print_nearest",
-                      action="store_true", default=False,
+                      default=[], action="append", metavar="N",
                       help="The name of the nearest feature will be printed"
                       " after each distance (with a space separating the"
-                      " two).")
+                      " two) for features from the Nth feature file (where"
+                      " N=0 is the first file).")
 
     (options, args) = parser.parse_args(args)
 

@@ -77,6 +77,7 @@ class OverlapTester(unittest.TestCase):
 
 class TestSegmentPerfectOverlap(OverlapTester):
     def init(self):
+        self.kwargs["mode"] = "segments"
         self.subject = ("bed", [(1, 0, 50, 1),  # chrom, start, end, label
                                 (1, 50, 100, 2)])
         self.query = ("bed", [(1, 0, 50, 1),
@@ -98,6 +99,7 @@ class TestBasePerfectOverlap(OverlapTester):
 
 class TestSegmentNoOverlap(OverlapTester):
     def init(self):
+        self.kwargs["mode"] = "segments"
         self.subject = ("bed", [(1, 10, 20, 1)])
         self.query = ("bed", [(1, 20, 35, 6)])
         self.answer = ([0],
@@ -115,6 +117,7 @@ class TestBaseNoOverlap(OverlapTester):
 
 class TestSegmentNoOverlapChrom(OverlapTester):
     def init(self):
+        self.kwargs["mode"] = "segments"
         self.subject = ("bed", [(1, 10, 20, 1)])
         self.query = ("bed", [(9, 20, 35, 6)])
         self.answer = ([0],
@@ -132,6 +135,7 @@ class TestBaseNoOverlapChrom(OverlapTester):
 
 class TestSegmentSimpleOverlap(OverlapTester):
     def init(self):
+        self.kwargs["mode"] = "segments"
         self.subject = ("bed", [(1, 11, 20, 1),
                                 (1, 25, 35, 2),
                                 (1, 37, 40, 3)])
@@ -153,6 +157,7 @@ class TestBaseSimpleOverlap(OverlapTester):
 
 class TestSegmentStackedFeatures(OverlapTester):
     def init(self):
+        self.kwargs["mode"] = "segments"
         self.subject = ("bed", [(1, 0, 10, 1)])
         self.query = ("gff", [(1, 2, 9, 2),
                               (1, 3, 12, 3),
@@ -176,6 +181,7 @@ class TestBaseStackedFeatures(OverlapTester):
 
 class TestSegmentOverlappingFeatures(OverlapTester):
     def init(self):
+        self.kwargs["mode"] = "segments"
         self.subject = ("bed", [(1, 0, 10, 1),
                                 (1, 10, 20, 2),
                                 (1, 20, 30, 1)])
@@ -203,6 +209,7 @@ class TestBaseOverlappingFeatures(OverlapTester):
 
 class TestSegmentComplexOverlap(OverlapTester):
     def init(self):
+        self.kwargs["mode"] = "segments"
         self.subject = ("bed", [(1, 0, 4, 1),
                                 (1, 10, 15, 2),
                                 (1, 15, 21, 3),
@@ -246,6 +253,7 @@ class TestBaseComplexOverlap(OverlapTester):
 
 class TestSegmentComplexOverlapReversed(OverlapTester):
     def init(self):
+        self.kwargs["mode"] = "segments"
         self.subject = ("bed", [(1, 0, 10, 1),
                                 (1, 5, 15, 2),
                                 (1, 15, 25, 1),

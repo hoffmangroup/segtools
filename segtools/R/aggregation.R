@@ -120,16 +120,59 @@ cast.aggregation <- function(data.df) {
   cast(data.df, group + component + offset ~ label, value = "count")
 }
 
-## Given an aggregation data frame, normalize the counts over all labels
-## and by the sizes of the labels (to calculate enrichment
-normalize.counts <- function(data, label.sizes, pseudocount = 1,
-                             pval.thresh = 0.01) {
+calc.signif <- function(count, total, random.prob) {
+  ## Calculate "significance" of count and total given
+  ## current random.prob.
+  if (!is.finite(count) || !is.finite(total)) {
+    stop("Found non-finite count (", count,
+         ") or total (", total,
+         ") for label: ", label,
+         sep = "")
+  }
+  
+  expected <- total * random.prob
+  sep <- abs(expected - count)
+  
+  signif <- 
+    if (total == 0) {
+      ## No significance when there are no observed overlaps
+      1
+    } else if (count > 100 && expected < 10) {
+      ## Calculate two-tailed probability 
+      ppois(expected - sep, expected) + 
+        ppois(expected + sep - 1, expected, lower.tail = FALSE)
+    } else {
+      ## Binomial is symmetric, so probability is two-tailed with * 2
+      if (count < expected) {
+        pbinom(count, total, random.prob) * 2
+      } else {
+        pbinom(count - 1, total, random.prob, lower.tail = FALSE) * 2
+      }
+    }
+  signif <- min(signif, 1)
+##   signif <- -log10(signif)
+##   signif[!is.finite(signif)] <- Inf
+##   signif[signif > 20] <- 20
+##   signif <- if(count < expected) -signif else signif
+  
+  signif
+}
+
+## Given an aggregation data frame, process the counts by optionally
+## normalizing the counts over all labels and by the sizes of the labels
+## as well as calculating a significance level for each row.
+process.counts <- function(data, label.sizes, pseudocount = 1,
+                           normalize = TRUE, pval.thresh = 0.001) {
   if (!is.vector(label.sizes)) stop("Expected vector of label sizes")
   total.size <- sum(label.sizes)
   if (length(total.size) != 1) stop("Error summing label size vector")
   if (!is.finite(total.size)) stop("Unexpected sum of sizes (not finite)")
 
-  data.mat <- cast.aggregation(data)
+  ##data.mat <- cast.aggregation(data)
+  
+  ## Ideally, a multinomial test would be applied once for each bin
+  ## (testing whether the distribution of overlaps by label is as expected),
+  ## but the label-wise binomial seems a decent approximation.
   labels.sum <- with(data, aggregate(count, list(offset, component),
                                sum))$x
   for (label in levels(data$label)) {
@@ -137,60 +180,50 @@ normalize.counts <- function(data, label.sizes, pseudocount = 1,
     cur.rows <- data$label == label
     cur.counts <- data$count[cur.rows]
 
-    calc.pval <- function(row) {
+    calc.row.signif <- function(row) {
       count <- row[1]
       total <- row[2]
-      lambda <- total * random.prob
-      if (count > 100 && lambda < 10) {
-        ppois(count, lambda)
-      } else {
-        pbinom(count, total, random.prob)
-      }
+      calc.signif(count, total, random.prob)
     }
-    
-    pvals <- apply(cbind(cur.counts, labels.sum), 1, calc.pval)
-    data$count[cur.rows] <- log2((cur.counts / labels.sum + 1) /
-                                 (random.prob + 1))
-    data$significant[cur.rows] <- (pvals < pval.thresh | pvals > (1 - pval.thresh))
+
+    if (normalize) {
+      data$count[cur.rows] <- log2((cur.counts / labels.sum + 1) /
+                                   (random.prob + 1))
+    }
+    pvals <- apply(cbind(cur.counts, labels.sum), 1, calc.row.signif)
+    data$significant[cur.rows] <- (is.finite(pvals) & (pvals < pval.thresh))
+    ##data$count[cur.rows] <- -log10(pvals)
   }
+  
   data
-##   ## Convert data to matrix, row-normalize, and then convert back
-##   data.mat <- cast.aggregation(data)
-##   data.values <- data.mat[, 4:ncol(data.mat)]
-##   group.counts <- rowSums(data.values)
-##   ## Calculate enrichment above random probability
-##   for (col in 4:ncol(data.mat)) {
-##     label.size <- label.sizes[colnames(data.mat)[col]]
-##     random.prob <- label.size / total.size
-##     probs <- pbinom(data.mat[, col], group.counts, random.prob)
-##     significant <- probs < pval.thresh | probs > (1 - pval.thresh)
-##     data.mat[, col] <- log2((data.mat[, col] + pseudocount) /
-##                             (random.prob + pseudocount))
-##   }
-##   ## Normalize over labels (cols)
-##   data.mat[, 4:ncol(data.mat)] <- data.values / group.counts
-##   data <- melt.aggregation(data.mat)
 }
 
 
-panel.aggregation <- function(x, y, significant, ngroups, groups = NULL, subscripts = NULL,
-                              font = NULL, col = NULL, col.line = NULL, ...) {
+panel.aggregation <- function(x, y, significant, ngroups, groups = NULL,
+                              subscripts = NULL, font = NULL, col = NULL,
+                              col.line = NULL, pch = NULL,
+                              group.number = NULL, ...) {
   ## hide 'font' from panel.segments, since it doesn't like having
   ## font and fontface
   panel.refline(h = 0)
 
   significant <- as.logical(significant)[subscripts]
-  ## Only shade region for first
-  if (any(significant)) {
-    fill.col <-
-      if (ngroups == 1) "black"
-      else col.line
+  if (!any(is.na(significant)) && any(significant)) {
     x.sig <- as.numeric(x)[significant]
     y.sig <- as.numeric(y)[significant]
-    panel.segments(x.sig, y.sig, x.sig, 0, col = fill.col, ...)
+    
+    ## Only shade region for first.
+    fill.col <- "black"
+    #fill.col <- if (ngroups == 1) "black" else col.line
+    if (ngroups == 1) {
+      panel.segments(x.sig, y.sig, x.sig, 0, col = fill.col, pch = pch, ...)
+    } else {
+      panel.points(x.sig, y.sig, col = fill.col, pch = "*")
+    }
   }
-#  panel.xyplot(x, y, groups = groups, subscripts = subscripts, ...)
-  panel.xyplot(x, y, font = font, col = col, col.line = col.line, ...)
+##  panel.xyplot(x, y, groups = groups, subscripts = subscripts, ...)
+  panel.xyplot(x, y, font = font, col = col, col.line = col.line,
+               pch = pch, ...)
 }
 
 get.metadata.label.sizes <- function(metadata, data) {
@@ -234,20 +267,19 @@ xyplot.aggregation <- function(data,
     xlab = NULL,
     ylab = if (normalize) "Enrichment {log2[(fObs + 1)/(fRand + 1)]}"
            else "Count",
-    sub = if (normalize) paste("Shaded regions are significant with p<",
+    sub = if (normalize) paste("Black regions are significant with p<",
                                pval.thresh, sep = "")
           else NULL,
     ...)
 {
   metadata <- as.list(metadata)
-  ## Normalize by number of segments in each labels
-  if (normalize) {
-    if (length(metadata) > 0) {
-      label.sizes <- get.metadata.label.sizes(metadata, data)
-      data <- normalize.counts(data, label.sizes, pval.thresh = pval.thresh)
-    } else {
-      stop("Cannot normalize y-axis without metadata")
-    }
+  ## Normalize and/or calculate significance if metadata exists
+  if (length(metadata) > 0) {
+    label.sizes <- get.metadata.label.sizes(metadata, data)
+    data <- process.counts(data, label.sizes, pval.thresh = pval.thresh,
+                             normalize = normalize)
+  } else {
+    stop("Cannot normalize/calculate significance without metadata")
   }
 
   colnames(data) <- gsub("^count$", "overlap", colnames(data))

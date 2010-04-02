@@ -77,8 +77,8 @@ panel.overlap <-
   function(x, y, groups, subscripts, labels, colors, reference, 
            plot.text = TRUE, plot.points = FALSE, significances = NULL, ...)
 {
-  # Plot x == y reference line
-  panel.abline(c(0, 1), reference = TRUE, ...)
+  ## Plot x == y reference line
+  ## panel.abline(c(0, 1), reference = TRUE, ...)
 
   if (plot.points) {
     panel.xyplot(x, y, groups = groups, col = colors, 
@@ -125,7 +125,7 @@ overlap.stats <-
   total.sum <- sum(as.numeric(total.counts))
   feature.sums <- colSums(feature.counts)
   tp <- feature.counts
-  fp <- none.counts
+  fp <- total.counts - feature.counts
   fn <- t(feature.sums - t(feature.counts))
   tn <- total.sum - total.counts - fn
 
@@ -167,15 +167,22 @@ write.stats <-
 xyplot.overlap <-
   function(data,
            metadata = NULL,
-           x = tpr ~ fpr | factor, 
+#           x = tpr ~ fpr | factor, 
+           x = precision ~ recall | factor, 
            small.cex = 1.0,
            large.cex = 1.0,
            as.table = TRUE,
            aspect = "fill",
            auto.key = FALSE, #list(space = "right"),
-           xlab = list("False positive rate (FP / (FP + TN))", cex = large.cex),
-           ylab = list("True positive rate (TP / (TP + FN))", cex = large.cex),
-           scales = list(cex = small.cex),
+#           xlab = list("False positive rate (FP / (FP + TN))", cex = large.cex),
+#           ylab = list("True positive rate (TP / (TP + FN))", cex = large.cex),
+           xlab = list("Recall (TP / (TP + FN))", cex = large.cex),
+           ylab = list("Precision (TP / (TP + FP))", cex = large.cex),
+           x.lim = c(0, 1),
+           y.lim = c(0, 1),
+           scales = list(cex = small.cex,
+             x = list(limits = x.lim),
+             y = list(limits = y.lim)),
            panel = panel.overlap,
            labels = data$label,
            colors = label.colors(labels),
@@ -183,10 +190,10 @@ xyplot.overlap <-
            ...)
 {
   stats <- overlap.stats(data)
-  tpr <- suppressMessages(melt(stats$tp / (stats$tp + stats$fn)))
-  fpr <- suppressMessages(melt(1 - stats$tn / (stats$tn + stats$fp)))
-  stats.merged <- data.frame(label = labels, factor = tpr$variable,
-                            tpr = tpr$value, fpr = fpr$value)
+  precision <- suppressMessages(melt(stats$tp / (stats$tp + stats$fp)))
+  recall <- suppressMessages(melt(stats$tp / (stats$tp + stats$fn)))
+  stats.merged <- data.frame(label = labels, factor = precision$variable,
+                            precision = precision$value, recall = recall$value)
 
   xyplot(x, stats.merged, groups = label,
          as.table = as.table, 
@@ -322,7 +329,7 @@ levelplot.overlap <- function(data,
                               metadata = NULL,
                               mode = metadata[["mode"]],
                               row.normalize = TRUE,
-                              y.mode = if (row.normalize) "Frequency"
+                              y.mode = if (row.normalize) "Fraction"
                                        else "Count",
                               sub = paste(y.mode, "of", mode, "in subject",
                                 "label that overlap at least one in query",
@@ -368,10 +375,15 @@ levelplot.overlap <- function(data,
   rownames(mat) <- data$label
   
   ## Order rows and columns
-  row.ord <- nrow(mat):1
-  col.ord <- 1:ncol(mat)
+  row.ord <- nrow(mat.nonone):1
+  col.ord <- 1:ncol(mat.nonone)
   
   ## Cluster, holding out none col
+  ## This "clustering", or more appropiately, reording of rows and columns
+  ## to increase density along the diagonal is done using multidimensional
+  ## scaling techniques to find a linear order. This MDS approach to
+  ## ordering a matrix is discussed in the "seriation" package, under
+  ## the seriate.dist documentation.
   if (cluster.rows) {
     row.ord <- order(cmdscale(dist(mat.nonone), k = 1))
   }
@@ -389,7 +401,7 @@ levelplot.overlap <- function(data,
   }
 
   colorkey.at <- seq(col.range[[1]], col.range[[2]], length = num.colors - 1)
-  levelplot(t(mat[row.ord, col.ord, drop = FALSE]),
+  levelplot(t(mat[row.ord, col.ord]),
             sub = sub,
             xlab = xlab,
             ylab = ylab,

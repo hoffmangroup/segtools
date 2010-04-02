@@ -2,7 +2,8 @@
 Added additional functionality to feature-distance
 Added flatten-bed module
 Improved g[ft]f handling of comments
-Improved overlap appoximation of false positives
+Overlap plot is now in P-R- instead of ROC-space
+Added significance to aggregation plots
 
 0.1.2:
 Allowed parallelization of signal distribution

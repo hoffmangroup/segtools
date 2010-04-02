@@ -43,7 +43,7 @@ NONE_COL = "none"
 TOTAL_COL = "total"
 
 MODE_CHOICES = ["segments", "bases"]
-MODE_DEFAULT = "segments"
+MODE_DEFAULT = "bases"
 MIDPOINT_CHOICES = ["1", "2", "both"]
 SAMPLES_DEFAULT = 5000
 REGION_FRACTION_DEFAULT = 0.2
@@ -343,9 +343,9 @@ def overlap(bedfilename, featurefilename, dirpath, regionfilename=None,
             features = load_features(featurefilename, gtf=True,
                                      sort=True, verbose=verbose)
         else:
-            raise NotImplementedError("Only bed, gff, and gtf files are supported \
-            for FEATUREFILE. If the file is in one of these formats, please use the \
-            appropriate extension")
+            raise NotImplementedError("Only bed, gff, and gtf files are \
+supported for FEATUREFILE. If the file is in one of these formats, please \
+use the appropriate extension")
 
         seg_labels = segmentation.labels
         feature_labels = features.labels
@@ -354,7 +354,9 @@ def overlap(bedfilename, featurefilename, dirpath, regionfilename=None,
                                           feature_mnemonic_filename)
 
         # Overlap of segmentation with features
-        print >>sys.stderr, "Measuring overlap..."
+        if verbose:
+            print >>sys.stderr, "Measuring overlap..."
+
         counts, nones, totals = \
             calc_overlap(segmentation, features, clobber=clobber,
                          mode=mode, min_overlap=min_overlap,
@@ -373,10 +375,13 @@ def overlap(bedfilename, featurefilename, dirpath, regionfilename=None,
                           col_mnemonic_file=feature_mnemonic_filename,
                           cluster=cluster)
 
-    print >>sys.stderr, "Saving HTML div...",
+    if verbose:
+        print >>sys.stderr, "Saving HTML div...",
+
     sys.stdout.flush()  # Necessary to make sure html errors don't clobber print
     save_html(dirpath, bedfilename, featurefilename, mode=mode, clobber=clobber)
-    print >>sys.stderr, "done"
+    if verbose:
+        print >>sys.stderr, "done"
 
 def parse_options(args):
     from optparse import OptionParser, OptionGroup
@@ -437,11 +442,11 @@ Overlap_analysis_tool_specification"
                      " associated with two features overlapping will be"
                      " number of base pairs which they overlap."
                      " [default: %default]")
-    group.add_option("--midpoint-only", choices=MIDPOINT_CHOICES,
-                     dest="midpoint", type="choice", default=None,
-                     help="For the specified file (1, 2, or both), use only"
-                     "the midpoint of each feature instead of the entire"
-                     " width.")
+#     group.add_option("--midpoint-only", choices=MIDPOINT_CHOICES,
+#                      dest="midpoint", type="choice", default=None,
+#                      help="For the specified file (1, 2, or both), use only"
+#                      "the midpoint of each feature instead of the entire"
+#                      " width.")
     group.add_option("-m", "--min-overlap", type="int",
                      dest="min_overlap", default=1,
                      help="The minimum number of base pairs that two"

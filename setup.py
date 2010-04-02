@@ -7,7 +7,7 @@ LONG_DESCRIPTION
 
 __version__ = "1.0.0"
 
-# Copyright 2008-2009 Michael M. Hoffman <mmh1@washington.edu>
+# Copyright 2008-2009 Michael M. Hoffman <mmh1@uw.edu>
 
 import sys
 
@@ -55,7 +55,7 @@ if __name__ == "__main__":
           version=__version__,
           description=short_description,
           author="Michael Hoffman",
-          author_email="mmh1@washington.edu",
+          author_email="mmh1@uw.edu",
           maintainer="Orion Buske",
           maintainer_email="stasis@uw.edu",
           url=url,
