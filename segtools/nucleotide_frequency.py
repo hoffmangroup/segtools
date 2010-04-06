@@ -229,7 +229,7 @@ def validate(bedfilename, genomedatadir, dirpath, clobber=False, quick=False,
                          clobber=clobber, mnemonics=mnemonics)
 
     if not noplot:
-        save_plot(dirpath, clobber=clobber, mnemonic_file=mnemonic_file)
+        save_plot(dirpath, clobber=clobber, mnemonic_file=mnemonicfilename)
 
     save_html(dirpath, clobber=clobber)
 
