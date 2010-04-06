@@ -39,7 +39,6 @@ FIELDNAMES = ["label", "A|T", "C|G", "?", "AA|TT", "AC|GT",
               "??"]
 NAMEBASE = "%s" % MODULE
 NAMEBASE_SUMMARY = make_namebase_summary(NAMEBASE)
-PNG_SIZE = 600  # px
 
 NUC_CATEGORIES = [('A','T'), ('C', 'G')]
 DINUC_CATEGORIES = [[('A', 'A'), ('T', 'T')],
@@ -191,17 +190,19 @@ def save_summary_tab(labels, nuc_counts, dinuc_counts, dirpath,
                                    dinuc_counts[label_key])
             saver.writerow(row)
 
-def save_plot(dirpath, clobber=False, mnemonics=[]):
+def save_plot(dirpath, clobber=False, mnemonic_file="", namebase=NAMEBASE):
     start_R()
 
     tabfilename = make_tabfilename(dirpath, NAMEBASE)
     if not os.path.isfile(tabfilename):
         die("Unable to find tab file: %s" % tabfilename)
 
-    # Plot data in file
-    with image_saver(dirpath, NAMEBASE, clobber=clobber,
-                     width=PNG_SIZE, height=PNG_SIZE):
-        r.plot(r["plot.dinuc"](tabfilename, mnemonics = mnemonics))
+    if not mnemonic_file:
+        mnemonic_file = ""  # None cannot be passed to R
+
+    r["save.dinuc"](dirpath, namebase, tabfilename,
+                    mnemonic_file=mnemonic_file,
+                    clobber=clobber)
 
 def save_html(dirpath, clobber=False):
     save_html_div(HTML_TEMPLATE_FILENAME, dirpath, NAMEBASE, clobber=clobber,
@@ -228,7 +229,7 @@ def validate(bedfilename, genomedatadir, dirpath, clobber=False, quick=False,
                          clobber=clobber, mnemonics=mnemonics)
 
     if not noplot:
-        save_plot(dirpath, clobber=clobber, mnemonics=mnemonics)
+        save_plot(dirpath, clobber=clobber, mnemonic_file=mnemonic_file)
 
     save_html(dirpath, clobber=clobber)
 

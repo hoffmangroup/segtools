@@ -118,7 +118,7 @@ save.length <- function(dirpath, namebase, tabfilename,
               width = image.width,
               clobber = clobber)
 }
-  
+
 
 ############### SEGMENT SIZES ###############
 

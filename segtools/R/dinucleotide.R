@@ -58,9 +58,27 @@ levelplot.dinuc <-
             ylab = "Segment label")
 }
 
-plot.dinuc <- function(tabfile, mnemonics=NULL) {
-  nucs <- read.nuc(tabfile, mnemonics=mnemonics)
+plot.dinuc <- function(tabfile, mnemonics = NULL) {
+  nucs <- read.nuc(tabfile, mnemonics = mnemonics)
   dinuc <- normalize.dinuc(nucs)
 
   levelplot.dinuc(data = dinuc)
 }
+
+
+save.dinuc <- function(dirpath, namebase, tabfilename,
+                       mnemonic_file = NULL,
+                       clobber = FALSE,
+                       image.size = 600,  # px
+                       ...) {
+  mnemonics <- read.mnemonics(mnemonic_file)
+  nucs <- read.nuc(tabfilename, mnemonics = mnemonics)
+  dinuc <- normalize.dinuc(nucs)
+  
+  save.images(dirpath, namebase,
+              levelplot.length(data = dinuc, ...),
+              height = image.size,
+              width = image.size,
+              clobber = clobber)
+}
+  
