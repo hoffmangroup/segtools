@@ -46,12 +46,18 @@ panel.scales <- function(data, layout, num_panels, x.axis = FALSE) {
 
   ## Figure out x axis labels (should be same within component)
   at.x <- list()
+  limits.x <- list()
   for (cur_component in components) {
     component_subset <- subset(data, component == cur_component)
     min.x <- min(component_subset$offset, na.rm=TRUE)
     max.x <- max(component_subset$offset, na.rm=TRUE)
     at.x.pretty <- at.pretty(from=min.x, to=max.x, length=5, largest=TRUE)
     at.x <- c(at.x, at.x.pretty)
+    ## Cludgy shrink of axes to compensate for automatic trellis expansion
+    ## We want the x axis to go to the edge exactly, and axs="i" doesn't
+    ## do it.
+    limits.x[[length(limits.x) + 1]] <-
+      extendrange(c(min.x, max.x), f = -0.05)
   }
 
   at.x.full <-
@@ -75,15 +81,11 @@ panel.scales <- function(data, layout, num_panels, x.axis = FALSE) {
                           tck = c(1, 0),
                           at = at.x.full,
                           rot = 90,
-                          axs = "i"
-                          ),
+                          limits = limits.x),
                  y = list(alternating = c(2, 0),
                           tck = c(0, 1),
                           limits = limits.y,
-                          at = at.y
-                          )
-                 #cex = 0.7
-                 )
+                          at = at.y))
 
   scales
 }
@@ -208,16 +210,22 @@ panel.aggregation <- function(x, y, significant, ngroups, groups = NULL,
   panel.refline(h = 0)
 
   significant <- as.logical(significant)[subscripts]
-  if (!any(is.na(significant)) && any(significant)) {
-    x.sig <- as.numeric(x)[significant]
-    y.sig <- as.numeric(y)[significant]
-    
+  significant[!is.finite(significant)] <- FALSE
+  
+  x <- as.numeric(x)
+  y <- as.numeric(y)
+  if (any(significant)) {
     ## Only shade region for first.
     fill.col <- "black"
     #fill.col <- if (ngroups == 1) "black" else col.line
     if (ngroups == 1) {
-      panel.segments(x.sig, y.sig, x.sig, 0, col = fill.col, pch = pch, ...)
+      y.sig <- y
+      y.sig[!significant] <- 0
+      panel.polygon(cbind(c(min(x), x, max(x)), c(0, y.sig, 0)),
+                    col = fill.col)
     } else {
+      x.sig <- x[significant]
+      y.sig <- y[significant]
       panel.points(x.sig, y.sig, col = fill.col, pch = "*")
     }
   }

@@ -35,12 +35,21 @@ DELIM = "\t"
 
 class FeatureScanner(object):
     def __init__(self, features):
+        self._current = None
+        self._nearest = None
         if isinstance(features, ndarray):
             self._iter = iter(features)
-            self._has_next = features.shape[0] > 0
+            try:
+                self._current = self._iter.next()
+            except StopIteration:
+                pass
+            else:
+                self._nearest = self._current
         else:
             warn("Feature list not of understood type. Treated as empty")
-            self._has_next = False
+
+        self._has_next = (self._current is not None)
+        self._overlapping = []
 
         self._prev_best = None
         self._next_best = None
@@ -56,58 +65,79 @@ class FeatureScanner(object):
         else:  # Features overlap
             return 0
 
-    def should_iter(self, segment):
-        if not self._has_next:
-            return False  # No more features to read
-        elif self._prev_best is None:
-            return True  # Haven't read two features yet
-        else:
-            return self._next_best['start'] < segment['end']
+    @staticmethod
+    def are_overlapping(feature1, feature2):
+        """Return the whether or not two features overlap"""
+        return feature1['start'] < feature2['end'] and \
+                feature2['start'] < feature1['end']
 
-    def next_segment_nearest(self, segment):
-        """Return the nearest feature for the next segment
+    def _seek(self, segment):
+        # Seek internal records up to segment, updated self._overlapping
+        # and self._nearest
+
+        # Clear out any non-overlapping features from self._overlapping
+        if self._overlapping:
+            i = 0
+            while i < len(self._overlapping):
+                if self.are_overlapping(segment, self._overlapping[i]):
+                    i += 1
+                else:
+                    del self._overlapping[i]
+
+        # If any are overlapping, nearest is 0 distance
+        if self._overlapping:
+            nearest_dist = 0
+            self._nearest = self._overlapping[0]
+        elif self._nearest is not None:
+            # Closest feature will start as the closest from the last iteration
+            nearest_dist = self.distance(self._nearest, segment)
+        else:
+            assert not self._has_next
+
+        # Scan through features until we get past segment
+        if self._has_next:
+            segment_start = segment['start']
+            segment_end = segment['end']
+            while self._current['start'] < segment_end:
+                # dist will be negative if this overlaps
+                dist = segment_start - self._current['end'] + 1
+                if dist < 0:
+                    self._overlapping.append(self._current)
+
+                if dist < nearest_dist:
+                    self._nearest = self._current
+                    nearest_dist = dist
+
+                try:
+                    self._current = self._iter.next()
+                except StopIteration:
+                    self._has_next = False
+                    break
+
+            # Check distance of first feature past segment as well
+            dist = self._current['start'] - segment_end + 1
+            if dist < nearest_dist:
+                self._nearest = self._current
+                nearest_dist = dist
+
+    def nearest(self, segment):
+        """Return a list of the nearest features for the next segment
+
+        This will contain a single feature if no features overlap the given
+        segment, else it will be a list of features that overlap.
+
+        If no features were found at all, this will be None.
 
         Should be called with in-order segments
 
         """
-        while self.should_iter(segment):
-            # Update previous nearest
-            if self._prev_best is None or self._next_best is None or \
-                self._next_best['end'] >= self._prev_best['end']:
-                self._prev_best = self._next_best
-
-            # Advance next nearest
-            try:
-                self._next_best = self._iter.next()
-
-                # Ensure in-order segments
-                next_start = self._next_best['start']
-                if self._prev_start is not None and \
-                        self._prev_start > next_start:
-                    raise ValueError("Segments provided out of order."
-                                     " Last segment ended at %r, but current"
-                                     " one ends at %r." % \
-                                         (self._prev_start, next_start))
-                else:
-                    self._prev_start = next_start
-            except StopIteration:
-                self._has_next = False
-
-        if self._prev_best is None or self._next_best is None:
-            if self._prev_best is None and self._next_best is None:
-                # There are no features to compare against
-                return None
-            elif self._prev_best is None:
-                return self._next_best
-            else:  #self._next_best is None
-                return self._prev_best
+        self._seek(segment)
+        if self._overlapping:
+            return self._overlapping
+        elif self._nearest is None:
+            return None
         else:
-            # Return best of both pointers
-            if self.distance(self._prev_best, segment) <= \
-                    self.distance(self._next_best, segment):
-                return self._prev_best
-            else:
-                return self._next_best
+            return [self._nearest]
 
 def get_file_ext(filename):
     # Ignore g'zipping
@@ -135,6 +165,22 @@ def print_header_line(feature_files):
     print DELIM.join(fields)
 
 def print_line(labels, chrom, segment, distances, extra=[]):
+    """Print distance line, allowing individual distances to be lists
+
+    If a single distance is a list, multiple lines are printed, one with
+    each distance.
+
+    """
+    # If any distances are lists, recurse
+    for i, distance in enumerate(distances):
+        if isinstance(distance, list):
+            for sub_distance in distance:
+                new_distances = list(distances)
+                # Print line for each single value
+                new_distances[i] = sub_distance
+                print_line(labels, chrom, segment, new_distances, extra=extra)
+            return
+
     distance_strs = [str(distance) for distance in distances]
     segment_strs = [chrom,
                     str(segment['start']),
@@ -159,7 +205,7 @@ def indices_to_bools(indices, length):
     return bools
 
 def feature_distance(segment_file, feature_files, verbose=False,
-                     correct_strands=[], print_nearest=[]):
+                     correct_strands=[], print_nearest=[], all_overlapping=[]):
     try:
         correct_strand = indices_to_bools(correct_strands, len(feature_files))
     except ValueError, e:
@@ -169,6 +215,11 @@ def feature_distance(segment_file, feature_files, verbose=False,
         print_nearest = indices_to_bools(print_nearest, len(feature_files))
     except ValueError, e:
         die("File index for print nearest: %d is invalid" % e)
+
+    try:
+        all_overlapping = indices_to_bools(all_overlapping, len(feature_files))
+    except ValueError, e:
+        die("File index for all overlapping: %d is invalid" % e)
 
     # Load segment file
     segment_obj = load_data(segment_file, verbose=verbose)
@@ -198,33 +249,42 @@ def feature_distance(segment_file, feature_files, verbose=False,
                             for features in features_list]
         for segment in segments:
             distances = []
-            for features_i, feature_scanner in enumerate(feature_scanners):
-                feature = feature_scanner.next_segment_nearest(segment)
+            for file_i, feature_scanner in enumerate(feature_scanners):
+                features = feature_scanner.nearest(segment)
                 distance = NaN
-                if feature is not None:
-                    distance = FeatureScanner.distance(segment, feature)
-                    if correct_strand[features_i]:
-                        try:
-                            strand = feature['strand']
-                            if strand == ".":
+                if features is not None:
+                    # If we are only printing one, use the first regardless
+                    if not all_overlapping[file_i]:
+                        features = features[0:1]
+
+                    # Save multiple distances as a list of them
+                    distance = []
+                    for feature in features:
+                        one_dist = FeatureScanner.distance(segment, feature)
+                        if correct_strand[file_i]:
+                            try:
+                                strand = feature['strand']
+                                if strand == ".":
+                                    strand = None
+                            except IndexError:
                                 strand = None
-                        except IndexError:
-                            strand = None
 
-                        if strand is None:
-                            die("Trying to use strand information from: %r,"
-                                " but it was not found" % os.path.basename(
-                                    feature_files[features_i]))
+                            if strand is None:
+                                die("Trying to use strand information from:"
+                                    " %r, but it was not found" %
+                                    os.path.basename(feature_files[file_i]))
 
-                        if (strand == "+" and \
-                                feature['start'] < segment['start']) or \
-                                (strand == "-" and \
-                                     feature['end'] > segment['end']):
-                            distance = -distance
+                            if (strand == "+" and \
+                                    feature['start'] < segment['start']) or \
+                                    (strand == "-" and \
+                                         feature['end'] > segment['end']):
+                                one_dist = -one_dist
 
-                    if print_nearest[features_i]:
-                        name = feature_objs[features_i].labels[feature['key']]
-                        distance = "%s %s" % (distance, name)
+                        if print_nearest[file_i]:
+                            name = feature_objs[file_i].labels[feature['key']]
+                            one_dist = "%s %s" % (one_dist, name)
+
+                        distance.append(one_dist)
 
                 distances.append(distance)
 
@@ -258,7 +318,18 @@ def parse_options(args):
                       help="The name of the nearest feature will be printed"
                       " after each distance (with a space separating the"
                       " two) for features from the Nth feature file (where"
-                      " N=0 is the first file).")
+                      " N=0 is the first file). If multiple features"
+                      " are equally near (or overlap), it is undefined"
+                      " which will be printed")
+    parser.add_option("-a", "--all-overlapping", dest="all_overlapping",
+                      default=[], action="append", metavar="N",
+                      help="If multiple features in the Nth file"
+                      " overlap a segment, a separate line"
+                      " is printed for each overlapping segment-feature"
+                      " pair (where N=0 is the first file). This is most"
+                      " interesting with --print-nearest=N. Otherwise,"
+                      " the first overlapping segment will be used for"
+                      " printing.")
 
     (options, args) = parser.parse_args(args)
 
@@ -275,7 +346,8 @@ def main(args=sys.argv[1:]):
     feature_files = args[1:]
     kwargs = {"verbose": options.verbose,
               "correct_strands": options.correct_strands,
-              "print_nearest": options.print_nearest}
+              "print_nearest": options.print_nearest,
+              "all_overlapping": options.all_overlapping}
     feature_distance(segment_file, feature_files, **kwargs)
 
 if __name__ == "__main__":

@@ -76,7 +76,7 @@ save.dinuc <- function(dirpath, namebase, tabfilename,
   dinuc <- normalize.dinuc(nucs)
   
   save.images(dirpath, namebase,
-              levelplot.length(data = dinuc, ...),
+              levelplot.dinuc(data = dinuc, ...),
               height = image.size,
               width = image.size,
               clobber = clobber)
