@@ -11,16 +11,7 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   introduction
-   bed_compare
-   feature_distance
-   gmtk_parameters
-   html_report
-   label_transition
-   length_distribution
-   nucleotide_frequency
-   overlap
-   signal_distribution
+   segtools
 
 
 Indices and tables
