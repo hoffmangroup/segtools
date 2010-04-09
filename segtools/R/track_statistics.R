@@ -133,8 +133,8 @@ generate.mnemonics <- function(stats, hierarchical = FALSE, clust.func = hclust,
   stems.leaves <- paste(stems.reorder, leaves, sep = ".")
 
   ## Before: hclust.col$labels[hclust.col$order], After: stems.leaves
-  mnemonics <- data.frame(index = with(hclust.col, labels[order]),
-                          mnemonic = stems.leaves, stringsAsFactors = FALSE)
+  mnemonics <- data.frame(old = with(hclust.col, labels[order]),
+                          new = stems.leaves, stringsAsFactors = FALSE)
   mnemonics
 }
 

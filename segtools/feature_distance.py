@@ -206,20 +206,22 @@ def indices_to_bools(indices, length):
 
 def feature_distance(segment_file, feature_files, verbose=False,
                      correct_strands=[], print_nearest=[], all_overlapping=[]):
+    # Lists are of integer file indices (0-indexed), for which files that
+    # property applies to.
     try:
         correct_strand = indices_to_bools(correct_strands, len(feature_files))
     except ValueError, e:
-            die("File index for strand correction: %d is invalid" % e)
+            die("File index for strand correction: %s is invalid" % e)
 
     try:
         print_nearest = indices_to_bools(print_nearest, len(feature_files))
     except ValueError, e:
-        die("File index for print nearest: %d is invalid" % e)
+        die("File index for print nearest: %s is invalid" % e)
 
     try:
         all_overlapping = indices_to_bools(all_overlapping, len(feature_files))
     except ValueError, e:
-        die("File index for all overlapping: %d is invalid" % e)
+        die("File index for all overlapping: %s is invalid" % e)
 
     # Load segment file
     segment_obj = load_data(segment_file, verbose=verbose)
@@ -303,9 +305,9 @@ def parse_options(args):
                       default=False, action="store_true",
                       help="Print diagnostic messages")
     parser.add_option("-s", "--strand-correct", dest="correct_strands",
-                      default=[], action="append", metavar="N",
+                      default=[], action="append", metavar="N", type="int",
                       help="Strand correct features from the Nth feature file"
-                      " (where N=0 is the first file)."
+                      " (where N=1 is the first file)."
                       " If the feature list contain strand information,"
                       " the sign of the distance value is used to portray the"
                       " relationship between the segment and the nearest"
@@ -314,19 +316,19 @@ def parse_options(args):
                       " whereas a negative value indicates the segment is"
                       " nearest the 3' end of the feature.")
     parser.add_option("-p", "--print-nearest", dest="print_nearest",
-                      default=[], action="append", metavar="N",
+                      default=[], action="append", metavar="N", type="int",
                       help="The name of the nearest feature will be printed"
                       " after each distance (with a space separating the"
                       " two) for features from the Nth feature file (where"
-                      " N=0 is the first file). If multiple features"
+                      " N=1 is the first file). If multiple features"
                       " are equally near (or overlap), it is undefined"
                       " which will be printed")
     parser.add_option("-a", "--all-overlapping", dest="all_overlapping",
-                      default=[], action="append", metavar="N",
+                      default=[], action="append", metavar="N", type="int",
                       help="If multiple features in the Nth file"
                       " overlap a segment, a separate line"
                       " is printed for each overlapping segment-feature"
-                      " pair (where N=0 is the first file). This is most"
+                      " pair (where N=1 is the first file). This is most"
                       " interesting with --print-nearest=N. Otherwise,"
                       " the first overlapping segment will be used for"
                       " printing.")
@@ -344,10 +346,16 @@ def main(args=sys.argv[1:]):
 
     segment_file = args[0]
     feature_files = args[1:]
+
+    # Convert file indices to 0-indexed
+    correct_strands = [int(val) - 1 for val in options.correct_strands]
+    print_nearest = [int(val) - 1 for val in options.print_nearest]
+    all_overlapping = [int(val) - 1 for val in options.all_overlapping]
+
     kwargs = {"verbose": options.verbose,
-              "correct_strands": options.correct_strands,
-              "print_nearest": options.print_nearest,
-              "all_overlapping": options.all_overlapping}
+              "correct_strands": correct_strands,
+              "print_nearest": print_nearest,
+              "all_overlapping": all_overlapping}
     feature_distance(segment_file, feature_files, **kwargs)
 
 if __name__ == "__main__":

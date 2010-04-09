@@ -538,7 +538,7 @@ def get_ordered_labels(labels, mnemonics=[]):
 ## Returns a numpy.array of strings with a row of [oldlabel, newlabel] for
 ## every old_label, and their ordering specifies the desired display order
 ## Labels should be a dict of label_keys -> label strings
-def map_mnemonics(labels, mnemonicfilename, field="mnemonic"):
+def map_mnemonics(labels, mnemonicfilename, field="new"):
     if mnemonicfilename is None:
         return []
 
@@ -547,7 +547,11 @@ def map_mnemonics(labels, mnemonicfilename, field="mnemonic"):
     mnemonics = []
     # Add mapping for labels in mnemonic file
     for old_label in label_order:
-        new_label = label_data[old_label][field]
+        try:
+            new_label = label_data[old_label][field]
+        except KeyError:
+            die("Mnemonic file missing expected column: %s" % field)
+
         if old_label in str_labels:
             mnemonics.append([old_label, new_label])
 
@@ -565,18 +569,18 @@ def map_mnemonics(labels, mnemonicfilename, field="mnemonic"):
 def load_mnemonics(filename):
     """
     Input file should have a tab-delimited row for each label, of the form:
-               index    description    mnemonic
-      e.g.     4    initiation (strong)    IS
+               old    new    description
+      e.g.     4    IS   initiation (strong)
     Returns a tuple of (label_order, label_data)
 
-    label_order: an ordered list of string label indices,
+    label_order: an ordered list of old labels,
       corresponding to the preferred display order in plots
 
-    label_data: dict
-      key: a string label index
-      value: a dict with fields including "mnemonic" and "description",
+    label_mnemonics: dict
+      key: a string corresponding to an "old" label
+      value: a dict with fields including "new" and "description",
         where description is a several-word description of the label
-        and mnemonic is a few-character identifier
+        and new is a few-character identifier
     """
     if filename is None:
         return []
@@ -588,7 +592,11 @@ def load_mnemonics(filename):
     with open(filename, "rU") as ifp:
         reader = DictReader(ifp)
         for row in reader:
-            label_index = row["index"]
+            try:
+                label_index = row["old"]
+            except KeyError:
+                die("Mnemonic file missing required column: 'old'")
+
             label_order.append(label_index)
             label_data[label_index] = row
 

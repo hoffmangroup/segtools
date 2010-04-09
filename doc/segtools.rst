@@ -11,7 +11,6 @@ Segtools |version| documentation
 
 .. currentmodule:: segtools
 
-
 ..  Buske OJ, Hoffman MM, Noble WS, "Exploratory analysis of genomic
 ..  segmentations with Segtools." In preparation.
 
@@ -21,6 +20,16 @@ number of modules to analyze a segmentation in various ways and help
 you interpret its biological relevance. These modules have command-line
 and Python interfaces, but the command-line interfaces are most thoroughly
 documented.
+
+.. warning::
+   For this release (1.0.0), the documentation is *very* incomplete. This
+   will be remedied as soon as possible. In the mean time, please don't
+   hesitate to contact the author (above) with *ANY* questions 
+   you might have concerning the installation, use, and interpretation of 
+   results of the Segtools package. We think this tool is very 
+   useful for a wide array of applications, but the user
+   interface and documentation are a little rough at the moment. Thank
+   you for your patience as we try to refine this package.
 
 
 Installation

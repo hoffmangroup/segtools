@@ -4,6 +4,7 @@ Added flatten-bed module
 Improved g[ft]f handling of comments
 Overlap plot is now in P-R- instead of ROC-space
 Added significance to aggregation plots
+Updated mnemonic file specification
 
 0.1.2:
 Allowed parallelization of signal distribution
