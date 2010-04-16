@@ -174,6 +174,113 @@ class ProgressBar(object):
         self._out.flush()
 
 
+class FeatureScanner(object):
+    def __init__(self, features):
+        self._current = None
+        self._nearest = None
+        if isinstance(features, ndarray):
+            self._iter = iter(features)
+            try:
+                self._current = self._iter.next()
+            except StopIteration:
+                pass
+            else:
+                self._nearest = self._current
+        else:
+            warn("Feature list not of understood type. Treated as empty")
+
+        self._has_next = (self._current is not None)
+        self._overlapping = []
+
+        self._prev_best = None
+        self._next_best = None
+        self._prev_start = None
+
+    @staticmethod
+    def distance(feature1, feature2):
+        """Return the distance between two features (zero if overlap)"""
+        if feature1['end'] <= feature2['start']:
+            return feature2['start'] - feature1['end'] + 1
+        elif feature2['end'] <= feature1['start']:
+            return feature1['start'] - feature2['end'] + 1
+        else:  # Features overlap
+            return 0
+
+    @staticmethod
+    def are_overlapping(feature1, feature2):
+        """Return the whether or not two features overlap"""
+        return feature1['start'] < feature2['end'] and \
+                feature2['start'] < feature1['end']
+
+    def _seek(self, segment):
+        # Seek internal records up to segment, updated self._overlapping
+        # and self._nearest
+
+        # Clear out any non-overlapping features from self._overlapping
+        if self._overlapping:
+            i = 0
+            while i < len(self._overlapping):
+                if self.are_overlapping(segment, self._overlapping[i]):
+                    i += 1
+                else:
+                    del self._overlapping[i]
+
+        # If any are overlapping, nearest is 0 distance
+        if self._overlapping:
+            nearest_dist = 0
+            self._nearest = self._overlapping[0]
+        elif self._nearest is not None:
+            # Closest feature will start as the closest from the last iteration
+            nearest_dist = self.distance(self._nearest, segment)
+        else:
+            assert not self._has_next
+
+        # Scan through features until we get past segment
+        if self._has_next:
+            segment_start = segment['start']
+            segment_end = segment['end']
+            while self._current['start'] < segment_end:
+                # dist will be negative if this overlaps
+                dist = segment_start - self._current['end'] + 1
+                if dist < 0:
+                    self._overlapping.append(self._current)
+
+                if dist < nearest_dist:
+                    self._nearest = self._current
+                    nearest_dist = dist
+
+                try:
+                    self._current = self._iter.next()
+                except StopIteration:
+                    self._has_next = False
+                    break
+
+            # Check distance of first feature past segment as well
+            dist = self._current['start'] - segment_end + 1
+            if dist < nearest_dist:
+                self._nearest = self._current
+                nearest_dist = dist
+
+    def nearest(self, segment):
+        """Return a list of the nearest features for the next segment
+
+        This will contain a single feature if no features overlap the given
+        segment, else it will be a list of features that overlap.
+
+        If no features were found at all, this will be None.
+
+        Should be called with in-order segments
+
+        """
+        self._seek(segment)
+        if self._overlapping:
+            return self._overlapping
+        elif self._nearest is None:
+            return None
+        else:
+            return self._nearest
+
+
 ## UTILITY FUNCTIONS
 
 ## Die with error message

@@ -74,84 +74,78 @@ label.colors <-
 }
 
 panel.overlap <-
-  function(x, y, groups, subscripts, labels, colors, reference, 
-           plot.text = TRUE, plot.points = FALSE, significances = NULL, ...)
+  function(x, y, groups, subscripts, labels, colors,
+           plot.text = TRUE, plot.points = TRUE, ...)
 {
-  ## Plot x == y reference line
-  ## panel.abline(c(0, 1), reference = TRUE, ...)
-
   if (plot.points) {
-    panel.xyplot(x, y, groups = groups, col = colors, 
+    panel.xyplot(x, y, pch = 20, col = "black",
                  subscripts = subscripts, ...)
   }
 
   if (plot.text) {
     if (plot.points) {
-      pos <- 1
-      offset <- 1
+      adj <- c(-0.25, -0.25)
     } else {
-      pos <- NULL
-      offset <- NULL
+      adj <- NULL
     }
     panel.text(x, y, 
                labels = labels,
                col = colors,
-               pos = pos,
-               offset = offset,
+               adj = adj,
                #cex = c(0.2, 0.9),
-               ...)
-  }
-
-  # Plot significances next to points
-  if (! is.null(significances)) {
-    significant <- significances < 0.05
-    panel.text(x[significant], y[significant],
-               labels = format(significances[significant], digits = 1),
-               col = "black",
-               pos = 4,
-               #cex = 0.8,
-               offset = 1,
                ...)
   }
 }
 
-# Returns a data table of tp/tn/fp/fn for the given counts
-overlap.stats <-
-  function(counts)
-{
+# Returns a data table of tp/fp/fn for the given counts
+overlap.stats <- function(counts, cumulative = TRUE) {
+  labels <- counts$label
   total.counts <- counts$total
   none.counts <- counts$none
   feature.counts <- subset(counts, select = -c(label, total, none))
-  total.sum <- sum(as.numeric(total.counts))
   feature.sums <- colSums(feature.counts)
+#  total.sum <- sum(as.numeric(total.counts))
+
   tp <- feature.counts
   fp <- total.counts - feature.counts
   fn <- t(feature.sums - t(feature.counts))
-  tn <- total.sum - total.counts - fn
+#  tn <- total.sum - total.counts - fn
 
-  res <- list()
-  res$label <- counts$label
-  res$tp <- tp
-  res$tn <- tn
-  res$fp <- fp
-  res$fn <- fn
-  res$col.names <- c("label",
-                     paste("tp", colnames(tp), sep = "."),
-                     paste("tn", colnames(tn), sep = "."),
-                     paste("fp", colnames(fp), sep = "."),
-                     paste("fn", colnames(fn), sep = "."))
+  if (cumulative) {
+    precision <- tp / (tp + fp)
+    ## Replace columns with cumulative data (sorted by precision)
+    for (col.i in 1:ncol(precision)) {
+      label.ord <- order(precision[, col.i], decreasing = TRUE)
+      ## Calculate cumulative statistics
+      total.cum <- cumsum(total.counts[label.ord])
+      tp.cum <- cumsum(feature.counts[label.ord, col.i])
+      fp.cum <- total.cum - tp.cum
+      fn.cum <- feature.sums[col.i] - tp.cum
+      tp[label.ord, col.i] <- tp.cum
+      fp[label.ord, col.i] <- fp.cum
+      fn[label.ord, col.i] <- fn.cum
+    }
+  }
+  
+  res <- list(label = labels,
+              tp = tp,
+              fp = fp,
+              fn = fn)
                      
   res
 }
 
-# Convert the stats to a single data frame (suitable for write.stats)
-stat.data.frame <-
-  function(stats)
-{
-  stat.df <- data.frame(stats$label, stats$tp, stats$tn, stats$fp, stats$fn)
-  colnames(stat.df) <- stats$col.names
+# Returns a data frame of p/r for the given counts
+pr.stats <- function(counts, ...) {
+  stats <- overlap.stats(counts, ...)
+
+  precision <- suppressMessages(melt(with(stats, tp / (tp + fp))))
+  recall <- suppressMessages(melt(with(stats, tp / (tp + fn))))
+
+  res <- data.frame(label = counts$label, factor = precision$variable,
+                    precision = precision$value, recall = recall$value)
   
-  stat.df
+  res
 }
 
 # Write a stat data frame to a file
@@ -167,17 +161,16 @@ write.stats <-
 xyplot.overlap <-
   function(data,
            metadata = NULL,
-#           x = tpr ~ fpr | factor, 
            x = precision ~ recall | factor, 
            small.cex = 1.0,
            large.cex = 1.0,
            as.table = TRUE,
            aspect = "fill",
+           cumulative = TRUE,
            auto.key = FALSE, #list(space = "right"),
-#           xlab = list("False positive rate (FP / (FP + TN))", cex = large.cex),
-#           ylab = list("True positive rate (TP / (TP + FN))", cex = large.cex),
            xlab = list("Recall (TP / (TP + FN))", cex = large.cex),
            ylab = list("Precision (TP / (TP + FP))", cex = large.cex),
+           sub = list("Cumulative P-R (left-to-right, by precision)")
            x.lim = c(0, 1),
            y.lim = c(0, 1),
            scales = list(cex = small.cex,
@@ -189,13 +182,9 @@ xyplot.overlap <-
            par.strip.text = list(cex = small.cex),
            ...)
 {
-  stats <- overlap.stats(data)
-  precision <- suppressMessages(melt(stats$tp / (stats$tp + stats$fp)))
-  recall <- suppressMessages(melt(stats$tp / (stats$tp + stats$fn)))
-  stats.merged <- data.frame(label = labels, factor = precision$variable,
-                            precision = precision$value, recall = recall$value)
-
-  xyplot(x, stats.merged, groups = label,
+  stats <- pr.stats(data, cumulative = cumulative)
+  
+  xyplot(x, stats, groups = label,
          as.table = as.table, 
          aspect = aspect,
          auto.key = auto.key,
@@ -252,76 +241,6 @@ save.overlap <- function(dirpath, namebase, tabfilename,
               height = height,
               clobber = clobber)
 }
-
-############### P-VALUE ANALYSIS ############
-
-read.pvalues <-  function(...) {
-  read.overlap(...)
-}
-
-panel.pvalues <- function(x, y, subscripts = NULL, groups = NULL,
-                          reference = 0.01, col = NULL, ...)
-{
-  ref.x <- log10(reference)
-  panel.refline(v = ref.x)
-  out.of.bounds = is.infinite(x)
-  x[out.of.bounds] <- min(x[!out.of.bounds]) * 2
-
-  panel.barchart(x, y, subscripts = subscripts, groups = groups,
-                 stacked = FALSE, col = col[y], ...)
-}
-
-barchart.pvalues <- function(data,
-                             x = reorder(label, -value) ~ value,
-                             groups = if (ngroups > 1) variable else NULL,
-                             as.table = TRUE,
-                             main = "Approximate significance of overlap",
-                             panel = panel.pvalues,
-                             xlab = "p-value",
-                             ylab = "Segment label",
-                             reference = 0.01,
-                             origin = 0,
-                             auto.key = if (ngroups > 1) list(points = FALSE)
-                                        else FALSE,
-                             colors = label.colors(data.melted$label),
-                             scales = list(x = list(log = TRUE)),
-                             ...)
-{
-  ## Create a barchart from overlap pvalue data
-  ##
-  ## data: a data frame containing pvalue data
-  
-  data.melted <- melt(data, id.vars = "label")
-  ngroups = nlevels(data.melted$variable)
-  
-  colors.ordered <- colors[order(-data.melted$value)]
-  xyplot(x = x,
-         data = data.melted,
-         groups = groups,
-         panel = panel,
-         as.table = as.table,
-         reference = reference,
-         main = main,
-         col = colors.ordered,
-         scales = scales,
-         origin = origin,
-         auto.key = auto.key,
-         xlab = xlab,
-         ylab = ylab,
-         #par.settings = list(clip = list(panel = "off")),
-         ...)
-}
-
-plot.overlap.pvalues <- function(tabfile, mnemonics = NULL,
-                                 col_mnemonics = NULL,
-                                 comment.char = "#", ...) {
-  ## Plot the overlap pvalue data
-  pvalues <- read.pvalues(tabfile, mnemonics = mnemonics,
-                          col_mnemonics = col_mnemonics,
-                          comment.char = comment.char)
-  barchart.pvalues(pvalues, ...)
-}
-
 
 ############### OVERLAP HEATMAP ############
 

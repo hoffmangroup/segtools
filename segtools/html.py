@@ -40,7 +40,7 @@ def list2html(list, code=False, link=False):
     """
     If link is True: each element of the list should be a (divID, label) tuple
     """
-    result = "<ul>"
+    result = ["<ul>"]
     entrystr = "%s"
     if link:
         entrystr = '<a href="#%s">%s</a>'
@@ -49,35 +49,45 @@ def list2html(list, code=False, link=False):
 
     entrystr = "<li>%s</li>" % entrystr
     for entry in list:
-        result += entrystr % entry
-    return result + "</ul>"
+        result.append(entrystr % entry)
+
+    result.append("</ul>")
+    return "".join(result)
 
 def tab2html(tabfile, header=True):
     """
     Given a tab file table with a header row, generates an html string which
     for pretty-display of the table data.
     """
-    result = '\n<table border="1" cellpadding="4" cellspacing="1">'
+
+    result = []
+    result.append('\n<table border="1" cellpadding="4" cellspacing="1">')
     # if the tabfile exists, write in htmlhandle an html table
     with open(tabfile) as ifp:
         if header:
             # first read the first line, and write the header row
             line = ifp.readline()
             fields = line.split("\t")
-            result += "<tr>"
-            for f in fields:
-                result += '<td style="background-color: \
-rgb(204, 204, 204)">%s</td>' % f
-            result += "</tr>"
+            result.append("<tr>")
 
-        for line in ifp:
-            result += "<tr>"
+            for f in fields:
+                result.append('<td style="background-color:'
+                             'rgb(204, 204, 204)">%s</td>' % f)
+
+            result.append("</tr>")
+
+        lines = ifp.readlines()
+        rownames = [line.split("\t")[0] for line in lines]
+        for line in lines:
+            result.append("<tr>")
             fields = line.split("\t")
             for f in fields:
-                result += "<td>%s</td>" % f
-            result += "</tr>"
-    result += "</table>\n"
-    return result
+                result.append("<td>%s</td>" % f)
+
+            result.append("</tr>")
+
+    result.append("</table>\n")
+    return "\n".join(result)
 
 def find_output_files(dirpath, namebase, d={}, tag=""):
     exts = NICE_EXTS
