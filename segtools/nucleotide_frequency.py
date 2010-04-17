@@ -21,7 +21,7 @@ from numpy import zeros
 from rpy2.robjects import r, numpy2ri
 
 from . import Segmentation
-from .common import die, get_ordered_labels, image_saver, make_namebase_summary, make_tabfilename, map_mnemonics, r_source, setup_directory, tab_saver
+from .common import die, make_tabfilename, r_source, setup_directory, tab_saver
 
 from .html import save_html_div
 
@@ -38,7 +38,6 @@ FIELDNAMES = ["label", "A|T", "C|G", "?", "AA|TT", "AC|GT",
               "AG|CT", "AT", "CA|TG", "CC|GG", "CG", "GA|TC", "GC", "TA",
               "??"]
 NAMEBASE = "%s" % MODULE
-NAMEBASE_SUMMARY = make_namebase_summary(NAMEBASE)
 
 NUC_CATEGORIES = [('A','T'), ('C', 'G')]
 DINUC_CATEGORIES = [[('A', 'A'), ('T', 'T')],
@@ -160,36 +159,6 @@ def save_tab(labels, nuc_counts, dinuc_counts, dirpath,
                            dinuc_counts[label_key])
             saver.writerow(row)
 
-
-def make_summary_row(label, nuc_counts, dinuc_counts, fieldnames=FIELDNAMES):
-    row = {}
-    nuc_sum = nuc_counts.sum()
-    dinuc_sum = dinuc_counts.sum()
-    for i, field in enumerate(fieldnames):
-        if field == "label":
-            row[field] = label
-        elif i <= len(nuc_counts):
-            # Compensate for "label" field
-            row[field] = "%.3f" % (nuc_counts[i - 1] / nuc_sum)
-        else:
-            # Compensate for "label" and nucleotide fields
-            row[field] = "%.3f" % (dinuc_counts[i - len(nuc_counts) - 1] / \
-                                       dinuc_sum)
-    return row
-
-# Fieldnames must agree with categories in order and content
-# with a "label" category at the beginning, and nuc before dinuc
-def save_summary_tab(labels, nuc_counts, dinuc_counts, dirpath,
-             fieldnames=FIELDNAMES, clobber=False, mnemonics=[]):
-    ordered_keys, labels = get_ordered_labels(labels, mnemonics)
-    with tab_saver(dirpath, NAMEBASE_SUMMARY,
-                   fieldnames, clobber=clobber) as saver:
-        for label_key in ordered_keys:
-            row = make_summary_row(labels[label_key],
-                                   nuc_counts[label_key],
-                                   dinuc_counts[label_key])
-            saver.writerow(row)
-
 def save_plot(dirpath, clobber=False, mnemonic_file="", namebase=NAMEBASE):
     start_R()
 
@@ -206,7 +175,7 @@ def save_plot(dirpath, clobber=False, mnemonic_file="", namebase=NAMEBASE):
 
 def save_html(dirpath, clobber=False, mnemonicfile=None):
     save_html_div(HTML_TEMPLATE_FILENAME, dirpath, NAMEBASE, clobber=clobber,
-                  tables={"":NAMEBASE_SUMMARY}, module=MODULE,
+                  tables={"":NAMEBASE}, module=MODULE,
                   mnemonicfile=mnemonicfile, title=HTML_TITLE)
 
 ## Package entry point
@@ -215,9 +184,7 @@ def validate(bedfilename, genomedatadir, dirpath, clobber=False, quick=False,
     setup_directory(dirpath)
     if not replot:
         segmentation = Segmentation(bedfilename)
-
         labels = segmentation.labels
-        mnemonics = map_mnemonics(labels, mnemonicfilename)
 
         with Genome(genomedatadir) as genome:
             nuc_counts, dinuc_counts = \
@@ -225,8 +192,6 @@ def validate(bedfilename, genomedatadir, dirpath, clobber=False, quick=False,
                                                     genome, quick=quick)
 
         save_tab(labels, nuc_counts, dinuc_counts, dirpath, clobber=clobber)
-        save_summary_tab(labels, nuc_counts, dinuc_counts, dirpath,
-                         clobber=clobber, mnemonics=mnemonics)
 
     if not noplot:
         save_plot(dirpath, clobber=clobber, mnemonic_file=mnemonicfilename)

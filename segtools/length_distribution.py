@@ -23,7 +23,7 @@ from numpy import concatenate, median
 from rpy2.robjects import r, numpy2ri
 
 from . import Segmentation
-from .common import die, get_ordered_labels, image_saver, LABEL_ALL, make_tabfilename, map_mnemonics, r_source, setup_directory, tab_saver
+from .common import die, get_ordered_labels, LABEL_ALL, make_tabfilename, map_mnemonics, r_source, setup_directory, tab_saver
 
 from .html import save_html_div
 
@@ -85,9 +85,8 @@ def make_size_row(label, lengths, num_bp, total_bp):
 
 ## Saves the length summary data to a tab file, using mnemonics if specified
 def save_size_tab(lengths, labels, num_bp, dirpath,
-                     namebase=NAMEBASE_SIZES, clobber=False, mnemonics=None):
-    # Get mnemonic ordering and labels, if specified
-    ordered_keys, labels = get_ordered_labels(labels, mnemonics)
+                  namebase=NAMEBASE_SIZES, clobber=False):
+    ordered_keys, labels = get_ordered_labels(labels)
     with tab_saver(dirpath, namebase, FIELDNAMES_SUMMARY,
                    clobber=clobber) as saver:
         # "all" row first
@@ -146,13 +145,17 @@ def save_plot(dirpath, namebase=NAMEBASE, clobber=False,
                      clobber=clobber)
 
 ## Generates and saves an R plot of the length distributions
-def save_size_plot(dirpath, namebase=NAMEBASE_SIZES, clobber=False):
+def save_size_plot(dirpath, namebase=NAMEBASE_SIZES, clobber=False,
+                   mnemonic_file=""):
     start_R()
 
     # Load data from corresponding tab file
     tabfilename = make_tabfilename(dirpath, namebase)
     if not os.path.isfile(tabfilename):
         die("Unable to find tab file: %s" % tabfilename)
+
+    if not mnemonic_file:
+        mnemonic_file = ""  # None cannot be passed to R
 
     r["save.segment.sizes"](dirpath, namebase, tabfilename,
                             clobber=clobber)
@@ -176,12 +179,12 @@ def validate(bedfilename, dirpath, clobber=False, replot=False, noplot=False,
 
         lengths, num_bp=segmentation_lengths(segmentation)
         save_tab(lengths, labels, num_bp, dirpath, clobber=clobber)
-        save_size_tab(lengths, labels, num_bp, dirpath,
-                         clobber=clobber, mnemonics=mnemonics)
+        save_size_tab(lengths, labels, num_bp, dirpath, clobber=clobber)
 
     if not noplot:
         save_plot(dirpath, clobber=clobber, mnemonic_file=mnemonicfilename)
-        save_size_plot(dirpath, clobber=clobber)
+        save_size_plot(dirpath, clobber=clobber,
+                       mnemonic_file=mnemonicfilename)
 
     save_html(dirpath, clobber=clobber, mnemonicfile=mnemonicfilename)
 

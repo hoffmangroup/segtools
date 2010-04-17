@@ -19,8 +19,7 @@ __version__ = "$Revision$"
 import os
 import sys
 
-from numpy import array, NaN, ndarray
-from warnings import warn
+from numpy import array, NaN
 
 from . import Segmentation
 from .common import FeatureScanner, load_features

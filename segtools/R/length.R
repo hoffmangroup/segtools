@@ -123,13 +123,14 @@ save.length <- function(dirpath, namebase, tabfilename,
 ############### SEGMENT SIZES ###############
 
 read.segment.sizes <-
-  function(filename, ..., check.names = FALSE)
+  function(filename, mnemonics = NULL, ..., check.names = FALSE)
 {
   res.all <- read.delim(filename, ..., check.names = check.names)
 
   res <- res.all[res.all$label != "all",]
 
-  res$label <- factor(res$label)
+  res$label <- relevel.mnemonics(factor(res$label), mnemonics)
+  
   res$frac.segs <- res$num.segs / sum(res$num.segs)
 
   res
@@ -181,10 +182,11 @@ plot.segment.sizes <- function(filename, ...) {
 }
 
 save.segment.sizes <- function(dirpath, namebase, tabfilename,
-                               clobber = FALSE,
+                               clobber = FALSE, mnemonic_file = NULL,
                                height = 600, width = 800,
                                ...) {
-  data <- read.segment.sizes(tabfilename)
+  mnemonics <- read.mnemonics(mnemonic_file)
+  data <- read.segment.sizes(tabfilename, mnemonics = mnemonics)
   save.images(dirpath, namebase,
               barchart.segment.sizes(data = data, ...),
               height = height,

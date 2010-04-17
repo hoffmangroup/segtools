@@ -16,7 +16,6 @@ MODULE="feature_aggregation"
 
 __version__ = "$Revision$"
 
-import math
 import os
 import sys
 
@@ -26,7 +25,7 @@ from operator import itemgetter
 from rpy2.robjects import r, numpy2ri
 
 from . import Segmentation
-from .common import die, fill_array, get_ordered_labels, image_saver, load_gff_data, make_tabfilename, map_mnemonics, map_segments, maybe_gzip_open, r_source, setup_directory, tab_saver
+from .common import die, fill_array, get_ordered_labels, load_gff_data, make_tabfilename, map_mnemonics, map_segments, maybe_gzip_open, r_source, setup_directory, tab_saver
 
 from .html import list2html, save_html_div
 

@@ -11,17 +11,15 @@ Author: Orion Buske <stasis@uw.edu>
 Date:   August 18, 2009
 """
 
-import math
 import os
 import sys
 
 from collections import defaultdict
-from math import ceil
 from numpy import bincount, cast, iinfo, invert, logical_or, zeros
 from rpy2.robjects import r, numpy2ri
 
 from . import Segmentation
-from .common import check_clobber, die, get_ordered_labels, image_saver, load_features, make_tabfilename, map_mnemonics, r_source, setup_directory, SUFFIX_GZ, tab_saver
+from .common import check_clobber, die, get_ordered_labels, load_features, make_tabfilename, map_mnemonics, r_source, setup_directory, SUFFIX_GZ, tab_saver
 from .html import save_html_div
 
 # A package-unique, descriptive module name used for filenames, etc
