@@ -14,10 +14,13 @@ import re
 import sys
 import time
 
+from functools import partial
+from pkg_resources import resource_string
 from shutil import copy
+from string import Template
 
 from . import Segmentation
-from .common import check_clobber, die, make_divfilename, make_id, make_filename, make_tabfilename, NICE_EXTS, template_substitute
+from .common import check_clobber, die, get_ordered_labels, make_divfilename, make_id, make_filename, make_tabfilename, map_mnemonics, NICE_EXTS, PKG_RESOURCE
 
 MNEMONIC_TEMPLATE_FILENAME = "mnemonic_div.tmpl"
 HEADER_TEMPLATE_FILENAME = "html_header.tmpl"
@@ -32,6 +35,15 @@ GENOMEBROWSER_LINK_TMPL = """
 <li>Link to view this segmentation in the UCSC genome browser:<br />
 <script type="text/javascript">print_genomebrowser_link("%s");</script>
 </li>"""
+
+template_string = partial(resource_string, PKG_RESOURCE)
+
+def template_substitute(filename):
+    """
+    Simplify import resource strings in the package
+    """
+    return Template(template_string(filename)).safe_substitute
+
 def tuple2link(entry):
     """entry should be a (url, text) tuple"""
     return '<a href="%s">%s</a>' % entry
@@ -54,19 +66,25 @@ def list2html(list, code=False, link=False):
     result.append("</ul>")
     return "".join(result)
 
-def tab2html(tabfile, header=True):
+def tab2html(tabfile, header=True, mnemonicfile=None):
     """
     Given a tab file table with a header row, generates an html string which
     for pretty-display of the table data.
     """
+    if not os.path.isfile(tabfile):
+        return "<File not found>"
 
     result = []
     result.append('\n<table border="1" cellpadding="4" cellspacing="1">')
     # if the tabfile exists, write in htmlhandle an html table
     with open(tabfile) as ifp:
-        if header:
-            # first read the first line, and write the header row
+        # Read past comments
+        line = ifp.readline()
+        while line.startswith("#"):
             line = ifp.readline()
+
+        if header:
+            # Write colname row from header row of file
             fields = line.split("\t")
             result.append("<tr>")
 
@@ -75,12 +93,21 @@ def tab2html(tabfile, header=True):
                              'rgb(204, 204, 204)">%s</td>' % f)
 
             result.append("</tr>")
+            line = ifp.readline()
 
-        lines = ifp.readlines()
-        rownames = [line.split("\t")[0] for line in lines]
-        for line in lines:
+        lines = [line] + ifp.readlines()
+        row_dict = dict([line.split("\t", 1) for line in lines])
+        # Make basic labels for row names
+        row_labels = dict(zip(range(0, len(row_dict)), row_dict.keys()))
+        # Substitute these labels with mnemonics
+        mnemonics = map_mnemonics(row_labels, mnemonicfile)
+        row_order, new_row_labels = get_ordered_labels(row_labels, mnemonics)
+        for row_key in row_order:
             result.append("<tr>")
-            fields = line.split("\t")
+            row_name = new_row_labels[row_key]
+            line = row_dict[row_labels[row_key]]
+            fields = [row_name]
+            fields.extend(line.split("\t"))
             for f in fields:
                 result.append("<td>%s</td>" % f)
 
@@ -101,8 +128,8 @@ def find_output_files(dirpath, namebase, d={}, tag=""):
 
     return d
 
-def form_template_dict(dirpath, namebase, module=None,
-                       extra_namebases={}, **kwargs):
+def form_template_dict(dirpath, namebase, module=None, extra_namebases={},
+                       mnemonicfile=None, tables={}, **kwargs):
     """
     Given information about the current validation, generates a dictionary
     suitable for HTML template substitution.
@@ -120,11 +147,11 @@ def form_template_dict(dirpath, namebase, module=None,
     an id variable will be generated based upon the module and dirpath
     (a pseudo-unique identifier for the div file).
 
-    Any keyword arguments of the form <prefix>tablenamebase
-    will be assumed to refer to a table tab files and will be converted to
-    html form and linked in under a variable named <prefix>table.
-    The corresponding tab file is linked under a variable named
-    <prefix>tablefilename.
+    tables: a dict from tag -> to table file namebase string.
+    The rownames of the tables will try to be substituted with the mnemonics
+    in mnemonicfile, if provided. Variable of the form <tag>table and
+    <tag>tablefilename will be created with the table HTML and table file
+    name, respectively.
 
     Any other keyword args supplied are linked into the dictionary.
     """
@@ -139,21 +166,18 @@ def form_template_dict(dirpath, namebase, module=None,
         assert arg not in d
         d[arg] = make_id(module, dirpath)
 
+    # Add any tables
+    for tag, table in tables.iteritems():
+        tablefilename = make_tabfilename(dirpath, table)
+        filearg = "%stablefilename" % tag
+        tablearg = "%stable" % tag
+        val = tab2html(tablefilename, mnemonicfile=mnemonicfile)
+        assert filearg not in d and tablearg not in d  # Don't overwrite
+        d[filearg] = tablefilename
+        d[tablearg] = val
+
     for arg, val in kwargs.iteritems():
-        index = arg.rfind("tablenamebase")
-        if index >= 0: # arg ends with "tablenamebase"
-            tablefilename = make_tabfilename(dirpath, val)
-            if os.path.isfile(tablefilename):
-                # Save html table under variable
-                prefix = arg[0:index]
-                arg = "%stable" % prefix
-                val = tab2html(tablefilename)
-                # Save table tab file under separate variable
-                filearg = "%stablefilename" % prefix
-                assert filearg not in d
-                d[filearg] = tablefilename
-            # else leave arg and val the way they were
-        assert arg not in d  # Make sure wer're not overwriting anything
+        assert arg not in d  # Don't overwrite
         d[arg] = val
 
     return d
@@ -170,6 +194,7 @@ def write_html_div(dirpath, namebase, html, clobber=False):
 
 def save_html_div(template_filename, dirpath, namebase,
                   clobber=False, **kwargs):
+    """Save an HTML div file for a module run by subsituting a template file"""
     fields = form_template_dict(dirpath, namebase, **kwargs)
 
     try:

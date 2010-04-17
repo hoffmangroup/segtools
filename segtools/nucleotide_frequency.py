@@ -204,10 +204,10 @@ def save_plot(dirpath, clobber=False, mnemonic_file="", namebase=NAMEBASE):
                     mnemonic_file=mnemonic_file,
                     clobber=clobber)
 
-def save_html(dirpath, clobber=False):
+def save_html(dirpath, clobber=False, mnemonicfile=None):
     save_html_div(HTML_TEMPLATE_FILENAME, dirpath, NAMEBASE, clobber=clobber,
-                  tablenamebase=NAMEBASE_SUMMARY, module=MODULE,
-                  title=HTML_TITLE)
+                  tables={"":NAMEBASE_SUMMARY}, module=MODULE,
+                  mnemonicfile=mnemonicfile, title=HTML_TITLE)
 
 ## Package entry point
 def validate(bedfilename, genomedatadir, dirpath, clobber=False, quick=False,
@@ -231,7 +231,7 @@ def validate(bedfilename, genomedatadir, dirpath, clobber=False, quick=False,
     if not noplot:
         save_plot(dirpath, clobber=clobber, mnemonic_file=mnemonicfilename)
 
-    save_html(dirpath, clobber=clobber)
+    save_html(dirpath, clobber=clobber, mnemonicfile=mnemonicfilename)
 
 def parse_options(args):
     from optparse import OptionParser

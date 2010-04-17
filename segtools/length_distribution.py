@@ -157,11 +157,11 @@ def save_size_plot(dirpath, namebase=NAMEBASE_SIZES, clobber=False):
     r["save.segment.sizes"](dirpath, namebase, tabfilename,
                             clobber=clobber)
 
-def save_html(dirpath, clobber=False):
+def save_html(dirpath, clobber=False, mnemonicfile=None):
     extra_namebases = {"sizes": NAMEBASE_SIZES}
     save_html_div(TEMPLATE_FILENAME, dirpath, namebase=NAMEBASE,
-                  extra_namebases=extra_namebases,
-                  tablenamebase=NAMEBASE_SIZES, module=MODULE,
+                  extra_namebases=extra_namebases, mnemonicfile=mnemonicfile,
+                  tables={"":NAMEBASE_SIZES}, module=MODULE,
                   clobber=clobber, title=HTML_TITLE)
 
 ## Package entry point
@@ -183,7 +183,7 @@ def validate(bedfilename, dirpath, clobber=False, replot=False, noplot=False,
         save_plot(dirpath, clobber=clobber, mnemonic_file=mnemonicfilename)
         save_size_plot(dirpath, clobber=clobber)
 
-    save_html(dirpath, clobber=clobber)
+    save_html(dirpath, clobber=clobber, mnemonicfile=mnemonicfilename)
 
 def parse_options(args):
     from optparse import OptionParser

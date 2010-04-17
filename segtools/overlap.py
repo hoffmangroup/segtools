@@ -296,7 +296,8 @@ def save_heatmap_plot(dirpath, namebase=NAMEBASE, clobber=False,
                               col_mnemonic_file=col_mnemonic_file,
                               clobber=clobber, cluster=cluster)
 
-def save_html(dirpath, bedfilename, featurefilename, mode, clobber=False):
+def save_html(dirpath, bedfilename, featurefilename, mode,
+              mnemonicfile=None, clobber=False):
     bedfilename = os.path.basename(bedfilename)
     featurebasename = os.path.basename(featurefilename)
     extra_namebases = {"heatmap": HEATMAP_NAMEBASE}
@@ -305,8 +306,8 @@ def save_html(dirpath, bedfilename, featurefilename, mode, clobber=False):
 
     significance = ""
     save_html_div(HTML_TEMPLATE_FILENAME, dirpath, NAMEBASE, clobber=clobber,
-                  title=title, tablenamebase=NAMEBASE,
-                  extra_namebases = extra_namebases,
+                  title=title, tables={"":NAMEBASE}, mnemonicfile=mnemonicfile,
+                  extra_namebases=extra_namebases,
                   module=MODULE, by=mode, significance=significance,
                   bedfilename=bedfilename, featurefilename=featurebasename)
 
@@ -378,8 +379,8 @@ use the appropriate extension")
     if verbose:
         print >>sys.stderr, "Saving HTML div...",
 
-    sys.stdout.flush()  # Necessary to make sure html errors don't clobber print
-    save_html(dirpath, bedfilename, featurefilename, mode=mode, clobber=clobber)
+    save_html(dirpath, bedfilename, featurefilename, mode=mode,
+              mnemonicfile=mnemonic_filename, clobber=clobber)
     if verbose:
         print >>sys.stderr, "done"
 

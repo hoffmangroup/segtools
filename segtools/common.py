@@ -20,8 +20,7 @@ from genomedata import Genome
 from gzip import open as _gzip_open
 from numpy import array, concatenate, empty, iinfo, logical_and, uint16, uint32, int64
 from operator import itemgetter
-from pkg_resources import resource_filename, resource_string
-from string import Template
+from pkg_resources import resource_filename
 from tabdelim import DictReader, DictWriter, ListReader, ListWriter
 from rpy2.robjects import r, rinterface, numpy2ri
 # numpy2ri imported for side-effect
@@ -70,7 +69,6 @@ DTYPE_TRANSCRIPT_ID = '|S%d' % MAXLEN_ID_DTYPE
 #FEATURE_FIELDS = ["chrom", "source", "name", "start", "end", "score", "strand"]
 
 r_filename = partial(resource_filename, PKG_R)
-template_string = partial(resource_string, PKG_RESOURCE)
 
 
 ## Wrapper for gff/gtf feature data
@@ -351,12 +349,6 @@ def r_source(filename):
         r.source(r_filename(filename))
     except rinterface.RRuntimeError:
         die("Failed to load R package: %s\n" % filename)
-
-def template_substitute(filename):
-    """
-    Simplify import resource strings in the package
-    """
-    return Template(template_string(filename)).substitute
 
 @contextmanager
 def tab_saver(dirpath, basename, fieldnames=None, header=True,
@@ -646,7 +638,7 @@ def get_ordered_labels(labels, mnemonics=[]):
 ## every old_label, and their ordering specifies the desired display order
 ## Labels should be a dict of label_keys -> label strings
 def map_mnemonics(labels, mnemonicfilename, field="new"):
-    if mnemonicfilename is None:
+    if not mnemonicfilename:
         return []
 
     label_order, label_data = load_mnemonics(mnemonicfilename)

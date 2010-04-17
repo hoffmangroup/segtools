@@ -170,7 +170,7 @@ xyplot.overlap <-
            auto.key = FALSE, #list(space = "right"),
            xlab = list("Recall (TP / (TP + FN))", cex = large.cex),
            ylab = list("Precision (TP / (TP + FP))", cex = large.cex),
-           sub = list("Cumulative P-R (left-to-right, by precision)")
+           sub = list("Cumulative P-R (left-to-right, by precision)"),
            x.lim = c(0, 1),
            y.lim = c(0, 1),
            scales = list(cex = small.cex,
