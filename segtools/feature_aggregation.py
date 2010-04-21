@@ -553,6 +553,7 @@ def load_gtf_data(gtf_filename, min_exons=MIN_EXONS, min_cdss=MIN_CDSS):
 
         # Select only longest transcript
         transcript_id, transcript = get_longest_transcript(transcript_dict)
+#        print "%s: %s" % (transcript_id, transcript)
         gene_model = interpret_features_as_gene(transcript,
                                                 min_exons=min_exons,
                                                 min_cdss=min_cdss)
@@ -560,13 +561,13 @@ def load_gtf_data(gtf_filename, min_exons=MIN_EXONS, min_cdss=MIN_CDSS):
         if gene_model is not None:
             # Add features to a normal, chrom-based feature dict
             for gene_part in gene_model:
-#                 print str(gene_part)
+#                print str(gene_part)
                 chrom, start, end, strand, component, source = gene_part
                 feature = dict(start=start, end=end, strand=strand,
                                name=component, source=source)
                 data[chrom].append(feature)
 
-#         raw_input()
+#        raw_input()
 
     # Sort features by ascending start
     for chrom_features in data.itervalues():
@@ -683,10 +684,13 @@ def make_row(labels, row_data):
 
 ## Saves the data to a tab file
 def save_tab(segmentation, labels, counts, components, component_bins,
-             counted_features, dirpath, clobber=False, namebase=NAMEBASE,
-             spacers=len(EXON_COMPONENTS)):
-    metadata = {"num_features": counted_features,
-                "spacers": spacers}
+             counted_features, dirpath, mode,
+             clobber=False, namebase=NAMEBASE):
+    metadata = {"num_features": counted_features}
+    # Add metadata to tell R how to display gene model.
+    if mode == GENE_MODE:
+        metadata["spacers"] = len(EXON_COMPONENTS)
+
     label_keys, labels = get_ordered_labels(labels)
     for label_key in label_keys:
         label = labels[label_key]
@@ -753,7 +757,7 @@ def save_html(dirpath, featurefilename, mode, num_features, groups,
                   title=title, yaxis=yaxis)
 
 def print_array(arr, tag="", type="%d"):
-    fstring = "%%s:  %s, %s, ..., %s, ..., %s, %s" % tuple([type]*5)
+    fstring = "%%s: \t%s, %s, ..., %s, ..., %s, %s" % tuple([type]*5)
     print >>sys.stderr, fstring % (tag,
                                    arr[0],
                                    arr[1],
@@ -829,7 +833,7 @@ def validate(bedfilename, featurefilename, dirpath,
                                 (group, component_name))
 
         save_tab(segmentation, labels, counts, components, component_bins,
-                 counted_features, dirpath, clobber=clobber)
+                 counted_features, dirpath, mode, clobber=clobber)
 
     if not noplot:
         save_plot(dirpath, clobber=clobber,
@@ -857,10 +861,10 @@ def parse_options(args):
 
     group = OptionGroup(parser, "Input options")
     group.add_option("--mnemonic-file", dest="mnemonicfilename",
-                      default=None,
+                      default=None, metavar="FILE",
                       help="If specified, labels will be shown using"
-                      " mnemonics found in this file")
-    group.add_option("-o", "--outdir",
+                      " mnemonics found in FILE")
+    group.add_option("-o", "--outdir", metavar="DIR",
                       dest="outdir", default="%s" % MODULE,
                       help="File output directory (will be created"
                       " if it does not exist) [default: %default]")
@@ -884,7 +888,7 @@ def parse_options(args):
     group.add_option("--groups", action="store_true",
                      dest="by_groups", default=False,
                      help="Separate data into different groups based upon"
-                     " FEATUREFILE feature field"
+                     " FEATUREFILE's feature field"
                      " if --mode=region or --mode=point. Does"
                      " nothing if --mode=gene.")
     group.add_option("--normalize", action="store_true",
@@ -898,29 +902,29 @@ def parse_options(args):
     group = OptionGroup(parser, "Main aggregation options")
     group.add_option("-m", "--mode", choices=MODES,
                      dest="mode", type="choice", default=DEFAULT_MODE,
-                     help="one of: "+str(MODES)+", --gene not implemented"
-                     " [default: %default]")
-    group.add_option("-f", "--flank-bins",
+                     help="one of: "+str(MODES)+". [default: %default]")
+    group.add_option("-f", "--flank-bases", metavar="N",
                      dest="flankbins", type="int", default=FLANK_BINS,
                      help="Aggregate this many base pairs off each"
                      " end of feature or gene [default: %default]")
-    group.add_option("-r", "--region-bins", type="int",
+    group.add_option("-r", "--region-samples", type="int", metavar="N",
                      dest="regionbins", default=REGION_BINS,
                      help="If --mode=region, aggregate over each internal"
-                     "feature using this many evenly-spaced bins"
-                     " [default: %default]")
+                     " feature by taking this many evenly-spaced samples."
+                     " Warning: features with a length < N will be excluded"
+                     " from the results [default: %default]")
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Gene aggregation options")
-    group.add_option("-i", "--intron-bins", type="int",
+    group.add_option("-i", "--intron-samples", type="int", metavar="N",
                      dest="intronbins", default=INTRON_BINS,
                      help="Aggregate over each intron"
-                     "using this many evenly-spaced bins"
+                     " by taking this many evenly-spaced samples"
                      " [default: %default]")
-    group.add_option("-e", "--exon-bins", type="int",
+    group.add_option("-e", "--exon-samples", type="int", metavar="N",
                      dest="exonbins", default=EXON_BINS,
                      help="Aggregate over each exon"
-                     "using this many evenly-spaced bins"
+                     " by taking this many evenly-spaced samples"
                      " [default: %default]")
 #     group.add_option("--min-exons", type="int",
 #                      dest="min_exons", default=MIN_EXONS,

@@ -21,20 +21,23 @@
     </script>
 
     <h1>Results of Segtools (exploratory segmentation analysis)</h1>
-    <ul>
-      <li>Segmentation file: 
-        <code>
-          $bedfilename
-          $otherbeds
-        </code>
-      </li>
-      <li>Software used to obtain the segmentation: <code>$segtool</code></li>
-      <li>Segmentation created using <code>$numsegtracks</code> tracks:</li>
+    <center><h2>Table of contents</h2></center>
+    $modules
+    <br />
+    <hr>
+    <div id="description">
+      <h2><a href="#">^</a>  Segmentation information</h2>
+      <ul>
+        <li>Segmentation file: 
+          <code>
+            $bedfilename
+            $otherbeds
+          </code>
+        </li>
+        <li>Software used to obtain the segmentation: <code>$segtool</code></li>
+        <li>Segmentation created using <code>$numsegtracks</code> tracks:</li>
         $segtracks
-      <li>Segmentation file last modified: <code>$bedmtime</code></li>
-      $genomebrowserlink
-      <br />
-      <li>Modules run:
-        $modules
-      </li>
-    </ul>
+        <li>Segmentation file last modified: <code>$bedmtime</code></li>
+        $genomebrowserlink
+      </ul>
+    </div>

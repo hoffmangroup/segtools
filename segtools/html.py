@@ -36,6 +36,9 @@ GENOMEBROWSER_LINK_TMPL = """
 <script type="text/javascript">print_genomebrowser_link("%s");</script>
 </li>"""
 
+DESCRIPTION_MODULE = ("description", "Segmentation information")
+MNEMONIC_MODULE = ("mnemonics", "Mnemonics")
+
 template_string = partial(resource_string, PKG_RESOURCE)
 
 def template_substitute(filename):
@@ -64,7 +67,7 @@ def list2html(list, code=False, link=False):
         result.append(entrystr % entry)
 
     result.append("</ul>")
-    return "".join(result)
+    return "\n".join(result)
 
 def tab2html(tabfile, header=True, mnemonicfile=None):
     """
@@ -96,22 +99,26 @@ def tab2html(tabfile, header=True, mnemonicfile=None):
             line = ifp.readline()
 
         lines = [line] + ifp.readlines()
-        row_dict = dict([line.split("\t", 1) for line in lines])
+        rows = [line.split("\t") for line in lines]
+        row_names = [row[0] for row in rows]
         # Make basic labels for row names
-        row_labels = dict(zip(range(0, len(row_dict)), row_dict.keys()))
-        # Substitute these labels with mnemonics
-        mnemonics = map_mnemonics(row_labels, mnemonicfile)
-        row_order, new_row_labels = get_ordered_labels(row_labels, mnemonics)
-        for row_key in row_order:
-            result.append("<tr>")
-            row_name = new_row_labels[row_key]
-            line = row_dict[row_labels[row_key]]
-            fields = [row_name]
-            fields.extend(line.split("\t"))
-            for f in fields:
-                result.append("<td>%s</td>" % f)
+        row_order = range(0, len(rows))
+        row_labels = dict(zip(row_order, row_names))
+        if mnemonicfile:
+            # Substitute these labels with mnemonics
+            mnemonics = map_mnemonics(row_labels, mnemonicfile)
+            row_order, row_labels = get_ordered_labels(row_labels,
+                                                           mnemonics)
 
-            result.append("</tr>")
+        for row_key in row_order:
+            entry = ["<tr>"]
+            row_name = row_labels[row_key]
+            fields = rows[row_key]
+            for f in fields:
+                entry.append("<td>%s</td>" % f)
+
+            entry.append("</tr>")
+            result.append("".join(entry))
 
     result.append("</table>\n")
     return "\n".join(result)
@@ -151,7 +158,10 @@ def form_template_dict(dirpath, namebase, module=None, extra_namebases={},
     The rownames of the tables will try to be substituted with the mnemonics
     in mnemonicfile, if provided. Variable of the form <tag>table and
     <tag>tablefilename will be created with the table HTML and table file
-    name, respectively.
+    name, respectively. The dict value can also be a tuple of two elements,
+    where the first is the namebase string and the second is a string
+    mode. Currently, only None and "exact" are supported,
+    with the latter causing the table to not be mnemonic-substituted.
 
     Any other keyword args supplied are linked into the dictionary.
     """
@@ -168,10 +178,21 @@ def form_template_dict(dirpath, namebase, module=None, extra_namebases={},
 
     # Add any tables
     for tag, table in tables.iteritems():
+        if isinstance(table, tuple):
+            table, tablemode = table
+        else:
+            tablemode = None
+
         tablefilename = make_tabfilename(dirpath, table)
         filearg = "%stablefilename" % tag
         tablearg = "%stable" % tag
-        val = tab2html(tablefilename, mnemonicfile=mnemonicfile)
+        if tablemode is None:
+            val = tab2html(tablefilename, mnemonicfile=mnemonicfile)
+        elif tablemode == "exact":
+            val = tab2html(tablefilename)
+        else:
+            raise ValueError("Invalid table mode: %s" % tablemode)
+
         assert filearg not in d and tablearg not in d  # Don't overwrite
         d[filearg] = tablefilename
         d[tablearg] = val
@@ -374,8 +395,9 @@ def main(args=sys.argv[1:]):
             " module output directories or specify the --results-dir option")
 
     body = []
-    modules = []
+    modules = [DESCRIPTION_MODULE]
     if mnemonicfile is not None:
+        modules.append(MNEMONIC_MODULE)
         body.append(form_mnemonic_div(mnemonicfile, results_dir, clobber))
 
     regex = re.compile('"module" id="(.*?)".*?<h.>.*?</a>\s*(.*?)\s*</h.>',

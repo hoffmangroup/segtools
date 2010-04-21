@@ -73,8 +73,13 @@ panel.scales <- function(data, layout, num_panels, x.axis = FALSE) {
     }
 
   range.y <- range(data$overlap, na.rm=TRUE)
-  min.y <- min(range.y[1], 0)
+  
+  ## Extend range for rug
+  ngroups <- nlevels(data$group)
+  rug.height <- if (ngroups > 1) 0.04 * ngroups * diff(range.y) else 0
+  min.y <- min(range.y[1], 0) - rug.height
   max.y <- max(range.y[2], 0)
+  
   limits.y <- extendrange(c(min.y, max.y))
   at.y <- unique(round(c(min.y, 0, max.y), digits = 2))
   scales <- list(x = list(relation = "free",
@@ -152,11 +157,7 @@ calc.signif <- function(count, total, random.prob) {
       }
     }
   signif <- min(signif, 1)
-##   signif <- -log10(signif)
-##   signif[!is.finite(signif)] <- Inf
-##   signif[signif > 20] <- 20
-##   signif <- if(count < expected) -signif else signif
-  
+
   signif
 }
 
@@ -170,8 +171,6 @@ process.counts <- function(data, label.sizes, pseudocount = 1,
   if (length(total.size) != 1) stop("Error summing label size vector")
   if (!is.finite(total.size)) stop("Unexpected sum of sizes (not finite)")
 
-  ##data.mat <- cast.aggregation(data)
-  
   ## Ideally, a multinomial test would be applied once for each bin
   ## (testing whether the distribution of overlaps by label is as expected),
   ## but the label-wise binomial seems a decent approximation.
@@ -188,13 +187,13 @@ process.counts <- function(data, label.sizes, pseudocount = 1,
       calc.signif(count, total, random.prob)
     }
 
+    pvals <- apply(cbind(cur.counts, labels.sum), 1, calc.row.signif)
+    data$significant[cur.rows] <- (is.finite(pvals) & (pvals < pval.thresh))
+
     if (normalize) {
       data$count[cur.rows] <- log2((cur.counts / labels.sum + 1) /
                                    (random.prob + 1))
     }
-    pvals <- apply(cbind(cur.counts, labels.sum), 1, calc.row.signif)
-    data$significant[cur.rows] <- (is.finite(pvals) & (pvals < pval.thresh))
-    ##data$count[cur.rows] <- -log10(pvals)
   }
   
   data
@@ -204,7 +203,8 @@ process.counts <- function(data, label.sizes, pseudocount = 1,
 panel.aggregation <- function(x, y, significant, ngroups, groups = NULL,
                               subscripts = NULL, font = NULL, col = NULL,
                               col.line = NULL, pch = NULL,
-                              group.number = NULL, ...) {
+                              group.number = NULL, rug.height = 0.03,
+                              rug.spacing = 0.01, ...) {
   ## hide 'font' from panel.segments, since it doesn't like having
   ## font and fontface
   panel.refline(h = 0)
@@ -225,8 +225,14 @@ panel.aggregation <- function(x, y, significant, ngroups, groups = NULL,
                     col = fill.col)
     } else {
       x.sig <- x[significant]
-      y.sig <- y[significant]
-      panel.points(x.sig, y.sig, col = fill.col, pch = "*")
+      #y.sig <- y[significant]
+      #panel.points(x.sig, y.sig, col = fill.col, pch = "*")
+      rug.start <- 0.03 + (rug.spacing + rug.height) * (group.number - 1)
+      rug.end <- rug.start + rug.height
+      panel.rug(x.sig,
+                start = rug.start,
+                end = rug.end,
+                col = col.line)
     }
   }
 ##  panel.xyplot(x, y, groups = groups, subscripts = subscripts, ...)
@@ -275,9 +281,9 @@ xyplot.aggregation <- function(data,
     xlab = NULL,
     ylab = if (normalize) "Enrichment {log2[(fObs + 1)/(fRand + 1)]}"
            else "Count",
-    sub = if (normalize) paste("Black regions are significant with p<",
-                               pval.thresh, sep = "")
-          else NULL,
+    sub = paste(if (ngroups > 1) "Rug" else "Black",
+                " regions are significant with p<",
+                pval.thresh, sep = ""),
     ...)
 {
   metadata <- as.list(metadata)
@@ -313,7 +319,8 @@ xyplot.aggregation <- function(data,
 
   ## Separate distinct groups
   spaces.x <- rep(0, num_components - 1)
-  if (is.numeric(spacers) && length(spacers) > 0) {
+  if (!is.null(spacers) && length(spacers) > 0) {
+    spacers <- as.integer(spacers)
     if (any(spacers < 1 | spacers >= num_components)) {
       stop("Spacer vector should only contain values in the range [1, ",
            num_components - 1,

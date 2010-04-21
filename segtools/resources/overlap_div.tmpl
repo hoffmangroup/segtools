@@ -8,15 +8,15 @@
           <li> Units of overlap: <code>$by</code></li><br />
           <li> Predictive ability of labels on features:
             <br />
-            <a href="$slidefilename">
-              <img src="$thumbfilename" />
+            <a href="$performanceslidefilename">
+              <img src="$performancethumbfilename" />
             </a>
             <br />
-            [ <a href="$pngfilename">PNG</a> ]
-            [ <a href="$slidefilename">SLIDE</a> ]
-            [ <a href="$pdffilename">PDF</a> ]
+            [ <a href="$performancepngfilename">PNG</a> ]
+            [ <a href="$performanceslidefilename">SLIDE</a> ]
+            [ <a href="$performancepdffilename">PDF</a> ]
+            [ <a href="$performancetabfilename">TAB</a> ]
           </li><br />
-          $significance
           <li> Heatmap of overlap:
             <ul>
               <li>Color corresponds to degree of overlap between 
@@ -24,18 +24,21 @@
                 column group.
               </li>
               <br />
-              <a href="$heatmapslidefilename">
-                <img src="$heatmapthumbfilename" />
+              <a href="$slidefilename">
+                <img src="$thumbfilename" />
               </a>
               <br />
-              [ <a href="$heatmappngfilename">PNG</a> ]
-              [ <a href="$heatmapslidefilename">SLIDE</a> ]
-              [ <a href="$heatmappdffilename">PDF</a> ]
+              [ <a href="$pngfilename">PNG</a> ]
+              [ <a href="$slidefilename">SLIDE</a> ]
+              [ <a href="$pdffilename">PDF</a> ]
+              [ <a href="$tabfilename">TAB</a> ]
             </ul>
           </li>
       </td>
       <td>
-        Overlap by <code>$by</code>:<br />
+        Cumulative predictive performance of the segment labels
+        (each row is the performance of that label combined with all above it):
+        <br />
         $table
         <br />
         [ <a href="$tablefilename">TAB</a> ]

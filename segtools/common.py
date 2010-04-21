@@ -18,12 +18,13 @@ from contextlib import closing, contextmanager
 from functools import partial
 from genomedata import Genome
 from gzip import open as _gzip_open
-from numpy import array, concatenate, empty, iinfo, logical_and, uint16, uint32, int64
+from numpy import array, concatenate, empty, iinfo, int64, ndarray, searchsorted, uint16, uint32
 from operator import itemgetter
 from pkg_resources import resource_filename
 from tabdelim import DictReader, DictWriter, ListReader, ListWriter
 from rpy2.robjects import r, rinterface, numpy2ri
 # numpy2ri imported for side-effect
+from warnings import warn
 
 try:
     PKG = __package__  # Python 2.6
@@ -542,7 +543,7 @@ def iter_segments_continuous(chromosome, segmentation, verbose=True):
 
         while supercontig is None or start >= supercontig.end:
             try:
-                # Raise StopIteration if out of supercontigs
+                # Raises StopIteration if out of supercontigs
                 supercontig, continuous = supercontig_iter.next()
             except StopIteration:
                 if verbose:
@@ -579,14 +580,15 @@ def iter_supercontig_segments(chromosome, segmentation, verbose=True):
         raise StopIteration
 
     for supercontig in chromosome:
-        if verbose:
-            print >>sys.stderr, "\t\t%s" % supercontig
-
-        rows = logical_and(segments['start'] < supercontig.end,
-                           segments['end'] > supercontig.start)
-        cur_segments = segments[rows]
-        if cur_segments.shape[0] > 0:
-            yield supercontig, segments[rows]
+        # Since it's a segmentation, there are no overlapping segments.
+        # Thus, sorting by the start also sorts by the end, and we can
+        # binary search on both to get the bounds of the overlapping segments.
+        # Overlapping segments are guaranteed to be a contiguous set of rows
+        # in the segment array for this reason.
+        start = searchsorted(segments['end'], supercontig.start, side="right")
+        end = searchsorted(segments['start'], supercontig.end, side="left")
+        if end > start:
+            yield supercontig, segments[start:end]
 
 ## Ensures output directory exists and has appropriate permissions
 def setup_directory(dirname):

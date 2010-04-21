@@ -26,8 +26,8 @@ from .html import save_html_div
 MODULE = "overlap"
 
 NAMEBASE = "%s" % MODULE
-HEATMAP_NAMEBASE = os.extsep.join([NAMEBASE, "heatmap"])
-SIGNIFICANCE_NAMEBASE = os.extsep.join([NAMEBASE, "significance"])
+PERFORMANCE_NAMEBASE = os.extsep.join([NAMEBASE, "performance"])
+
 OVERLAPPING_SEGMENTS_NAMEBASE = os.extsep.join([NAMEBASE, "segments"])
 OVERLAPPING_SEGMENTS_FIELDS = ["chrom", "start (zero-indexed)",
                                "end (exclusive)", "group",
@@ -258,24 +258,6 @@ def save_tab(dirpath, row_labels, col_labels, counts, totals, nones, mode,
             count_saver.writerow(row)
 
 def save_plot(dirpath, namebase=NAMEBASE, clobber=False,
-              row_mnemonic_file="", col_mnemonic_file=""):
-    start_R()
-
-    tabfilename = make_tabfilename(dirpath, namebase)
-    if not os.path.isfile(tabfilename):
-        die("Unable to find tab file: %s" % tabfilename)
-
-    if not row_mnemonic_file:
-        row_mnemonic_file=""
-    if not col_mnemonic_file:
-        col_mnemonic_file=""
-
-    r["save.overlap"](dirpath, namebase, tabfilename,
-                      mnemonic_file=row_mnemonic_file,
-                      col_mnemonic_file=col_mnemonic_file,
-                      clobber=clobber)
-
-def save_heatmap_plot(dirpath, namebase=NAMEBASE, clobber=False,
                       row_mnemonic_file="", col_mnemonic_file="",
                       cluster=False):
     start_R()
@@ -289,22 +271,42 @@ def save_heatmap_plot(dirpath, namebase=NAMEBASE, clobber=False,
     if not col_mnemonic_file:
         col_mnemonic_file=""
 
-    r["save.overlap.heatmap"](dirpath, HEATMAP_NAMEBASE, tabfilename,
+    r["save.overlap.heatmap"](dirpath, namebase, tabfilename,
                               mnemonic_file=row_mnemonic_file,
                               col_mnemonic_file=col_mnemonic_file,
                               clobber=clobber, cluster=cluster)
+
+def save_performance_plot(dirpath, namebase=PERFORMANCE_NAMEBASE,
+                          clobber=False,
+                          row_mnemonic_file="", col_mnemonic_file=""):
+    start_R()
+
+    tabfilename = make_tabfilename(dirpath, NAMEBASE)
+    if not os.path.isfile(tabfilename):
+        die("Unable to find tab file: %s" % tabfilename)
+
+    if not row_mnemonic_file:
+        row_mnemonic_file=""
+    if not col_mnemonic_file:
+        col_mnemonic_file=""
+
+    r["save.overlap.performance"](dirpath, namebase, tabfilename,
+                                  mnemonic_file=row_mnemonic_file,
+                                  col_mnemonic_file=col_mnemonic_file,
+                                  clobber=clobber)
 
 def save_html(dirpath, bedfilename, featurefilename, mode,
               mnemonicfile=None, clobber=False):
     bedfilename = os.path.basename(bedfilename)
     featurebasename = os.path.basename(featurefilename)
-    extra_namebases = {"heatmap": HEATMAP_NAMEBASE}
+    extra_namebases = {"performance": PERFORMANCE_NAMEBASE}
 
     title = "%s (%s)" % (HTML_TITLE_BASE, featurebasename)
 
     significance = ""
     save_html_div(HTML_TEMPLATE_FILENAME, dirpath, NAMEBASE, clobber=clobber,
-                  title=title, tables={"":NAMEBASE}, mnemonicfile=mnemonicfile,
+                  title=title, tables={"":(PERFORMANCE_NAMEBASE, "exact")},
+                  mnemonicfile=mnemonicfile,
                   extra_namebases=extra_namebases,
                   module=MODULE, by=mode, significance=significance,
                   bedfilename=bedfilename, featurefilename=featurebasename)
@@ -366,13 +368,12 @@ use the appropriate extension")
                  counts, nones, totals, mode=mode, clobber=clobber)
 
     if not noplot:
-        save_plot(dirpath, clobber=clobber,
+        save_plot(dirpath, clobber=clobber, cluster=cluster,
                   row_mnemonic_file=mnemonic_filename,
                   col_mnemonic_file=feature_mnemonic_filename)
-        save_heatmap_plot(dirpath, clobber=clobber,
-                          row_mnemonic_file=mnemonic_filename,
-                          col_mnemonic_file=feature_mnemonic_filename,
-                          cluster=cluster)
+        save_performance_plot(dirpath, clobber=clobber,
+                              row_mnemonic_file=mnemonic_filename,
+                              col_mnemonic_file=feature_mnemonic_filename)
 
     if verbose:
         print >>sys.stderr, "Saving HTML div...",

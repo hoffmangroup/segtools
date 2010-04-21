@@ -23,11 +23,11 @@ from collections import defaultdict
 from genomedata import Genome
 from itertools import repeat
 from functools import partial
-from numpy import array, ceil, floor, fromiter, histogram, isfinite, NAN, nanmax, nanmin, nansum, NINF, PINF
+from numpy import array, ceil, compress, floor, fromiter, histogram, isfinite, NAN, nanmax, nanmin, nansum, NINF, PINF
 from rpy2.robjects import r, numpy2ri
 
 from . import Segmentation
-from .common import die, image_saver, iter_segments_continuous, make_tabfilename, map_mnemonics, r_source, setup_directory, tab_reader, tab_saver
+from .common import die, image_saver, iter_segments_continuous, iter_supercontig_segments, make_tabfilename, map_mnemonics, r_source, setup_directory, tab_reader, tab_saver
 from .html import save_html_div
 from .mnemonics import create_mnemonic_file
 
@@ -64,7 +64,7 @@ class SignalHistogram(object):
 
     @staticmethod
     def calculate(genome, segmentation, nbins=None, chroms=None,
-                  group_labels=False, calc_ranges=False,
+                  calc_ranges=False,
                   value_range=(None, None), quick=False, verbose=True):
         """Computes a set of histograms, one for each track-label pair.
 
@@ -75,11 +75,6 @@ class SignalHistogram(object):
         if chroms is:
         - a sequence of chromosome names: only those chromosomes are processed
         - False, [], None: all chromosomes are processed
-
-        if group_labels is:
-        - True: Group together all labels and only generate one histogram
-          for the track over all labels
-        - False: Generate a histogram for every track-label pair
 
         if calc_ranges is:
         - False: use the precomputed ranges stored for the entire genome file
@@ -95,14 +90,11 @@ class SignalHistogram(object):
 
         returns a dict
 
-        if group_labels:
+        key: label (not label_key)
+        val: dict
           key: trackname
           val: [hist, edges]
-        else:
-          key: label (not label_key)
-          val: dict
-               key: trackname
-               val: [hist, edges]
+
         """
         assert genome is not None
         assert segmentation is not None
@@ -134,9 +126,6 @@ class SignalHistogram(object):
         # functools.partial(func[, *args][, **keywords])
         #   Returns a new partial object which when called will behave like
         #   func called with args and keywords.
-
-        #if group_labels:  # Pretend there is just one "all" label
-        #    labels = dict([(-1, "all")])
 
         # Result dictionary: see function docstring for specification
         # Now for every trackname and for every label
@@ -201,6 +190,103 @@ class SignalHistogram(object):
                                  " segmentation tracks" % nseg_dps)
 
         return SignalHistogram(res, nseg_dps=nseg_dps)
+
+    @staticmethod
+    def calculate2(genome, segmentation, nbins=None, chroms=None,
+                  calc_ranges=False,
+                  value_range=(None, None), quick=False, verbose=True):
+        assert genome is not None
+        assert segmentation is not None
+
+        labels = segmentation.labels
+
+        label_bins = xrange(0, len(labels) + 1)  # [0, 1, ..., n, n + 1]
+
+        tracks = genome.tracknames_continuous
+        max_bins = ceil(genome.maxs).astype(int)
+        min_bins = floor(genome.mins).astype(int)
+        # A dict from tracks to a range tuple
+        track_ranges = dict(zip(tracks, zip(min_bins, max_bins)))
+
+        if len(tracks) == 0:
+            die("Trying to calculate histogram for no tracks")
+
+        # key: trackname
+        # val: track_hist_func: a function that generates a histogram from data
+        #                       with uniform bins within a track
+        # For every trackname, there's a function that generates histograms
+        track_hist_funcs = dict((trackname,
+                                 partial(histogram,
+                                         bins=xrange(min_bin, max_bin + 1),
+                                         new=True))
+                                for trackname, (min_bin, max_bin) in
+                                track_ranges.iteritems())
+        # Trackname is one the track names, track_range is (min,max)
+        # functools.partial(func[, *args][, **keywords])
+        #   Returns a new partial object which when called will behave like
+        #   func called with args and keywords.
+
+        # Result dictionary: see function docstring for specification
+        # Now for every trackname and for every label
+        #   there's a histogram array of the right boundary and frequency
+        res = dict((trackname, dict((label,
+                                     list(track_hist_func(array([]))))
+                                    for label in labels.itervalues()))
+                   for trackname, track_hist_func in \
+                       track_hist_funcs.iteritems())
+
+        nseg_dps = 0  # Number of non-NaN data points in segmentation tracks
+        if verbose:
+            print >>sys.stderr, "Generating signal distribution histograms"
+
+        with genome:
+            if chroms:
+                chromosomes = [genome[chrom] for chrom in chroms]
+            else:
+                chromosomes = genome
+
+            for chromosome in chromosomes:
+                # Iterate through supercontigs and segments together
+                for supercontig, segments in \
+                        iter_supercontig_segments(chromosome, segmentation,
+                                                  verbose=verbose):
+                    continuous = supercontig.continuous
+                    for key in labels:
+                        seg_label = labels[key]
+                        condition = segments['key'] == key
+                        print "starting==========="
+                        continuous_chunk = compress(condition, continuous,
+                                                    axis=0)
+                        print "done==========="
+                        sys.exit(1)
+                        #sums = nansum(continuous_chunk, axis=0)
+                        #sum_sqs = nansum(power(continuous_chunk, 2.0), axis = 0)
+                        for trackname, track_hist_func \
+                                in track_hist_funcs.iteritems():
+                            # col_index is the index of the trackname
+                            #   (if 5 tracks, it can be 0, 1, 2, 3 or 4)
+                            col_index = chromosome.index_continuous(trackname)
+
+                            cur_col = continuous_chunk[:, col_index]
+                            cur_col_nonan = cur_col[isfinite(cur_col)]
+                            # Edges is a list with the left edge of every bin,
+                            #   hist is the frequency for every bin
+                            # This calls numpy.histogram
+                            hist, edges = track_hist_func(cur_col_nonan)
+
+                            cur_res = res[trackname][seg_label]
+                            cur_res[0] += hist
+
+                if quick: break  # 1 chromosome
+
+        if verbose:
+            print >>sys.stderr, "Segmentation tracks: %s\n" % \
+                str(segmentation.tracks)
+            print >>sys.stderr, ("Read %s non-NaN values from"
+                                 " segmentation tracks" % nseg_dps)
+
+        return SignalHistogram(res, nseg_dps=nseg_dps)
+
 
     @staticmethod
     def read(dirpath, basename=NAMEBASE, **kwargs):
@@ -371,171 +457,10 @@ def load_track_ranges(genome, segmentation=None):
     # Cast out of defaultdict
     return dict(res)
 
-# ## Computes a set of histograms, one for each track-label pair.
-# def calc_histogram(genome, segmentation, nbins=None,
-#                    group_labels=False, calc_ranges=False,
-#                    value_range=(None, None), quick=False):
-#     """
-#     if nbins is:
-#     - None: There will be a bin for every possible value
-#     - > 0: There will be this many bins
-
-#     if group_labels is:
-#     - True: Group together all labels and only generate one histogram
-#       for the track over all labels
-#     - False: Generate a histogram for every track-label pair
-
-#     if calc_ranges is:
-#     - False: use the precomputed ranges stored for the entire genome file
-#     - True: calculate the segmentation ranges across the entire input
-
-#     value_range is a (min, max) tuple:
-#       if either value is None, it is ignored
-#       if min/max is not None, it is used as a limit for all binning
-#       if both are specified, calc_ranges is ignored
-
-#     if quick is:
-#     - True: the histogram is calculated for only the first chromosome
-
-#     returns a dict
-
-#     if group_labels:
-#       key: trackname
-#       val: [hist, edges]
-#     else:
-#       key: label_key
-#       val: dict
-#            key: trackname
-#            val: [hist, edges]
-#     """
-#     assert genome is not None
-#     assert segmentation is not None
-
-#     if calc_ranges and any(lim is None for lim in value_range):
-#         # Calculate ranges over segmentation only
-#         print >>sys.stderr, "Calculating track ranges...",
-#         track_ranges = load_track_ranges(genome, segmentation)
-#         print >>sys.stderr, "done."
-#     else:
-#         # Lookup ranges in genomedata
-#         track_ranges = load_track_ranges(genome)
-
-#     # Override ranges as necessary
-#     value_min, value_max = value_range
-#     for trackname, track_range in track_ranges.iteritems():
-#         track_min, track_max = track_range
-#         if value_min is not None:
-#             track_min = value_min
-#         if value_max is not None:
-#             track_max = value_max
-#         track_ranges[trackname] = (track_min, track_max)
-
-#     tracks = track_ranges.keys()  # Re-select just the tracks used
-
-#     if len(tracks) == 0:
-#         die("Trying to calculate histogram for no tracks")
-
-#     # Calculate bins for each track
-#     if nbins is None:  # Have a bin for every possible integer value
-#         track_bins = dict([(trackname,
-#                             math.ceil(track_range[1]) -
-#                             math.floor(track_range[0]))
-#                            for trackname, track_range in track_ranges])
-#     else:  # Use the given number of bins
-#         assert nbins > 0
-#         track_bins = dict([(trackname, nbins) for trackname in tracks])
-
-#     # key: trackname
-#     # val: histogram_func: a function that generates a histogram from data
-#     #                      with uniform bins within a track
-#     # For every trackname, there's a function that generates histograms
-#     histogram_funcs = dict((trackname, partial(histogram,
-#                                                bins=track_bins[trackname],
-#                                                range=track_ranges[trackname],
-#                                                new=True))
-#                            for trackname in tracks)
-#     # Trackname is one the track names, track_range is (min,max)
-#     # functools.partial(func[, *args][, **keywords])
-#     #   Returns a new partial object which when called will behave like func
-#     #   called with args and keywords.
-
-#     labels = segmentation.labels
-#     if group_labels:  # Pretend there is just one "all" label
-#         labels = dict([(-1, "all")])
-
-#     # Return dictionary: see function docstring for specification
-#     # Now for every label and for every trackname
-#     #   there's a histogram array of the right boundary and frequency
-#     res = dict((label_key, dict((trackname,
-#                                  list(histogram_func(array([]))))
-#                                 for trackname, histogram_func
-#                                 in histogram_funcs.iteritems()))
-#                for label_key in labels)
-
-#     print >>sys.stderr, "Generating signal distribution histograms"
-#     ntracks = len(tracks)
-#     nlabels = len(labels)
-#     nseg_dps = 0  # Number of non-NaN data points in segmentation tracks
-
-#     with genome:
-#         for chromosome in genome:
-#             chrom = chromosome.name
-
-#             # Iterate through supercontigs and segments together
-#             for segment, continuous_seg in \
-#                     iter_segments_continuous(chromosome, segmentation):
-
-#                 if group_labels:
-#                     cur_res = res  # All labels are used
-#                 else:
-#                     seg_label_key = segment['key']
-#                     cur_res = res[seg_label_key]
-
-#                 # Iterate through each track
-#                 for trackname, histogram_func in histogram_funcs.iteritems():
-#                     # col_index is the index of the trackname
-#                     #   (if 5 tracks, it can be 0, 1, 2, 3 or 4)
-#                     col_index = chromosome.index_continuous(trackname)
-
-#                     # continuous_col is the "intensity"
-#                     #   (continuous number) from the data track
-#                     # len(supercontig_map) = len(continuous_col)
-#                     #   because they are for the same segment
-#                     continuous_col = continuous_seg[:, col_index]
-
-#                     # Remove the NaN's, otherwise the numpy.histogram function
-#                     #   gets confused and misses some of the data
-#                     cur_col_nonan = remove_nans(continuous_col)
-
-#                     # Keep track of number of real data values processed
-#                     if trackname in segmentation.tracks:
-#                         nseg_dps += cur_col_nonan.shape[0]
-
-#                     # Edges is a list containing the left edge of every bin,
-#                     #   hist is the frequency for every bin
-#                     # This calls numpy.histogram
-#                     hist, edges = histogram_func(cur_col_nonan)
-
-#                     res_trackname = cur_res[trackname]
-
-#                     assert (res_trackname[1] == edges).all()
-#                     res_trackname[0] += hist
-#             if quick: break  # 1 chromosome
-
-#     print ""
-#     print "Segmentation tracks: %s" % str(segmentation.tracks)
-#     print "Read %s non-NaN values from segmentation tracks\n" % nseg_dps
-#     return res, nseg_dps
-
-
-
-
-
-
 
 # ## Computes a set of histograms, one for each track-label pair.
 # def calc_histogram2(genome, segmentation, quick=False, verbose=True,
-#                    group_labels=False, calc_ranges=False,
+#                    calc_ranges=False,
 #                    value_range=(None, None), nbins=None,):
 #     """
 #     if quick is:
@@ -678,7 +603,7 @@ def load_track_ranges(genome, segmentation=None):
 #     return stats
 
 # ## Saves the histogram data to a tab file
-# def save_tab(labels, histogram, dirpath, clobber=False, group_labels=False,
+# def save_tab(labels, histogram, dirpath, clobber=False,
 #              basename=NAMEBASE, fieldnames=FIELDNAMES):
 #     with tab_saver(dirpath, basename, fieldnames, clobber=clobber) as saver:
 #         for label_key, label_histogram in histogram.iteritems():
@@ -686,11 +611,10 @@ def load_track_ranges(genome, segmentation=None):
 #             for trackname, (hist, edges) in label_histogram.iteritems():
 #                 for lower_edge, count in zip(edges, hist.tolist() + ["NA"]):
 #                     saver.writerow(locals())
-#             if group_labels: return  # Only write grouped label
 
 
 # ## Saves the track stats to a tab file
-# def save_stats_tab2(labels, stats, dirpath, clobber=False, group_labels=False,
+# def save_stats_tab2(labels, stats, dirpath, clobber=False,
 #                    basename=NAMEBASE_STATS, fieldnames=FIELDNAMES_STATS):
 #     with tab_saver(dirpath, basename, fieldnames, clobber=clobber) as saver:
 #         for trackname, track_stats in stats.iteritems():
@@ -702,18 +626,13 @@ def load_track_ranges(genome, segmentation=None):
 
 ## Plots the tab file data and saves the plots
 def save_plot(ntracks, nlabels, segtracks, dirpath,
-              clobber=False, group_labels=False,
-              basename=NAMEBASE, ecdf=False, mnemonics=[]):
+              clobber=False,basename=NAMEBASE, ecdf=False, mnemonics=[]):
     """
     ntracks: number of tracks in the Genome
     nlabels: number of labels in the Segmentation
     segtracks: a list of strings; the name of each track in the segmentation
     """
     start_R()
-
-    if group_labels:  # Only one plot per track
-        nlabels = 0
-        mnemonics = []  # Ignore mnemonics
 
     # load data from the file just written out
     # it's bad to remake the filename
@@ -786,7 +705,7 @@ def save_html(dirpath, genomedatadir, nseg_dps=None,
                   extra_namebases=extra_namebases)
 
 ## Package entry point
-def validate(bedfilename, genomedatadir, dirpath, group_labels=False,
+def validate(bedfilename, genomedatadir, dirpath,
              clobber=False, calc_ranges=False, inputdirs=None,
              quick=False, replot=False, noplot=False,
              nbins=NBINS, value_range=(None, None),
@@ -801,13 +720,8 @@ def validate(bedfilename, genomedatadir, dirpath, group_labels=False,
     segtracks = segmentation.tracks
     labels = segmentation.labels
 
-    if group_labels:
-        nbins = None  # Set bins automatically
-        nlabels = 0  # Not using labels
-        fieldnames = FIELDNAMES[1:]  # No 'label' field
-    else:
-        nlabels = len(labels)
-        fieldnames = FIELDNAMES
+    nlabels = len(labels)
+    fieldnames = FIELDNAMES
 
     if inputdirs:
         histogram = SignalHistogram()
@@ -824,7 +738,6 @@ def validate(bedfilename, genomedatadir, dirpath, group_labels=False,
         # Generate histogram
         histogram = SignalHistogram.calculate(genome, segmentation,
                                               nbins=nbins,
-                                              group_labels=group_labels,
                                               calc_ranges=calc_ranges,
                                               value_range=value_range,
                                               quick=quick, chroms=chroms)
@@ -849,7 +762,7 @@ def validate(bedfilename, genomedatadir, dirpath, group_labels=False,
         save_stats_plot(dirpath, basename=NAMEBASE_STATS,
                         clobber=clobber, mnemonics=mnemonics)
         #save_plot(ntracks, nlabels, segtracks, dirpath, clobber=clobber,
-        #          group_labels=group_labels, ecdf=ecdf, mnemonics=mnemonics)
+        #          ecdf=ecdf, mnemonics=mnemonics)
 
     if histogram:
         try:
@@ -886,10 +799,6 @@ def parse_options(args):
                      dest="create_mnemonics", default=False,
                      help="If mnemonics are not specified, they will be"
                      " created and used for plotting")
-#     group.add_option("--group-labels", action="store_true",
-#                      dest="group_labels", default=False,
-#                      help="Group track distributions over all labels."
-#                      " BEDFILE will be ignored")
     group.add_option("--ecdf", action="store_true",
                      dest="ecdf", default=False,
                      help="Plot empiracle cumulative density inside each panel"
@@ -963,7 +872,6 @@ def main(args=sys.argv[1:]):
     bedfilename = args[0]
     genomedatadir = args[1]
     kwargs = {"clobber": options.clobber,
-#               "group_labels": options.group_labels,
               "quick": options.quick,
               "calc_ranges": options.calc_ranges,
               "replot": options.replot,

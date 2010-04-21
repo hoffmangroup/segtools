@@ -1,14 +1,16 @@
 <div class="module" id="$id">
   <h2><a href="#">^</a>  $title</h2>
   <ul>
-    <li> Label transition frequencies:<br />
-      This is a matrix of transition frequencies or probabilities between 
-      every pair of segment labels.<br />
-      The color of the intersection between row 1 and column 2
-      represents the probability (or observed frequency) of transitioning
-      from label 1 to the label 2.<br />
-      For most segmentation methods, self-loops are not generated, so
-      there should be 0-values along the diagonal.
+    <li> Label transition frequencies:
+      <ul>
+        <li>This is a matrix of transition frequencies or probabilities between 
+          every pair of segment labels.
+        <li>The color of the intersection between row 1 and column 2
+          represents the probability (or observed frequency) of transitioning
+          from label 1 to the label 2.
+        <li>For most segmentation methods, self-loops are not generated, so
+          there should be 0-values along the diagonal.
+      </ul>
       <br />
       <a href="$slidefilename">
         <img src="$thumbfilename" />
