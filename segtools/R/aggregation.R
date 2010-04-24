@@ -29,8 +29,12 @@ read.aggregation <- function(filename, mnemonics = NULL, ...,
 
   ## Order components by the order observed in the file
   data$component <- factor(data$component, levels=unique(data$component))
+
+  ## Read metadata and mnemonic-ize it as well
+  metadata <- read.metadata(filename, comment.char = comment.char)
+  names(metadata) <- map.mnemonics(names(metadata), mnemonics)$labels
   
-  data
+  list(data = data, metadata = metadata)
 }
 
 
@@ -51,6 +55,8 @@ panel.scales <- function(data, layout, num_panels, x.axis = FALSE) {
     component_subset <- subset(data, component == cur_component)
     min.x <- min(component_subset$offset, na.rm=TRUE)
     max.x <- max(component_subset$offset, na.rm=TRUE)
+    if (!is.finite(min.x)) 
+      print(component_subset)
     at.x.pretty <- at.pretty(from=min.x, to=max.x, length=5, largest=TRUE)
     at.x <- c(at.x, at.x.pretty)
     ## Cludgy shrink of axes to compensate for automatic trellis expansion
@@ -76,7 +82,12 @@ panel.scales <- function(data, layout, num_panels, x.axis = FALSE) {
   
   ## Extend range for rug
   ngroups <- nlevels(data$group)
-  rug.height <- if (ngroups > 1) 0.04 * ngroups * diff(range.y) else 0
+  rug.height <-
+    if (ngroups > 1)
+      diff(range.y) / (1 - get.rug.start(ngroups + 2)) - diff(range.y)
+    else
+      0
+  
   min.y <- min(range.y[1], 0) - rug.height
   max.y <- max(range.y[2], 0)
   
@@ -174,37 +185,84 @@ process.counts <- function(data, label.sizes, pseudocount = 1,
   ## Ideally, a multinomial test would be applied once for each bin
   ## (testing whether the distribution of overlaps by label is as expected),
   ## but the label-wise binomial seems a decent approximation.
-  labels.sum <- with(data, aggregate(count, list(offset, component),
-                               sum))$x
+  
+  ## Get sum over labels for each component and offset
+  labels.sum <- with(data, aggregate(count, list(offset = offset,
+                                                 component = component), sum))
+  names(labels.sum) <- gsub("^x$", "sum", names(labels.sum))
+  
   for (label in levels(data$label)) {
     random.prob <- label.sizes[label] / total.size
     cur.rows <- data$label == label
-    cur.counts <- data$count[cur.rows]
-
+    cur.data <- data[cur.rows,]
+    ## Add order row to keep track of order extracted
+    ## (so we can reorder for re-insertion)
+    cur.data$order <- 1:nrow(cur.data)
+    ## Add sum over labels as data frame column
+    cur.data <- merge(cur.data, labels.sum)
+    ## Reorder merged data back to the order extracted
+    cur.data <- cur.data[order(cur.data$order),]
     calc.row.signif <- function(row) {
       count <- row[1]
       total <- row[2]
       calc.signif(count, total, random.prob)
     }
 
-    pvals <- apply(cbind(cur.counts, labels.sum), 1, calc.row.signif)
+    pvals <- apply(subset(cur.data, select = c(count, sum)), 1,
+                   calc.row.signif)
     data$significant[cur.rows] <- (is.finite(pvals) & (pvals < pval.thresh))
 
     if (normalize) {
-      data$count[cur.rows] <- log2((cur.counts / labels.sum + 1) /
-                                   (random.prob + 1))
+      cur.enrichments <- log2((cur.data$count / cur.data$sum + 1) /
+                              (random.prob + 1))
+      ## Any NaN regions (from 0/0) are masked
+      cur.enrichments[is.nan(cur.enrichments)] <- 0
+      if (any(cur.enrichments < -1) || any(cur.enrichments > 1)) {
+        cat(paste("Enrichment value out of range: [-1, 1]",
+                  paste("label:", label),
+                  sep = "\n"))
+        stop()
+      }
+      
+      data$count[cur.rows] = cur.enrichments
     }
   }
-  
   data
 }
 
+panel.significance <- function(x, y, height, significant, col = plot.line$col,
+                               lty = plot.line$lty, lwd = plot.line$lwd, ...) {
+  ## significant should be a boolean vector as long as x
+  n <- length(x)
+  if (n != length(significant)) stop()
+  require("grid", quietly = TRUE)
+  x.units <- "native"
+  y.units <- "npc"
+  plot.line <- trellis.par.get("plot.line")
+  
+  ## Identify contiguous blocks of significance
+  starts <- x[c(significant[1], !significant[-n] & significant[-1])]
+  ends <- x[c(significant[-n] & !significant[-1], significant[n])]
+
+  gp <- gpar(col = col, lty = 1, lwd = 0, fill = col)
+  x0 <- unit(starts - 0.5, x.units)
+  #x1 <- unit(ends + 0.5, x.units)
+  width <- unit(ends + 0.5 - starts, x.units)
+  y0 <- unit(y, y.units)
+  height <- unit(height, y.units)
+#  grid.segments(x0, y0, x1, y0, gp = gp)
+  grid.rect(x0, y0, width, height, just = c("left", "bottom"), gp = gp)
+}
+
+get.rug.start <- function(group.number, rug.height = 0.03, rug.spacing = 0.015,
+                          rug.offset = 0.025, ...) {
+  rug.offset + (rug.spacing + rug.height) * (group.number - 1)
+}
 
 panel.aggregation <- function(x, y, significant, ngroups, groups = NULL,
                               subscripts = NULL, font = NULL, col = NULL,
                               col.line = NULL, pch = NULL,
-                              group.number = NULL, rug.height = 0.03,
-                              rug.spacing = 0.01, ...) {
+                              group.number = NULL, rug.height = 0.03, ...) {
   ## hide 'font' from panel.segments, since it doesn't like having
   ## font and fontface
   panel.refline(h = 0)
@@ -216,23 +274,19 @@ panel.aggregation <- function(x, y, significant, ngroups, groups = NULL,
   y <- as.numeric(y)
   if (any(significant)) {
     ## Only shade region for first.
-    fill.col <- "black"
-    #fill.col <- if (ngroups == 1) "black" else col.line
     if (ngroups == 1) {
+      fill.col <- "black"
       y.sig <- y
       y.sig[!significant] <- 0
       panel.polygon(cbind(c(min(x), x, max(x)), c(0, y.sig, 0)),
                     col = fill.col)
     } else {
-      x.sig <- x[significant]
+      #x.sig <- x[significant]
       #y.sig <- y[significant]
       #panel.points(x.sig, y.sig, col = fill.col, pch = "*")
-      rug.start <- 0.03 + (rug.spacing + rug.height) * (group.number - 1)
-      rug.end <- rug.start + rug.height
-      panel.rug(x.sig,
-                start = rug.start,
-                end = rug.end,
-                col = col.line)
+      rug.start <- get.rug.start(group.number, rug.height = rug.height, ...)
+      panel.significance(x, rug.start, rug.height, significant,
+                         col = col.line, ...)
     }
   }
 ##  panel.xyplot(x, y, groups = groups, subscripts = subscripts, ...)
@@ -240,7 +294,8 @@ panel.aggregation <- function(x, y, significant, ngroups, groups = NULL,
                pch = pch, ...)
 }
 
-get.metadata.label.sizes <- function(metadata, data) {
+get.label.sizes <- function(data, metadata) {
+  if (length(metadata) == 0) stop("Missing aggregation metadata")
   label.sizes <- NULL
   for (label in levels(data$label)) {
     label.size.raw <- metadata[[as.character(label)]]
@@ -255,14 +310,15 @@ get.metadata.label.sizes <- function(metadata, data) {
 }
 
 ## Plots overlap vs position for each label
-##   data: a data frame with fields: overlap, offset, label
+##   data: a data frame with fields: count, offset, label
 ##   spacers should be a vector of indices, where a spacer will be placed after
 ##     that component (e.g. c(1, 3) will place spacers after the first and third
 ##     components
-xyplot.aggregation <- function(data,
-    metadata = NULL,
+xyplot.aggregation <- function(agg.data = NULL,
+    data = agg.data$data,
     x = overlap ~ offset | component * label,
-    spacers = metadata[["spacers"]],
+    metadata = agg.data$metadata,
+    spacers = metadata$spacers,
     normalize = TRUE,
     x.axis = FALSE,  # Show x axis
     pval.thresh = 0.001,
@@ -286,16 +342,10 @@ xyplot.aggregation <- function(data,
                 pval.thresh, sep = ""),
     ...)
 {
-  metadata <- as.list(metadata)
+  label.sizes <- get.label.sizes(data, metadata)
   ## Normalize and/or calculate significance if metadata exists
-  if (length(metadata) > 0) {
-    label.sizes <- get.metadata.label.sizes(metadata, data)
-    data <- process.counts(data, label.sizes, pval.thresh = pval.thresh,
-                             normalize = normalize)
-  } else {
-    stop("Cannot normalize/calculate significance without metadata")
-  }
-
+  data <- process.counts(data, label.sizes, pval.thresh = pval.thresh,
+                         normalize = normalize)
   colnames(data) <- gsub("^count$", "overlap", colnames(data))
   data$overlap[!is.finite(data$overlap)] <- 0
 
@@ -353,12 +403,10 @@ xyplot.aggregation <- function(data,
 
 plot.aggregation <- function(filename, mnemonics = NULL, ...,
                              comment.char = "#") {
-  data <- read.aggregation(filename, mnemonics = mnemonics)
-  metadata <- read.metadata(filename, comment.char = comment.char)
-  # Rename metadata keys with mnemonics
-  names(metadata) <- map.mnemonics(names(metadata), mnemonics)$labels
+  data <- read.aggregation(filename, mnemonics = mnemonics,
+                           comment.char = comment.char)
 
-  xyplot.aggregation(data = data, metadata = metadata, ...)
+  xyplot.aggregation(data, ...)
 }
 
 save.aggregation <- function(dirpath, namebase, tabfilename,
@@ -368,15 +416,48 @@ save.aggregation <- function(dirpath, namebase, tabfilename,
                              comment.char = "#",
                              ...) {
   mnemonics <- read.mnemonics(mnemonic_file)
-  data <- read.aggregation(tabfilename, mnemonics = mnemonics)
-  metadata <- read.metadata(tabfilename, comment.char = comment.char)
-  # Rename metadata keys with mnemonics
-  names(metadata) <- map.mnemonics(names(metadata), mnemonics)$labels
+  data <- read.aggregation(tabfilename, mnemonics = mnemonics,
+                           comment.char = comment.char)
   
-  image.size <- panel.size * ceiling(sqrt(nlevels(data$label) / 2))
+  image.size <- panel.size * ceiling(sqrt(nlevels(data$data$label) / 2))
   save.images(dirpath, namebase,
-              xyplot.aggregation(data = data, metadata = metadata, ...),
+              xyplot.aggregation(data, ...),
               width = image.size,
               height = image.size,
               clobber = clobber)
+}
+
+save.gene.aggregations <- function(dirpath, namebase1, namebase2, tabfilename,
+                                   mnemonic_file = NULL,
+                                   clobber = FALSE,
+                                   panel.size = 200,  # px
+                                   comment.char = "#",
+                                   ...) {
+  mnemonics <- read.mnemonics(mnemonic_file)
+  data <- read.aggregation(tabfilename, mnemonics = mnemonics,
+                           comment.char = comment.char)
+  
+  image.size <- panel.size * ceiling(sqrt(nlevels(data$data$label) / 2))
+  ngroup1 <- as.integer(data$metadata[["spacers"]])
+  if (ngroup1 <= 0 || ngroup1 >= nlevels(data$data$component))
+    stop("Invalid metadata for gene aggregation plots")
+
+  plot.one <- function(namebase, components.sub, ...) {
+    data.sub <- subset(data$data, component %in% components.sub, drop = TRUE)
+    data.sub$component <- factor(data.sub$component, levels=components.sub)
+    save.images(dirpath, namebase,
+                xyplot.aggregation(data = data.sub, metadata = data$metadata,
+                                   spacers = NULL, ...),
+                width = image.size,
+                height = image.size,
+                clobber = clobber)
+  }
+
+  components <- levels(data$data$component)
+  ## Transcriptional components
+  plot.one(namebase1, head(components, ngroup1), ...)
+  ## Translational components (plus flankings again)
+  plot.one(namebase2, c(components[1],
+                        tail(components, -ngroup1),
+                        components[ngroup1]), ...)
 }

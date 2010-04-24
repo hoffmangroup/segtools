@@ -1,0 +1,45 @@
+<div class="module" id="$id">
+  <h2><a href="#">^</a>  $title</h2>
+  <ul>
+    <li> Aggregated labels around features in <code>$featurefilename</code></li>
+    <li> Aggregation type: <code>$mode</code></li>
+    <li> Enrichment of labels around features:
+      <ul>
+        <li>A representation of how often each segment label occurs at
+          various gene components.<br />
+        <li>Grouped vertically by segment label and 
+          horizontally by gene component.
+        <li>Multiple groups are overlayed in different line styles.
+      </ul>
+      <b>x-axis</b>: (strand-corrected) position along the component<br />
+      <b>y-axis</b>: $yaxis of features (that contain this component)
+      that have a segment of the specified label at the particular
+      x-position.<br />
+      <table width="100%">
+        <tr>
+          <td align="center"><h4>Transcriptional view</h4></td>
+          <td align="center"><h4>Translational view</h4></td>
+        </tr>
+        <tr>
+          <td align="center">
+            <a href="$scripslidefilename">
+              <img src="$scripthumbfilename" />
+            </a><br />
+            [ <a href="$scrippngfilename">PNG</a> ]
+            [ <a href="$scripslidefilename">SLIDE</a> ]
+            [ <a href="$scrippdffilename">PDF</a> ]
+            [ <a href="$tabfilename">TAB</a> ]
+          </td>
+          <td align="center">
+            <a href="$latslidefilename">
+              <img src="$latthumbfilename" />
+            </a><br />
+            [ <a href="$latpngfilename">PNG</a> ]
+            [ <a href="$latslidefilename">SLIDE</a> ]
+            [ <a href="$latpdffilename">PDF</a> ]
+            [ <a href="$tabfilename">TAB</a> ]
+          </td>
+        </tr>
+      </table>
+  </ul>
+</div>

@@ -143,7 +143,7 @@ generate.mnemonics <- function(stats, hierarchical = FALSE, clust.func = hclust,
 ## are replaced by the string at [i,2])
 ## If both a translation table and regex replacements are specified, the
 ## translation table is applied first
-rename.tracks <- function(stats, patterns = "_", replacements = ".",
+rename.tracks <- function(stats, patterns = NULL, replacements = NULL,
                           translation = NULL, ...) {
   if (!is.data.frame(stats)) {
     stop("rename.tracks expected stats as data.frame")
@@ -509,23 +509,30 @@ levelplot.track.stats <-
 
 plot.track.stats <- function(filename, mnemonics = NULL,
                              translation_file = NULL,
+                             as_regex = FALSE,  # Translate with regexs
                              gmtk = FALSE, symmetric = FALSE, ...) {
-  translation <-
-    if (length(translation_file) > 0 && nchar(translation_file) > 0) {
-      read.mnemonics(translation_file)
-    } else {
-      NULL
-    }
-  
+  translation_file <- as.character(translation_file)
+
   if (gmtk) {
-    stats <- read.gmtk.track.stats(filename, mnemonics = mnemonics,
-                                   translation = translation, ...)
+    read.func <- read.gmtk.track.stats
     hierarchical <- is.hierarchical.gmtk(filename)
   } else {
-    stats <- read.track.stats(filename, mnemonics = mnemonics,
-                              translation = translation, ...)
+    read.func <- read.track.stats
     hierarchical <- FALSE
   }
+
+  args <- list(filename, mnemonics = mnemonics, ...)
+  if (length(translation_file) > 0 && nchar(translation_file) > 0) {
+    translations <- read.mnemonics(translation_file)
+    if (as_regex) {
+      args$patterns <- translations$old
+      args$replacements <- translations$new
+    } else {
+      args$translations <- translations
+    }
+  }
+  
+  stats <- do.call(read.func, args)
   
   levelplot.track.stats(stats, hierarchical = hierarchical,
                         symmetric = symmetric, ...)

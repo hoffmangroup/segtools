@@ -30,10 +30,12 @@ from .common import die, fill_array, get_ordered_labels, load_gff_data, make_tab
 from .html import list2html, save_html_div
 
 NAMEBASE = "%s" % MODULE
+NAMEBASE_TRANSCRIPTION=os.extsep.join([NAMEBASE, "transcription"])
+NAMEBASE_TRANSLATION=os.extsep.join([NAMEBASE, "translation"])
+
 STATIC_FIELDNAMES = ["group", "component", "offset"]
 
 HTML_TITLE_BASE = "Feature aggregation"
-HTML_TEMPLATE_FILENAME = "aggregation_div.tmpl"
 
 POINT_MODE = "point"
 REGION_MODE = "region"
@@ -725,7 +727,7 @@ def save_tab(segmentation, labels, counts, components, component_bins,
                     saver.writerow(row)
 
 ## Plots aggregation data from tab file
-def save_plot(dirpath, namebase=NAMEBASE, clobber=False,
+def save_plot(dirpath, mode, namebase=NAMEBASE, clobber=False,
               mnemonicfilename=None, normalize=False):
     start_R()
 
@@ -737,24 +739,35 @@ def save_plot(dirpath, namebase=NAMEBASE, clobber=False,
         mnemonicfilename = ""
 
     # Plot data in tab file
-    r["save.aggregation"](dirpath, namebase, tabfilename,
-                          mnemonic_file=mnemonicfilename,
-                          normalize=normalize, clobber=clobber)
+    if mode == GENE_MODE:
+        r["save.gene.aggregations"](dirpath, NAMEBASE_TRANSCRIPTION,
+                                    NAMEBASE_TRANSLATION, tabfilename,
+                                    mnemonic_file=mnemonicfilename,
+                                    normalize=normalize, clobber=clobber)
+    else:
+        r["save.aggregation"](dirpath, namebase, tabfilename,
+                              mnemonic_file=mnemonicfilename,
+                              normalize=normalize, clobber=clobber)
 
-def save_html(dirpath, featurefilename, mode, num_features, groups,
-              components, clobber=False, normalize=False):
+def save_html(dirpath, featurefilename, mode, clobber=False, normalize=False):
     featurebasename = os.path.basename(featurefilename)
     title = "%s (%s)" % (HTML_TITLE_BASE, featurebasename)
-    grouplist = list2html(groups, code=True)
     if normalize:
         yaxis = "enrichment"
     else:
         yaxis = "count"
 
-    save_html_div(HTML_TEMPLATE_FILENAME, dirpath, NAMEBASE, clobber=clobber,
-                  module=MODULE, featurefilename=featurebasename,
-                  numfeatures=num_features, mode=mode, grouplist=grouplist,
-                  title=title, yaxis=yaxis)
+    if mode == GENE_MODE:
+        templatefile = "aggregation_gene_div.tmpl"
+        extra_namebases = {"scrip": NAMEBASE_TRANSCRIPTION,
+                           "lat": NAMEBASE_TRANSLATION}
+    else:
+        templatefile = "aggregation_div.tmpl"
+        extra_namebases = {}
+
+    save_html_div(templatefile, dirpath, NAMEBASE, clobber=clobber,
+                  module=MODULE, featurefilename=featurebasename, mode=mode,
+                  title=title, yaxis=yaxis, extra_namebases=extra_namebases)
 
 def print_array(arr, tag="", type="%d"):
     fstring = "%%s: \t%s, %s, ..., %s, ..., %s, %s" % tuple([type]*5)
@@ -781,7 +794,7 @@ def validate(bedfilename, featurefilename, dirpath,
         assert segmentation is not None
 
         print >>sys.stderr, "Using file %s" % featurefilename
-        if mode == "gene":
+        if mode == GENE_MODE:
             features = load_gtf_data(featurefilename,
                                      min_exons=min_exons,
                                      min_cdss=min_cdss)
@@ -836,14 +849,12 @@ def validate(bedfilename, featurefilename, dirpath,
                  counted_features, dirpath, mode, clobber=clobber)
 
     if not noplot:
-        save_plot(dirpath, clobber=clobber,
+        save_plot(dirpath, mode, clobber=clobber,
                   mnemonicfilename=mnemonicfilename,
                   normalize=normalize)
 
-    if not replot:
-        save_html(dirpath, featurefilename, mode=mode, groups=groups,
-                  components=components, num_features=num_features,
-                  clobber=clobber, normalize=normalize)
+    save_html(dirpath, featurefilename, mode=mode,
+              clobber=clobber, normalize=normalize)
 
 def parse_options(args):
     from optparse import OptionParser, OptionGroup
@@ -940,9 +951,6 @@ def parse_options(args):
 
     if len(args) < 2:
         parser.error("Insufficient number of arguments")
-
-    if options.noplot and options.replot:
-        parser.error("noplot and replot are contradictory")
 
     return (options, args)
 

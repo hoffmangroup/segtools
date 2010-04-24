@@ -77,7 +77,7 @@ def save_html(dirpath, gmtk_file, p_thresh, q_thresh, clobber=False):
 ## Package entry point
 def validate(gmtk_file, dirpath, p_thresh=P_THRESH, q_thresh=Q_THRESH,
              noplot=False, nograph=False, gene_graph=False, clobber=False,
-             translation_file=None, mnemonicfilename=None,
+             translation_file=None, allow_regex=False, mnemonicfilename=None,
              create_mnemonics=False):
     setup_directory(dirpath)
 
@@ -101,7 +101,7 @@ def validate(gmtk_file, dirpath, p_thresh=P_THRESH, q_thresh=Q_THRESH,
         save_stats_plot(dirpath, basename=NAMEBASE_STATS,
                         datafilename=gmtk_file, clobber=clobber,
                         gmtk=True, translation_file=translation_file,
-                        mnemonics=mnemonics)
+                        allow_regex=allow_regex, mnemonics=mnemonics)
 
     if not nograph:
         save_graph(labels, probs, dirpath, clobber=clobber,
@@ -135,6 +135,16 @@ def parse_options(args):
                      dest="create_mnemonics", default=False,
                      help="If mnemonics are not specified, they will be"
                      " created and used for plotting")
+    group.add_option("--allow-regex", dest="allow_regex",
+                     default=False, action="store_true",
+                     help="If a file is specified with --trackname-translation"
+                     ", the mappings in this file will be interpreted as"
+                     " regular expressions instead of exact mappings."
+                     " Thus, all underscores could be converted to periods"
+                     " with the single line: `_<TAB>.`. Mappings will be"
+                     " applied sequentially, so a second line of:"
+                     " `.<TAB>#` would (together with the first line)"
+                     " convert all periods and underscores to pounds.")
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Output")
@@ -146,7 +156,10 @@ def parse_options(args):
                      default=None, metavar="FILE",
                      help="Should be a file with rows <old-trackname>"
                      "<TAB><new-trackname>. Tracknames will be translated"
-                     " using this mapping before plotting the stats plot")
+                     " using this mapping before plotting the stats plot."
+                     " By default, <old-trackname> must exactly match"
+                     " the name of a track, but --allow-regex provides"
+                     " more flexibility.")
     group.add_option("-o", "--outdir",
                      dest="outdir", default="%s" % MODULE,
                      help="File output directory (will be created"
@@ -196,6 +209,7 @@ def main(args=sys.argv[1:]):
               "create_mnemonics": options.create_mnemonics,
               "gene_graph": options.gene_graph,
               "translation_file": options.translation_file,
+              "allow_regex": options.allow_regex,
               "mnemonicfilename": options.mnemonic_file}
     validate(*args, **kwargs)
 

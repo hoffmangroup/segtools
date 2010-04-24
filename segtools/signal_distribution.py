@@ -660,7 +660,7 @@ def save_plot(ntracks, nlabels, segtracks, dirpath,
 
 def save_stats_plot(dirpath, basename=NAMEBASE_STATS, datafilename=None,
                     clobber=False, mnemonics=[], translation_file=None,
-                    gmtk=False):
+                    allow_regex=False, gmtk=False):
     """
     if datafilename is specified, it overrides dirpath/basename.tab as
     the data file for plotting.
@@ -685,7 +685,7 @@ def save_stats_plot(dirpath, basename=NAMEBASE_STATS, datafilename=None,
                      clobber=clobber):
         r.plot(r["plot.track.stats"](datafilename, mnemonics=mnemonics,
                                      translation_file=translation_file,
-                                     gmtk=gmtk))
+                                     as_regex=allow_regex, gmtk=gmtk))
 
 def save_html(dirpath, genomedatadir, nseg_dps=None,
               ecdf=False, clobber=False):
