@@ -414,7 +414,7 @@ levelplot.track.stats <-
            hclust.track = TRUE,
            clust.func = hclust,
            hierarchical = FALSE,
-           aspect = "iso",
+           aspect = "fill",
            sd.shape = "line",
            box.fill = NULL,
            symmetric = FALSE,
@@ -507,12 +507,11 @@ levelplot.track.stats <-
             ...)
 }
 
-plot.track.stats <- function(filename, mnemonics = NULL,
-                             translation_file = NULL,
+load.track.stats <- function(filename, mnemonics = NULL,
+                             translations = NULL,
                              as_regex = FALSE,  # Translate with regexs
-                             gmtk = FALSE, symmetric = FALSE, ...) {
-  translation_file <- as.character(translation_file)
-
+                             gmtk = FALSE,
+                             ...) {
   if (gmtk) {
     read.func <- read.gmtk.track.stats
     hierarchical <- is.hierarchical.gmtk(filename)
@@ -522,34 +521,61 @@ plot.track.stats <- function(filename, mnemonics = NULL,
   }
 
   args <- list(filename, mnemonics = mnemonics, ...)
-  if (length(translation_file) > 0 && nchar(translation_file) > 0) {
-    translations <- read.mnemonics(translation_file)
-    if (as_regex) {
-      args$patterns <- translations$old
-      args$replacements <- translations$new
-    } else {
-      args$translations <- translations
-    }
+  if (as_regex) {
+    args$patterns <- translations$old
+    args$replacements <- translations$new
+  } else {
+    args$translations <- translations
   }
   
   stats <- do.call(read.func, args)
-  
-  levelplot.track.stats(stats, hierarchical = hierarchical,
+
+  list(stats = stats, hierarchical = hierarchical)
+}
+
+plot.track.stats <- function(filename, symmetric = FALSE, ...) {
+  res <- load.track.stats(filename, ...)
+  levelplot.track.stats(res$stats,
+                        hierarchical = res$hierarchical,
                         symmetric = symmetric, ...)
+}
+
+save.track.stats <- function(dirpath, namebase, filename,
+                             mnemonic_file = NULL,
+                             translation_file = NULL,
+                             symmetric = FALSE, 
+                             clobber = FALSE,
+                             square.size = 15,  # px
+                             ...) {
+  mnemonics <- read.mnemonics(mnemonic_file)
+  translations <- read.mnemonics(translation_file)
+  res <- load.track.stats(filename,
+                          mnemonics = mnemonics,
+                          translations = translations,
+                          ...)
+  stats <- res$stats
+  hierarchical <- res$hierarchical
+
+  ntracks <- nlevels(stats$trackname)
+  nlabels <- nlevels(stats$label)
+  height <- 200 + square.size * ntracks
+  width <- 450 + square.size * nlabels
+  
+  save.images(dirpath, namebase,
+              levelplot.track.stats(stats,
+                                    hierarchical = hierarchical,
+                                    symmetric = symmetric, ...),
+              height = height,
+              width = width,
+              clobber = clobber)
 }
 
 ## infilename: stats data.frame tab file
 ## outfilename: name of mnemonic file to create
 make.mnemonic.file <- function(infilename, outfilename, gmtk = FALSE, ...)
 {
-  if (gmtk) {
-    stats <- read.gmtk.track.stats(infilename, ...)
-    hierarchical <- is.hierarchical.gmtk(infilename)
-  } else {
-    stats <- read.track.stats(infilename, ...)
-    hierarchical <- FALSE
-  }
-  stats <- as.stats.array(stats)
+  res <- load.track.stats(infilename, gmtk = gmtk, ...)
+  stats <- as.stats.array(res$stats)
   stats.norm <- normalize.track.stats(stats)
   mnemonics <- generate.mnemonics(stats.norm, hierarchical = hierarchical, ...)
   write.table(mnemonics, file = outfilename, quote = FALSE, 
