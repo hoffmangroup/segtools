@@ -202,9 +202,12 @@ In these cases, the :option:`--normalize` flag should be used.
   of the various groups are shown using colored "rugs" at the bottom of 
   the plot. The probability of observing :math:`n` overlapping segments
   of a given label at a given position is modeled with a binomial
-  distribution: :math:`binom(n, N, f_{rand})`, where :math:`N` is the
+  distribution: :math:`p = binom(n, N, f_{rand})`, where :math:`N` is the
   total number of overlapping segments at that position and
   :math:`f_{rand}` is the same as in :option:`--normalize`.
+  The p-value is then the probability of observing an overlap count
+  as extreme or more extreme than :math:`n` (either enrichment or
+  depletion). This corresponds to a two-tailed binomial test.
 
   .. Didn't use note directive because of latex math image backgrounds.
 
