@@ -23,7 +23,7 @@ from numpy import concatenate, median
 from rpy2.robjects import r, numpy2ri
 
 from . import Segmentation
-from .common import die, get_ordered_labels, LABEL_ALL, make_tabfilename, map_mnemonics, r_source, setup_directory, tab_saver
+from .common import die, get_ordered_labels, LABEL_ALL, make_tabfilename, r_source, setup_directory, tab_saver
 
 from .html import save_html_div
 
@@ -158,6 +158,7 @@ def save_size_plot(dirpath, namebase=NAMEBASE_SIZES, clobber=False,
         mnemonic_file = ""  # None cannot be passed to R
 
     r["save.segment.sizes"](dirpath, namebase, tabfilename,
+                            mnemonic_file=mnemonic_file,
                             clobber=clobber)
 
 def save_html(dirpath, clobber=False, mnemonicfile=None):
@@ -169,24 +170,23 @@ def save_html(dirpath, clobber=False, mnemonicfile=None):
 
 ## Package entry point
 def validate(bedfilename, dirpath, clobber=False, replot=False, noplot=False,
-             mnemonicfilename=None):
+             mnemonic_file=None):
     if not replot:
         setup_directory(dirpath)
         segmentation = Segmentation(bedfilename)
 
         labels = segmentation.labels
-        mnemonics = map_mnemonics(labels, mnemonicfilename)
 
         lengths, num_bp=segmentation_lengths(segmentation)
         save_tab(lengths, labels, num_bp, dirpath, clobber=clobber)
         save_size_tab(lengths, labels, num_bp, dirpath, clobber=clobber)
 
     if not noplot:
-        save_plot(dirpath, clobber=clobber, mnemonic_file=mnemonicfilename)
+        save_plot(dirpath, clobber=clobber, mnemonic_file=mnemonic_file)
         save_size_plot(dirpath, clobber=clobber,
-                       mnemonic_file=mnemonicfilename)
+                       mnemonic_file=mnemonic_file)
 
-    save_html(dirpath, clobber=clobber, mnemonicfile=mnemonicfilename)
+    save_html(dirpath, clobber=clobber, mnemonicfile=mnemonic_file)
 
 def parse_options(args):
     from optparse import OptionParser
@@ -207,7 +207,7 @@ def parse_options(args):
                       dest="noplot", default=False,
                       help="Do not generate plots")
 
-    parser.add_option("--mnemonic-file", dest="mnemonicfilename",
+    parser.add_option("--mnemonic-file", dest="mnemonic_file",
                       default=None,
                       help="If specified, labels will be shown using"
                       " mnemonics found in this file")
@@ -233,7 +233,7 @@ def main(args=sys.argv[1:]):
 
     validate(bedfilename, options.outdir, clobber=options.clobber,
              replot=options.replot, noplot=options.noplot,
-             mnemonicfilename=options.mnemonicfilename)
+             mnemonic_file=options.mnemonic_file)
 
 if __name__ == "__main__":
     sys.exit(main())
