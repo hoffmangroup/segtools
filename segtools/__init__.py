@@ -19,6 +19,9 @@ from numpy import array
 from .bed import read_native as read_bed
 from .common import DTYPE_SEGMENT_KEY, DTYPE_SEGMENT_START, DTYPE_SEGMENT_END, inverse_dict, maybe_gzip_open
 
+class SegmentOverlapError(ValueError):
+    pass
+
 class Segmentation(object):
     """
     chromosomes: a dict
@@ -45,18 +48,12 @@ class Segmentation(object):
             raise IOError("Could not find Segmentation: %s" % filename)
 
         if verbose:
-            print >>sys.stderr, "Loading segmentation...",
+            print >>sys.stderr, "Loading segmentation:"
 
         # first get the tracks that were used for this segmentation
         self.segtool, self.tracks = self.get_bed_metadata(filename)
 
         self._load_bed(filename, verbose=verbose)
-
-        if verbose:
-    #         print >>sys.stderr, "\n\tMapped labels to integer keys:"
-    #         for key, label in labels.iteritems():
-    #             print >>sys.stderr, "\t\t\"%s\" -> %d" % (label, key)
-            print >>sys.stderr, "done."
 
         self.name = filename
 
@@ -111,6 +108,7 @@ class Segmentation(object):
                     n_label_segments[label] = 0
                     n_label_bases[label] = 0
 
+                assert datum.chromEnd >= datum.chromStart
                 segment = (datum.chromStart, datum.chromEnd, label_key)
                 data[datum.chrom].append(segment)
                 last_segment_start[datum.chrom] = datum.chromStart
@@ -129,14 +127,28 @@ class Segmentation(object):
                            for chrom, segments in data.iteritems())
 
         # Sort segments within each chromosome
-        for chrom, segments in chromosomes.iteritems():
-            if chrom in unsorted_chroms:
-                if verbose:
-                    print >>sys.stderr, "Segments were unsorted relative to \
-    %s. Sorting..." % chrom,
+        if unsorted_chroms:
+            if verbose:
+                print >>sys.stderr, ("  Segments were unsorted relative to the"
+                                     " following chromosomes: %s" %
+                                     ", ".join(unsorted_chroms))
+                print >>sys.stderr, "  Sorting...",
+            for chrom in unsorted_chroms:
+                segments = chromosomes[chrom]
                 segments.sort(order=['start'])
-                if verbose:
-                    print >>sys.stderr, "done"
+            if verbose:
+                print >>sys.stderr, "done"
+
+        if verbose:
+            print >>sys.stderr, "  Checking for overlapping segments...",
+        for chrom, segments in chromosomes.iteritems():
+            if segments.shape[0] > 1:
+                # Make sure there are no overlapping segments
+                if (segments['end'][:-1] > segments['start'][1:]).any():
+                    raise SegmentOverlapError("Found overlapping segments"
+                                              " in chromosome: %s" % chrom)
+        if verbose:
+            print >>sys.stderr, "done"
 
         self.chromosomes = chromosomes
         self._labels = labels
