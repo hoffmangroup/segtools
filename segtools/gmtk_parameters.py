@@ -21,7 +21,7 @@ import sys
 from numpy import array
 from rpy2.robjects import r, numpy2ri
 
-from .common import die, map_mnemonics, r_source, setup_directory
+from .common import die, r_source, setup_directory
 from .html import save_html_div
 from .label_transition import save_plot, save_graph
 from .mnemonics import create_mnemonic_file
@@ -77,8 +77,9 @@ def save_html(dirpath, gmtk_file, p_thresh, q_thresh, clobber=False):
 ## Package entry point
 def validate(gmtk_file, dirpath, p_thresh=P_THRESH, q_thresh=Q_THRESH,
              noplot=False, nograph=False, gene_graph=False, clobber=False,
-             translation_file=None, allow_regex=False, mnemonicfilename=None,
+             translation_file=None, allow_regex=False, mnemonic_file=None,
              create_mnemonics=False):
+
     setup_directory(dirpath)
 
     if not os.path.isfile(gmtk_file):
@@ -89,25 +90,25 @@ def validate(gmtk_file, dirpath, p_thresh=P_THRESH, q_thresh=Q_THRESH,
     print >>sys.stderr, "done"
 
     # If mnemonics weren't specified, let's create a mnemonic file!
-    if mnemonicfilename is None and create_mnemonics:
-        mnemonicfilename = create_mnemonic_file(gmtk_file, dirpath,
-                                                clobber=clobber, gmtk=True)
+    if mnemonic_file is None and create_mnemonics:
+        mnemonic_file = create_mnemonic_file(gmtk_file, dirpath,
+                                             clobber=clobber, gmtk=True)
 
-    mnemonics = map_mnemonics(labels, mnemonicfilename)
 
     if not noplot:
-        save_plot(dirpath, basename=NAMEBASE, datafilename=gmtk_file,
-                  clobber=clobber, gmtk=True, mnemonics=mnemonics)
-        save_stats_plot(dirpath, basename=NAMEBASE_STATS,
-                        datafilename=gmtk_file, clobber=clobber,
-                        gmtk=True, translation_file=translation_file,
-                        allow_regex=allow_regex, mnemonics=mnemonics)
+        save_plot(dirpath, namebase=NAMEBASE, filename=gmtk_file,
+                  clobber=clobber, gmtk=True, mnemonic_file=mnemonic_file)
+        save_stats_plot(dirpath, namebase=NAMEBASE_STATS, filename=gmtk_file,
+                        clobber=clobber, gmtk=True,
+                        mnemonic_file=mnemonic_file,
+                        translation_file=translation_file,
+                        allow_regex=allow_regex)
 
     if not nograph:
         save_graph(labels, probs, dirpath, clobber=clobber,
                    p_thresh=p_thresh, q_thresh=q_thresh,
-                   gene_graph=gene_graph, mnemonics=mnemonics,
-                   basename=NAMEBASE_GRAPH)
+                   gene_graph=gene_graph, mnemonic_file=mnemonic_file,
+                   namebase=NAMEBASE_GRAPH)
 
     save_html(dirpath, gmtk_file, p_thresh=p_thresh, q_thresh=q_thresh,
               clobber=clobber)
@@ -210,7 +211,7 @@ def main(args=sys.argv[1:]):
               "gene_graph": options.gene_graph,
               "translation_file": options.translation_file,
               "allow_regex": options.allow_regex,
-              "mnemonicfilename": options.mnemonic_file}
+              "mnemonic_file": options.mnemonic_file}
     validate(*args, **kwargs)
 
 if __name__ == "__main__":
