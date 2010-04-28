@@ -25,9 +25,9 @@ from operator import itemgetter
 from rpy2.robjects import r, numpy2ri
 
 from . import Segmentation
-from .common import die, fill_array, get_ordered_labels, load_gff_data, make_tabfilename, map_mnemonics, map_segments, maybe_gzip_open, r_source, setup_directory, tab_saver
+from .common import die, fill_array, get_ordered_labels, load_gff_data, make_tabfilename, map_segments, maybe_gzip_open, r_source, setup_directory, tab_saver
 
-from .html import list2html, save_html_div
+from .html import save_html_div
 
 NAMEBASE = "%s" % MODULE
 NAMEBASE_TRANSCRIPTION=os.extsep.join([NAMEBASE, "transcription"])
@@ -728,25 +728,25 @@ def save_tab(segmentation, labels, counts, components, component_bins,
 
 ## Plots aggregation data from tab file
 def save_plot(dirpath, mode, namebase=NAMEBASE, clobber=False,
-              mnemonicfilename=None, normalize=False):
+              mnemonic_file=None, normalize=False):
     start_R()
 
     tabfilename = make_tabfilename(dirpath, namebase)
     if not os.path.isfile(tabfilename):
         die("Unable to find tab file: %s" % tabfilename)
 
-    if not mnemonicfilename:
-        mnemonicfilename = ""
+    if not mnemonic_file:
+        mnemonic_file = ""
 
     # Plot data in tab file
     if mode == GENE_MODE:
         r["save.gene.aggregations"](dirpath, NAMEBASE_TRANSCRIPTION,
                                     NAMEBASE_TRANSLATION, tabfilename,
-                                    mnemonic_file=mnemonicfilename,
+                                    mnemonic_file=mnemonic_file,
                                     normalize=normalize, clobber=clobber)
     else:
         r["save.aggregation"](dirpath, namebase, tabfilename,
-                              mnemonic_file=mnemonicfilename,
+                              mnemonic_file=mnemonic_file,
                               normalize=normalize, clobber=clobber)
 
 def save_html(dirpath, featurefilename, mode, clobber=False, normalize=False):
@@ -785,7 +785,7 @@ def validate(bedfilename, featurefilename, dirpath,
              by_groups=False, mode=DEFAULT_MODE, clobber=False,
              quick=False, replot=False, noplot=False, normalize=False,
              min_exons=MIN_EXONS, min_cdss=MIN_CDSS,
-             mnemonicfilename=None):
+             mnemonic_file=None):
 
     if not replot:
         setup_directory(dirpath)
@@ -816,7 +816,6 @@ def validate(bedfilename, featurefilename, dirpath,
                 groups = feature_field_values(features, "name")
 
         labels = segmentation.labels
-        mnemonics = map_mnemonics(labels, mnemonicfilename)
 
         num_features = 0
         for chrom_features in features.itervalues():
@@ -850,7 +849,7 @@ def validate(bedfilename, featurefilename, dirpath,
 
     if not noplot:
         save_plot(dirpath, mode, clobber=clobber,
-                  mnemonicfilename=mnemonicfilename,
+                  mnemonic_file=mnemonic_file,
                   normalize=normalize)
 
     save_html(dirpath, featurefilename, mode=mode,
@@ -871,7 +870,7 @@ def parse_options(args):
                           description=description)
 
     group = OptionGroup(parser, "Input options")
-    group.add_option("--mnemonic-file", dest="mnemonicfilename",
+    group.add_option("--mnemonic-file", dest="mnemonic_file",
                       default=None, metavar="FILE",
                       help="If specified, labels will be shown using"
                       " mnemonics found in FILE")
@@ -972,7 +971,7 @@ def main(args=sys.argv[1:]):
               "mode": options.mode,
 #               "min_exons": options.min_exons,
 #               "min_cdss": options.min_cdss,
-              "mnemonicfilename": options.mnemonicfilename}
+              "mnemonic_file": options.mnemonic_file}
     validate(bedfilename, featurefilename, options.outdir, **kwargs)
 
 if __name__ == "__main__":
