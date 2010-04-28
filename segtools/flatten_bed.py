@@ -1,10 +1,11 @@
 #!/bin/env python
 
 """
-Combine segments from all segment files, labeling with unique labels for
-each combination of overlapping that occurs. Outputs a bed file on
-stdout, and generates a README file in the current directory (unless
-otherwise specified) that describes the generated labels.
+Combine segments from all BEDFILE files, labeling with unique labels for
+each combination of overlapping that occurs. BEDFILEs must be in BED3+
+format and can be gzip'd. Outputs a bed file on
+stdout (-o to change), and generates a file in the current directory
+that describes the generated labels (use -m to change).
 """
 
 # Author: Orion Buske <stasis@uw.edu>
@@ -24,7 +25,7 @@ from . import Segmentation
 from .common import die
 
 
-DEFAULT_HELPFILE = "README"
+DEFAULT_HELPFILE = "flat.mnemonics"
 
 
 class IntervalSegment(object):
@@ -246,9 +247,9 @@ def print_readme(labels, filename=DEFAULT_HELPFILE):
         print >>sys.stderr, "Warning: overwriting file: %s" % filename
 
     with open(filename, "w") as ofp:
-        print >>ofp, "# new_label\toverlap(file:old_label, ...)"
+        print >>ofp, "\t".join(["old", "new", "description"])
         for key, label in labels.iteritems():
-            print >>ofp, "\t".join([str(key), label])
+            print >>ofp, "\t".join([str(key), str(key), label])
 
 def flatten_bed(bedfiles, outfile=None, helpfile=DEFAULT_HELPFILE):
     segmentations = {}
@@ -264,13 +265,14 @@ def flatten_bed(bedfiles, outfile=None, helpfile=DEFAULT_HELPFILE):
 def parse_args(args):
     from optparse import OptionParser
 
-    usage = "%prog [OPTIONS] SEGMENTS..."
+    usage = "%prog [OPTIONS] BEDFILE..."
     parser = OptionParser(usage=usage, version=__version__,
                           description=__doc__.strip())
-    parser.add_option("-H", "--helpfile", dest="helpfile",
+    parser.add_option("-m", "--mnemonic-file", dest="helpfile",
                       default=DEFAULT_HELPFILE, metavar="FILE",
                       help="Save mapping information to FILE instead of"
-                      " %default (default).")
+                      " %default (default). This file complies with the"
+                      " mnemonic file format.")
     parser.add_option("-o", "--outfile", dest="outfile",
                       default=None, metavar="FILE",
                       help="Save flattened bed file to FILE instead of"
