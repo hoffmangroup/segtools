@@ -180,7 +180,7 @@ def save_html(dirpath, clobber=False, mnemonicfile=None):
 
 ## Package entry point
 def validate(bedfilename, genomedatadir, dirpath, clobber=False, quick=False,
-             replot=False, noplot=False, mnemonicfilename=None):
+             replot=False, noplot=False, mnemonic_file=None):
     setup_directory(dirpath)
     if not replot:
         segmentation = Segmentation(bedfilename)
@@ -194,9 +194,9 @@ def validate(bedfilename, genomedatadir, dirpath, clobber=False, quick=False,
         save_tab(labels, nuc_counts, dinuc_counts, dirpath, clobber=clobber)
 
     if not noplot:
-        save_plot(dirpath, clobber=clobber, mnemonic_file=mnemonicfilename)
+        save_plot(dirpath, clobber=clobber, mnemonic_file=mnemonic_file)
 
-    save_html(dirpath, clobber=clobber, mnemonicfile=mnemonicfilename)
+    save_html(dirpath, clobber=clobber, mnemonicfile=mnemonic_file)
 
 def parse_options(args):
     from optparse import OptionParser
@@ -220,7 +220,7 @@ def parse_options(args):
                       dest="noplot", default=False,
                       help="Do not generate plots")
 
-    parser.add_option("--mnemonic-file", dest="mnemonicfilename",
+    parser.add_option("--mnemonic-file", dest="mnemonic_file",
                       default=None,
                       help="If specified, labels will be shown using"
                       " mnemonics found in this file")
@@ -248,7 +248,7 @@ def main(args=sys.argv[1:]):
     validate(bedfilename, genomedatadir, options.outdir,
              clobber=options.clobber, quick=options.quick,
              replot=options.replot, noplot=options.noplot,
-             mnemonicfilename=options.mnemonicfilename)
+             mnemonic_file=options.mnemonic_file)
 
 if __name__ == "__main__":
     sys.exit(main())

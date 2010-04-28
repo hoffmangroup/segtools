@@ -19,7 +19,7 @@ from numpy import bincount, cast, iinfo, invert, logical_or, zeros
 from rpy2.robjects import r, numpy2ri
 
 from . import Segmentation
-from .common import check_clobber, die, get_ordered_labels, load_features, make_tabfilename, map_mnemonics, r_source, setup_directory, SUFFIX_GZ, tab_saver
+from .common import check_clobber, die, get_ordered_labels, load_features, make_tabfilename, r_source, setup_directory, SUFFIX_GZ, tab_saver
 from .html import save_html_div
 
 # A package-unique, descriptive module name used for filenames, etc
@@ -350,9 +350,6 @@ use the appropriate extension")
 
         seg_labels = segmentation.labels
         feature_labels = features.labels
-        mnemonics = map_mnemonics(seg_labels, mnemonic_filename)
-        feature_mnemonics = map_mnemonics(feature_labels,
-                                          feature_mnemonic_filename)
 
         # Overlap of segmentation with features
         if verbose:
