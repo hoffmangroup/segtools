@@ -108,12 +108,12 @@ def tab2html(tabfile, header=True, mnemonicfile=None):
             # Substitute these labels with mnemonics
             mnemonics = map_mnemonics(row_labels, mnemonicfile)
             row_order, row_labels = get_ordered_labels(row_labels,
-                                                           mnemonics)
+                                                       mnemonics)
 
         for row_key in row_order:
             entry = ["<tr>"]
-            row_name = row_labels[row_key]
             fields = rows[row_key]
+            fields[0] = row_labels[row_key]  # Replace row_name
             for f in fields:
                 entry.append("<td>%s</td>" % f)
 
