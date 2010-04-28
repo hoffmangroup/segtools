@@ -31,7 +31,9 @@ read.overlap <- function(filename, mnemonics = NULL, col_mnemonics = NULL,
     res[, 2:ncol(res)] <- apply(res[, 2:ncol(res)], 2, as.numeric)
   }
   
-  res
+  metadata <- read.metadata(filename, comment.char = comment.char)
+
+  list(data = res, metadata = metadata)
 }
 
 # Given a list of labels, returns a list of colors to give those labels
@@ -141,20 +143,21 @@ overlap.stats <- function(counts, cumulative = TRUE) {
 }
 
 # Returns a data frame of p/r for the given counts
-pr.stats <- function(counts, ...) {
-  stats <- overlap.stats(counts, ...)
+pr.stats <- function(data, ...) {
+  stats <- overlap.stats(data$data, ...)
 
   precision <- suppressMessages(melt(with(stats, tp / (tp + fp))))
   recall <- suppressMessages(melt(with(stats, tp / (tp + fn))))
 
-  res <- data.frame(label = counts$label, group = precision$variable,
+  res <- data.frame(label = stats$label, group = precision$variable,
                     precision = precision$value, recall = recall$value)
   
-  res
+  list(data = res, metadata = data$metadata)
 }
 
-# Write a stat data frame to a file
+# Write an overlap data frame to a file
 write.stats <- function(stats, namebase, dirpath = ".", clobber = FALSE) {
+  data <- stats$data
   tabfilename <- extpaste(namebase, "tab")
   tabfilepath <- file.path(dirpath, tabfilename)
 
@@ -162,20 +165,21 @@ write.stats <- function(stats, namebase, dirpath = ".", clobber = FALSE) {
     stop("Found stats table: ", tabfilepath,
          ". Use --clobber to overwrite!", sep = "")
   }
-  row.ord = order(stats$group, stats$precision, decreasing = TRUE)
-  stats.formatted <- format(stats[row.ord,], digits = 3)
-  write.table(stats.formatted, tabfilepath, quote = FALSE,
+  row.ord = order(data$group, data$precision, decreasing = TRUE)
+  data.formatted <- format(data[row.ord,], digits = 3)
+  write.table(data.formatted, tabfilepath, quote = FALSE,
               sep = "\t", row.names = FALSE)
 }
 
 xyplot.overlap <-
-  function(stats,
-           metadata = NULL,
+  function(overlap.data = NULL,
+           data = overlap.data$data,
+           metadata = overlap.data$metadata,
+           mode = metadata$mode,
            x = precision ~ recall | group, 
            small.cex = 1.0,
            large.cex = 1.0,
            as.table = TRUE,
-           aspect = "fill",
            auto.key = FALSE, #list(space = "right"),
            xlab = list("Recall (TP / (TP + FN))", cex = large.cex),
            ylab = list("Precision (TP / (TP + FP))", cex = large.cex),
@@ -186,13 +190,16 @@ xyplot.overlap <-
              x = list(limits = x.lim),
              y = list(limits = y.lim)),
            panel = panel.overlap,
-           labels = stats$label,
+           labels = data$label,
            colors = label.colors(labels),
            par.strip.text = list(cex = small.cex),
            ...)
 {
+  if (mode != "bases") {
+    stop("P-R performance plot only valid for base-overlap")
+  }
   if (is.null(y.lim)) {
-    y.max <- max(stats$precision)
+    y.max <- max(data$precision)
     y.lim <-
       if (y.max >= 0.5) {
         c(0, 1)
@@ -201,9 +208,8 @@ xyplot.overlap <-
       }
   }
   
-  xyplot(x, stats, groups = label,
+  xyplot(x, data, groups = label,
          as.table = as.table, 
-         aspect = aspect,
          auto.key = auto.key,
          xlab = xlab,
          ylab = ylab,
@@ -220,23 +226,18 @@ plot.overlap.performance <-  function(tabfile, mnemonics = NULL,
                                       col_mnemonics = NULL,
                                       comment.char = "#", ...) {
   ## Plot the predictive ability of each segment label for each feature class
-  ##   in ROC space
+  ##   in PR space
   ##
   ## tabfile: a tab file containing overlap data with segment labels on the rows
   ##   and feature classes on the columns and the overlap "count" at the
   ##   intersection. Row and columns should have labels.
   
-  counts <- read.overlap(tabfile, mnemonics = mnemonics,
-                         col_mnemonics = col_mnemonics,
-                         comment.char = comment.char)
-
-  stats <- pr.stats(counts, cumulative = TRUE)
-  #stat.df <- stat.data.frame(stats)
-  #if (!is.null(basename)) {
-  #  write.stats(tabbasename = basename, dirpath = dirpath, stat.df)
-  #}
-
-  xyplot.overlap(stats, metadata = metadata, ...)
+  data <- read.overlap(tabfile, mnemonics = mnemonics,
+                       col_mnemonics = col_mnemonics,
+                       comment.char = comment.char)
+  stats <- pr.stats(data, cumulative = TRUE)
+  
+  xyplot.overlap(stats, ...)
 }
 
 save.overlap.performance <- function(dirpath, namebase, tabfilename,
@@ -251,15 +252,14 @@ save.overlap.performance <- function(dirpath, namebase, tabfilename,
   data <- read.overlap(tabfilename, mnemonics = mnemonics,
                        col_mnemonics = col.mnemonics,
                        comment.char = comment.char)
-  metadata <- read.metadata(tabfilename, comment.char = comment.char)
   stats <- pr.stats(data, cumulative = TRUE)
   write.stats(stats, namebase, dirpath, clobber = clobber)
   
-  panels.sqrt <- max(c(sqrt(nlevels(stats$group)), 1))
+  panels.sqrt <- max(c(sqrt(nlevels(stats$data$group)), 1))
   width <- 100 + panel.size * ceiling(panels.sqrt)
   height <- 200 + panel.size * floor(panels.sqrt)
   save.images(dirpath, namebase,
-              xyplot.overlap(stats, metadata = metadata, ...),
+              xyplot.overlap(stats, ...),
               width = width,
               height = height,
               clobber = clobber)
@@ -267,8 +267,9 @@ save.overlap.performance <- function(dirpath, namebase, tabfilename,
 
 ############### OVERLAP HEATMAP ############
 
-levelplot.overlap <- function(data,
-                              metadata = NULL,
+levelplot.overlap <- function(overlap.data = NULL,
+                              data = overlap.data$data,
+                              metadata = overlap.data$metadata,
                               mode = metadata[["mode"]],
                               row.normalize = TRUE,
                               y.mode = if (row.normalize) "Fraction"
@@ -368,9 +369,8 @@ plot.overlap.heatmap <- function(filename, mnemonics = NULL,
   data <- read.overlap(filename, mnemonics = mnemonics,
                        col_mnemonics = col_mnemonics,
                        comment.char = comment.char)
-  metadata <- read.metadata(filename, comment.char = comment.char)
 
-  levelplot.overlap(data, metadata = metadata, ...)
+  levelplot.overlap(data, ...)
 }
 
 save.overlap.heatmap <- function(dirpath, namebase, tabfilename,
@@ -385,12 +385,11 @@ save.overlap.heatmap <- function(dirpath, namebase, tabfilename,
   data <- read.overlap(tabfilename, mnemonics = mnemonics,
                        col_mnemonics = col.mnemonics,
                        comment.char = comment.char)
-  metadata <- read.metadata(tabfilename, comment.char = comment.char)
 
-  height <- 400 + panel.size * nrow(data)
-  width <- 400 + panel.size * ncol(data)
+  height <- 400 + panel.size * nrow(data$data)
+  width <- 400 + panel.size * ncol(data$data)
   save.images(dirpath, namebase,
-              levelplot.overlap(data,  metadata = metadata, ...),
+              levelplot.overlap(data, ...),
               height = height,
               width = width,
               clobber = clobber)
