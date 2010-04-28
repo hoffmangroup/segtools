@@ -38,14 +38,13 @@ from subprocess import call
 from rpy2.robjects import r, numpy2ri
 
 from . import Segmentation
-from .common import check_clobber, die, get_ordered_labels, image_saver, make_dotfilename, make_pdffilename, make_pngfilename, make_namebase_summary, make_tabfilename, map_mnemonics, r_source, setup_directory, tab_saver
+from .common import check_clobber, die, get_ordered_labels, make_dotfilename, make_pdffilename, make_pngfilename, make_namebase_summary, make_tabfilename, map_mnemonics, r_source, setup_directory, tab_saver
 from .html import save_html_div
 from .mnemonics import create_mnemonic_file
 
 NAMEBASE = "%s" % MODULE
 NAMEBASE_SUMMARY = make_namebase_summary(NAMEBASE)
 NAMEBASE_GRAPH = os.extsep.join([NAMEBASE, "graph"])
-NAMEBASE_PARAMS = os.extsep.join([NAMEBASE, "params"])
 
 HTML_TEMPLATE_FILENAME = "transition_div.tmpl"
 HTML_TITLE = "Segment label transitions"
@@ -56,9 +55,6 @@ Q_THRESH = 0.0
 BASE_WEIGHT = 0.3  # Base edge/arrow weight
 EDGE_WEIGHT = 2.7
 ARROW_WEIGHT = 1.7
-
-PNG_SIZE = 600  # px
-PNG_SIZE_PARAMS = 800  # px
 
 def start_R():
     r_source("common.R")
@@ -150,30 +146,30 @@ def save_html(dirpath, p_thresh, q_thresh, clobber=False):
                   module=MODULE, extra_namebases=extra_namebases,
                   title=HTML_TITLE, thresh=thresh)
 
-def save_plot(dirpath, basename=NAMEBASE, datafilename=None, ddgram=False,
-              clobber=False, mnemonics=[], verbose=False, gmtk=False):
+def save_plot(dirpath, namebase=NAMEBASE, filename=None, ddgram=False,
+              clobber=False, mnemonic_file=None, verbose=False, gmtk=False):
     """
-    if datafilename is specified, it is used instead of dirpath/basename.tab
+    if filename is specified, it is used instead of dirpath/namebase.tab
     """
     start_R()
 
-    if datafilename is None:
-        datafilename = make_tabfilename(dirpath, basename)
+    if filename is None:
+        filename = make_tabfilename(dirpath, namebase)
 
-    if not os.path.isfile(datafilename):
-        die("Unable to find tab file: %s" % datafilename)
+    if not os.path.isfile(filename):
+        die("Unable to find tab file: %s" % filename)
 
-    with image_saver(dirpath, basename,
-                     height=PNG_SIZE,
-                     width=PNG_SIZE,
-                     clobber=clobber,
-                     verbose=verbose):
-        r.plot(r["plot.transition"](datafilename, mnemonics=mnemonics,
-                                    ddgram=ddgram, gmtk=gmtk))
+    if mnemonic_file is None:
+        mnemonic_file = ""  # None not yet supported in rpy2
+
+    r["save.transition"](dirpath, namebase, filename,
+                         mnemonic_file=mnemonic_file,
+                         ddgram=ddgram, gmtk=gmtk,
+                         clobber=clobber)
 
 def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
-               clobber=False, mnemonics=[], fontname="Helvetica",
-               lenient_thresh=True, gene_graph=False, basename=NAMEBASE_GRAPH):
+               clobber=False, mnemonic_file=None, fontname="Helvetica",
+               lenient_thresh=True, gene_graph=False, namebase=NAMEBASE_GRAPH):
     assert labels is not None and probs is not None
     try:
         import pygraphviz as pgv
@@ -182,14 +178,15 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
                              " Skipping transition graph")
         return
 
-    dotfilename = make_dotfilename(dirpath, basename)
+    dotfilename = make_dotfilename(dirpath, namebase)
     check_clobber(dotfilename, clobber)
-    pngfilename = make_pngfilename(dirpath, basename)
+    pngfilename = make_pngfilename(dirpath, namebase)
     check_clobber(pngfilename, clobber)
-    pdffilename = make_pdffilename(dirpath, basename)
+    pdffilename = make_pdffilename(dirpath, namebase)
     check_clobber(pdffilename, clobber)
 
     # Replace labels with mnemonic labels, if mnemonics are given
+    mnemonics = map_mnemonics(labels, mnemonic_file)
     ordered_keys, labels = get_ordered_labels(labels, mnemonics)
 
     # Threshold
@@ -261,14 +258,14 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
 def validate(bedfilename, dirpath, ddgram=False, p_thresh=P_THRESH,
              q_thresh=Q_THRESH, replot=False, noplot=False, nograph=False,
              gene_graph=False, clobber=False, gmtk=False,
-             mnemonicfilename=None):
+             mnemonic_file=None):
     setup_directory(dirpath)
 
     if gmtk:
         from .gmtk_parameters import load_gmtk_transitions
         labels, probs = load_gmtk_transitions(bedfilename)
-        if mnemonicfilename is None:
-            mnemonicfilename = create_mnemonic_file(bedfilename, dirpath,
+        if mnemonic_file is None:
+            mnemonic_file = create_mnemonic_file(bedfilename, dirpath,
                                                     clobber=clobber, gmtk=gmtk)
     else:
         segmentation = Segmentation(bedfilename)
@@ -281,21 +278,20 @@ def validate(bedfilename, dirpath, ddgram=False, p_thresh=P_THRESH,
             # Calculate transition probabilities for each label
             labels, probs = calc_transitions(segmentation)
 
-    mnemonics = map_mnemonics(labels, mnemonicfilename)
 
     if not replot:
-        save_summary_tab(labels, probs, dirpath,
-                         clobber=clobber, mnemonics=mnemonics)
+#         save_summary_tab(labels, probs, dirpath,
+#                          clobber=clobber, mnemonics=mnemonics)
         save_tab(labels, probs, dirpath, clobber=clobber)
 
     if not noplot:
         save_plot(dirpath, ddgram=ddgram,
-                  clobber=clobber, mnemonics=mnemonics)
+                  clobber=clobber, mnemonic_file=mnemonic_file)
 
     if not nograph:
         save_graph(labels, probs, dirpath, clobber=clobber,
                    p_thresh=p_thresh, q_thresh=q_thresh,
-                   gene_graph=gene_graph, mnemonics=mnemonics)
+                   gene_graph=gene_graph, mnemonic_file=mnemonic_file)
 
     save_html(dirpath, p_thresh=p_thresh, q_thresh=q_thresh,
               clobber=clobber)
@@ -393,7 +389,7 @@ def main(args=sys.argv[1:]):
               "nograph": options.nograph,
               "gene_graph": options.gene_graph,
               "gmtk": options.gmtk,
-              "mnemonicfilename": options.mnemonic_file}
+              "mnemonic_file": options.mnemonic_file}
     validate(*args, **kwargs)
 
 if __name__ == "__main__":
