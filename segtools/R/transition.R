@@ -127,12 +127,21 @@ levelplot.transition <-
             ...)
 }
 
-plot.transition <- function(filename, mnemonics = NULL, gmtk = FALSE, ...) 
-{
-  if (gmtk) {
-    data <- read.gmtk.transition(filename, mnemonics = mnemonics)
-  } else {
-    data <- read.transition(filename, mnemonics = mnemonics)
-  }
+plot.transition <- function(filename, mnemonics = NULL, gmtk = FALSE, ...) {
+  read.func <- if (gmtk) read.gmtk.transition else read.transition
+  data <- read.func(filename, mnemonics = mnemonics)
+
   levelplot.transition(data, ...)
+}
+
+save.transition <- function(dirpath, namebase, filename,
+                            mnemonic_file = NULL,
+                            clobber = FALSE,
+                            image.size = 600, ...) {
+  mnemonics <- read.mnemonics(mnemonic_file)
+  save.images(dirpath, namebase,
+              plot.transition(filename, mnemonics = mnemonics, ...),
+              height = image.size,
+              width = image.size,
+              clobber = clobber)
 }
