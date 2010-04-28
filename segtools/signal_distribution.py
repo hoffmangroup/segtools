@@ -27,7 +27,7 @@ from numpy import array, ceil, compress, floor, fromiter, histogram, isfinite, N
 from rpy2.robjects import r, numpy2ri
 
 from . import Segmentation
-from .common import die, image_saver, iter_segments_continuous, iter_supercontig_segments, make_tabfilename, map_mnemonics, r_source, setup_directory, tab_reader, tab_saver
+from .common import die, iter_segments_continuous, iter_supercontig_segments, make_tabfilename, r_source, setup_directory, tab_reader, tab_saver
 from .html import save_html_div
 from .mnemonics import create_mnemonic_file
 
@@ -39,13 +39,6 @@ NAMEBASE_STATS = os.extsep.join([NAMEBASE, "stats"])
 
 HTML_TITLE = "Signal value distribution"
 HTML_TEMPLATE_FILENAME = "signal_div.tmpl"
-
-PNG_WIDTH_PER_SUBPLOT = 200
-PNG_HEIGHT_PER_SUBPLOT = 150
-PNG_BASE_HEIGHT = 200
-PNG_BASE_WIDTH = 100
-
-STATS_PNG_SIZE = 1000
 
 NBINS = 100
 
@@ -289,9 +282,9 @@ class SignalHistogram(object):
 
 
     @staticmethod
-    def read(dirpath, basename=NAMEBASE, **kwargs):
+    def read(dirpath, namebase=NAMEBASE, **kwargs):
         """Read a histogram from an output directory"""
-        with tab_reader(dirpath, basename, **kwargs) as (reader, metadata):
+        with tab_reader(dirpath, namebase, **kwargs) as (reader, metadata):
             histogram = {}
             try:
                 nseg_dps = int(metadata["nseg_dps"])
@@ -314,9 +307,9 @@ class SignalHistogram(object):
 
         return SignalHistogram(histogram, nseg_dps=nseg_dps)
 
-    def save(self, dirpath, basename=NAMEBASE, **kwargs):
+    def save(self, dirpath, namebase=NAMEBASE, **kwargs):
         """Saves the histogram data to a tab file"""
-        with tab_saver(dirpath, basename, metadata=self.metadata,
+        with tab_saver(dirpath, namebase, metadata=self.metadata,
                        **kwargs) as saver:
             for trackname in sorted(self.data.keys()):
                 label_hists = self.data[trackname]
@@ -375,8 +368,8 @@ def calc_stats(histogram):
 
 ## Saves the track stats to a tab file
 def save_stats_tab(stats, dirpath, clobber=False,
-                   basename=NAMEBASE_STATS, fieldnames=FIELDNAMES_STATS):
-    with tab_saver(dirpath, basename, fieldnames, clobber=clobber) as saver:
+                   namebase=NAMEBASE_STATS, fieldnames=FIELDNAMES_STATS):
+    with tab_saver(dirpath, namebase, fieldnames, clobber=clobber) as saver:
         for label, label_stats in stats.iteritems():
             for trackname, track_stats in label_stats.iteritems():
                 mean = track_stats["mean"]
@@ -604,8 +597,8 @@ def load_track_ranges(genome, segmentation=None):
 
 # ## Saves the histogram data to a tab file
 # def save_tab(labels, histogram, dirpath, clobber=False,
-#              basename=NAMEBASE, fieldnames=FIELDNAMES):
-#     with tab_saver(dirpath, basename, fieldnames, clobber=clobber) as saver:
+#              namebase=NAMEBASE, fieldnames=FIELDNAMES):
+#     with tab_saver(dirpath, namebase, fieldnames, clobber=clobber) as saver:
 #         for label_key, label_histogram in histogram.iteritems():
 #             label = labels[label_key]
 #             for trackname, (hist, edges) in label_histogram.iteritems():
@@ -615,8 +608,8 @@ def load_track_ranges(genome, segmentation=None):
 
 # ## Saves the track stats to a tab file
 # def save_stats_tab2(labels, stats, dirpath, clobber=False,
-#                    basename=NAMEBASE_STATS, fieldnames=FIELDNAMES_STATS):
-#     with tab_saver(dirpath, basename, fieldnames, clobber=clobber) as saver:
+#                    namebase=NAMEBASE_STATS, fieldnames=FIELDNAMES_STATS):
+#     with tab_saver(dirpath, namebase, fieldnames, clobber=clobber) as saver:
 #         for trackname, track_stats in stats.iteritems():
 #             for label_key, label_stats in track_stats.iteritems():
 #                 label = labels[label_key]
@@ -624,45 +617,11 @@ def load_track_ranges(genome, segmentation=None):
 #                 sd = label_stats["sd"]
 #                 saver.writerow(locals())
 
-## Plots the tab file data and saves the plots
-def save_plot(ntracks, nlabels, segtracks, dirpath,
-              clobber=False,basename=NAMEBASE, ecdf=False, mnemonics=[]):
-    """
-    ntracks: number of tracks in the Genome
-    nlabels: number of labels in the Segmentation
-    segtracks: a list of strings; the name of each track in the segmentation
-    """
-    start_R()
-
-    # load data from the file just written out
-    # it's bad to remake the filename
-    # XXX: rewriting everything in terms of a class would allow avoiding this
-    tabfilename = make_tabfilename(dirpath, basename)
-    if not os.path.isfile(tabfilename):
-        die("Unable to find tab file: %s" % tabfilename)
-
-    print >>sys.stderr, "\tPlotting distributions from: %s" % tabfilename
-    if ecdf:
-        mode = "ecdf"
-    else:
-        mode = "histogram"
-
-    # XXX: Figure out ntracks and nlabels from file
-    with image_saver(dirpath, basename,
-                     width=PNG_BASE_WIDTH + \
-                         ntracks * PNG_WIDTH_PER_SUBPLOT,
-                     height=PNG_BASE_HEIGHT + \
-                         (nlabels + 1) * PNG_HEIGHT_PER_SUBPLOT,
-                     clobber=clobber,
-                     downsample=True):  # Speeds up plotting
-        r.plot(r["plot.signal"](tabfilename, segtracks=segtracks,
-                                mnemonics=mnemonics, mode=mode))
-
-def save_stats_plot(dirpath, basename=NAMEBASE_STATS, datafilename=None,
-                    clobber=False, mnemonics=[], translation_file=None,
+def save_stats_plot(dirpath, namebase=NAMEBASE_STATS, filename=None,
+                    clobber=False, mnemonic_file=None, translation_file=None,
                     allow_regex=False, gmtk=False):
     """
-    if datafilename is specified, it overrides dirpath/basename.tab as
+    if filename is specified, it overrides dirpath/namebase.tab as
     the data file for plotting.
 
     """
@@ -670,22 +629,24 @@ def save_stats_plot(dirpath, basename=NAMEBASE_STATS, datafilename=None,
     start_R()
     r_source("track_statistics.R")
 
-    if datafilename is None:
-        datafilename = make_tabfilename(dirpath, basename)
+    if filename is None:
+        filename = make_tabfilename(dirpath, namebase)
 
-    if not os.path.isfile(datafilename):
-        die("Unable to find stats data file: %s" % datafilename)
+    if not os.path.isfile(filename):
+        die("Unable to find stats data file: %s" % filename)
+
+    # None is not currently supported in rpy2
+    if mnemonic_file is None:
+        mnemonic_file = ""
 
     if translation_file is None:
-        translation_file = ""  # None is not currently supported in rpy2
+        translation_file = ""
 
-    with image_saver(dirpath, basename,
-                     width=STATS_PNG_SIZE,
-                     height=STATS_PNG_SIZE,
-                     clobber=clobber):
-        r.plot(r["plot.track.stats"](datafilename, mnemonics=mnemonics,
-                                     translation_file=translation_file,
-                                     as_regex=allow_regex, gmtk=gmtk))
+    r["save.track.stats"](dirpath, namebase, filename,
+                          mnemonic_file=mnemonic_file,
+                          translation_file=translation_file,
+                          as_regex=allow_regex, gmtk=gmtk,
+                          clobber=clobber)
 
 def save_html(dirpath, genomedatadir, nseg_dps=None,
               ecdf=False, clobber=False):
@@ -709,19 +670,20 @@ def validate(bedfilename, genomedatadir, dirpath,
              clobber=False, calc_ranges=False, inputdirs=None,
              quick=False, replot=False, noplot=False,
              nbins=NBINS, value_range=(None, None),
-             ecdf=False, mnemonicfilename=None,
+             ecdf=False, mnemonic_file=None,
              create_mnemonics=False, chroms=None):
 
-    setup_directory(dirpath)
-    genome = Genome(genomedatadir)
-    segmentation = Segmentation(bedfilename)
+    if not replot:
+        setup_directory(dirpath)
+        genome = Genome(genomedatadir)
+        segmentation = Segmentation(bedfilename)
 
-    ntracks = genome.num_tracks_continuous  # All tracks; not just segtracks
-    segtracks = segmentation.tracks
-    labels = segmentation.labels
+        ntracks = genome.num_tracks_continuous  # All tracks; not just segtracks
+        segtracks = segmentation.tracks
+        labels = segmentation.labels
 
-    nlabels = len(labels)
-    fieldnames = FIELDNAMES
+        nlabels = len(labels)
+        fieldnames = FIELDNAMES
 
     if inputdirs:
         histogram = SignalHistogram()
@@ -742,27 +704,23 @@ def validate(bedfilename, genomedatadir, dirpath,
                                               value_range=value_range,
                                               quick=quick, chroms=chroms)
     else:
-        histogram = None
+        histogram = SignalHistogram.read(dirpath)
 
     if not replot:
         histogram.save(dirpath, clobber=clobber)
 
         stats = calc_stats(histogram)
         save_stats_tab(stats, dirpath, clobber=clobber,
-                       basename=NAMEBASE_STATS)
+                       namebase=NAMEBASE_STATS)
 
-        if mnemonicfilename is None and create_mnemonics:
+        if mnemonic_file is None and create_mnemonics:
             statsfilename = make_tabfilename(dirpath, NAMEBASE_STATS)
-            mnemonicfilename = create_mnemonic_file(statsfilename, dirpath,
+            mnemonic_file = create_mnemonic_file(statsfilename, dirpath,
                                                     clobber=clobber)
 
-    mnemonics = map_mnemonics(segmentation.labels, mnemonicfilename)
-
     if not noplot:
-        save_stats_plot(dirpath, basename=NAMEBASE_STATS,
-                        clobber=clobber, mnemonics=mnemonics)
-        #save_plot(ntracks, nlabels, segtracks, dirpath, clobber=clobber,
-        #          ecdf=ecdf, mnemonics=mnemonics)
+        save_stats_plot(dirpath, namebase=NAMEBASE_STATS, clobber=clobber,
+                        mnemonic_file=mnemonic_file)
 
     if histogram:
         try:
@@ -834,7 +792,7 @@ def parse_options(args):
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "I/O options")
-    group.add_option("--mnemonic-file", dest="mnemonicfilename",
+    group.add_option("--mnemonic-file", dest="mnemonic_file",
                      default=None, metavar="FILE",
                      help="If specified, labels will be shown using"
                      " mnemonics found in FILE")
@@ -880,7 +838,7 @@ def main(args=sys.argv[1:]):
 #               "value_range": (options.min_value, options.max_value),
               "ecdf": options.ecdf,
               "inputdirs": options.inputdirs,
-              "mnemonicfilename": options.mnemonicfilename,
+              "mnemonic_file": options.mnemonic_file,
               "create_mnemonics": options.create_mnemonics,
               "chroms": options.chroms}
 
