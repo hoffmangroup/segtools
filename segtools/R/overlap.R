@@ -196,7 +196,7 @@ xyplot.overlap <-
            ...)
 {
   if (mode != "bases") {
-    stop("P-R performance plot only valid for base-overlap")
+    warning("P-R performance plot only mathematically valid for base-overlap")
   }
   if (is.null(y.lim)) {
     y.max <- max(data$precision)

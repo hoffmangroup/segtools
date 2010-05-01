@@ -575,6 +575,7 @@ save.track.stats <- function(dirpath, namebase, filename,
 make.mnemonic.file <- function(infilename, outfilename, gmtk = FALSE, ...)
 {
   res <- load.track.stats(infilename, gmtk = gmtk, ...)
+  hierarchical <- res$hierarchical
   stats <- as.stats.array(res$stats)
   stats.norm <- normalize.track.stats(stats)
   mnemonics <- generate.mnemonics(stats.norm, hierarchical = hierarchical, ...)

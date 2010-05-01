@@ -17,7 +17,10 @@ from pkg_resources import resource_listdir
 from numpy import array
 
 from .bed import read_native as read_bed
-from .common import DTYPE_SEGMENT_KEY, DTYPE_SEGMENT_START, DTYPE_SEGMENT_END, inverse_dict, maybe_gzip_open
+from .common import check_clobber, DTYPE_SEGMENT_KEY, DTYPE_SEGMENT_START, DTYPE_SEGMENT_END, inverse_dict, maybe_gzip_open
+
+PICKLED_EXT = "seg"
+PICKLED_SUFFIX = os.extsep + PICKLED_EXT
 
 class SegmentOverlapError(ValueError):
     pass
@@ -38,24 +41,29 @@ class Segmentation(object):
     name: the filename of the segmentation
     """
 
-    def __init__(self, filename, verbose=True):
+    def __init__(self, filename, verbose=True, pickled=None):
         """Returns a segmentation object derived from the given BED3+ file
 
-        label_keys are integers corresponding to the order observed.
+        filename: path to the segmentation file (bed or pickled Segmentation)
+        pickled: read filename as bed (False), pickled (True), or determine
+          based upon the extension (None)
         """
 
         if not os.path.isfile(filename):
             raise IOError("Could not find Segmentation: %s" % filename)
 
-        if verbose:
-            print >>sys.stderr, "Loading segmentation:"
+        if verbose: print >>sys.stderr, "Loading segmentation:"
 
-        # first get the tracks that were used for this segmentation
-        self.segtool, self.tracks = self.get_bed_metadata(filename)
+        if pickled is None:
+            pickled = filename.endswith(PICKLED_SUFFIX)
 
-        self._load_bed(filename, verbose=verbose)
+        if pickled:
+            # Read a pickled segmentation file in
+            self._from_pickle(filename, verbose=verbose)
+        else:
+            # Parse a segmentation from a BED file
+            self._from_bed(filename, verbose=verbose)
 
-        self.name = filename
 
     @staticmethod
     def get_bed_metadata(filename):
@@ -74,12 +82,38 @@ class Segmentation(object):
 
         return (segtool, tracks)
 
-    def _load_bed(self, filename, verbose=True):
+    def _from_pickle(self, filename, verbose=True):
+        import cPickle
+
+        if verbose: print >>sys.stderr, "  Unpickling Segmentation object...",
+        with open(filename, 'rb') as ifp:
+            self.__dict__ = cPickle.load(ifp).__dict__
+
+        if verbose: print >>sys.stderr, "done"
+
+    def pickle(self, namebase, verbose=True, clobber=False):
+        """Pickle the segmentation into an output file"""
+        import cPickle
+
+        filename = namebase + PICKLED_SUFFIX
+
+        check_clobber(filename, clobber)
+        if verbose:
+            print >>sys.stderr, ("Pickling Segmentation object to file: %s..."
+                                 % filename),
+        with open(filename, 'wb') as ofp:
+            cPickle.dump(self, ofp, -1)
+
+        if verbose: print >>sys.stderr, "done"
+
+    def _from_bed(self, filename, verbose=True):
         """Parses a bedfile and sets some of the Segmentation fields to its data
 
         If the file is in BED3 format, labels will be None
 
         """
+        metadata = self.get_bed_metadata(filename)
+
         data = defaultdict(list)  # A dictionary-like object
         label_dict = {}
         last_segment_start = {}  # per chromosome
@@ -133,11 +167,12 @@ class Segmentation(object):
                                      " following chromosomes: %s" %
                                      ", ".join(unsorted_chroms))
                 print >>sys.stderr, "  Sorting...",
+
             for chrom in unsorted_chroms:
                 segments = chromosomes[chrom]
                 segments.sort(order=['start'])
-            if verbose:
-                print >>sys.stderr, "done"
+
+            if verbose: print >>sys.stderr, "done"
 
         if verbose:
             print >>sys.stderr, "  Checking for overlapping segments...",
@@ -150,6 +185,8 @@ class Segmentation(object):
         if verbose:
             print >>sys.stderr, "done"
 
+        self.segtool, self.tracks = metadata
+        self.name = filename
         self.chromosomes = chromosomes
         self._labels = labels
         self._n_label_segments = n_label_segments
@@ -180,28 +217,6 @@ class Segmentation(object):
     @property
     def labels(self):
         return dict(self._labels)
-
-def test(verbose=False):
-    import unittest
-
-    # Gather a list of unittest modules
-    filenames = resource_listdir(__name__, ".")
-    regex = re.compile("^test_.*\.py$", re.IGNORECASE)
-    module_filenames = filter(regex.search, filenames)
-    def make_module_name(filename):
-        return os.extsep.join([__name__, filename[:-3]])
-    modulenames = map(make_module_name, module_filenames)
-    print "Found test modules: %r" % modulenames
-    map(__import__, modulenames)  # Import them all
-    modules = [sys.modules[modulename] for modulename in modulenames]
-    # Run the test suite for each
-    suite = unittest.TestSuite([module.suite() for module in modules])
-    if verbose:
-        verbosity = 2
-    else:
-        verbosity = 1
-    unittest.TextTestRunner(verbosity=verbosity).run(suite)
-
 
 if __name__ == "__main__":
     pass

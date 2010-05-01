@@ -1,12 +1,10 @@
 #!/usr/bin/env python
+
+"""
+Compare two BED-formatted segmentations
+"""
+
 from __future__ import division, with_statement
-
-"""
-bed_compare.py
-
-Tools for comparing two segmentations in befile format
-
-"""
 
 __version__ = "$Revision$"
 
@@ -139,10 +137,9 @@ def parse_options(args):
     from optparse import OptionParser
 
     usage = "%prog [OPTIONS] BEDFILE BEDFILE"
-    description = "Compare two BED-formatted segmentations"
     version = "%%prog %s" % __version__
     parser = OptionParser(usage=usage, version=version,
-                          description=description)
+                          description=__doc__.split())
 
     parser.add_option("-d", "--edit-distance", dest="edit_distance",
                       default=False, action="store_true",
