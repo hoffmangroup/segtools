@@ -43,7 +43,7 @@ def get_file_ext(filename):
     else:
         return None  # Didn't find ext
 
-def load_data(filename, verbose=False):
+def load_data(filename, verbose=True):
     ext = get_file_ext(filename)
     if ext == EXT_BED:
         return Segmentation(filename, verbose=verbose)
@@ -97,7 +97,7 @@ def indices_to_bools(indices, length):
 
     return bools
 
-def feature_distance(segment_file, feature_files, verbose=False,
+def feature_distance(segment_file, feature_files, verbose=True,
                      correct_strands=[], print_nearest=[], all_overlapping=[]):
     # Lists are of integer file indices (0-indexed), for which files that
     # property applies to.
@@ -198,9 +198,9 @@ def parse_options(args):
     parser = OptionParser(usage=usage, version=version,
                           description=__doc__.strip())
 
-    parser.add_option("-v", "--verbose", dest="verbose",
-                      default=False, action="store_true",
-                      help="Print diagnostic messages")
+    parser.add_option("-q", "--quiet", dest="verbose",
+                      default=True, action="store_false",
+                      help="Do not print diagnostic messages.")
     parser.add_option("-s", "--strand-correct", dest="correct_strands",
                       default=[], action="append", metavar="N", type="int",
                       help="Strand correct features from the Nth feature file"

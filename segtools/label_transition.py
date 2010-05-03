@@ -35,10 +35,9 @@ import sys
 
 from numpy import empty, loadtxt, where, zeros
 from subprocess import call
-from rpy2.robjects import r, numpy2ri
 
 from . import Segmentation
-from .common import check_clobber, die, get_ordered_labels, make_dotfilename, make_pdffilename, make_pngfilename, make_namebase_summary, make_tabfilename, map_mnemonics, r_source, setup_directory, tab_saver
+from .common import check_clobber, die, get_ordered_labels, make_dotfilename, make_pdffilename, make_pngfilename, make_namebase_summary, make_tabfilename, map_mnemonics, r_call, r_plot, r_source, setup_directory, tab_saver
 from .html import save_html_div
 from .mnemonics import create_mnemonic_file
 
@@ -105,31 +104,16 @@ def load_transition_probs(dirpath, namebase=NAMEBASE):
     filename = make_tabfilename(dirpath, namebase)
     return loadtxt(filename)
 
-def save_tab(labels, probs, dirpath, clobber=False):
+def save_tab(labels, probs, dirpath, clobber=False, verbose=True):
     ordered_keys, labels = get_ordered_labels(labels)
 
     # Get fieldnames in order
     fieldnames = list(labels[key] for key in ordered_keys)
-    with tab_saver(dirpath, NAMEBASE, fieldnames,
+    with tab_saver(dirpath, NAMEBASE, fieldnames, verbose=verbose,
                    clobber=clobber, header=False) as saver:
         for start_key in ordered_keys:
             prob_row = probs[start_key]
             row = {}
-            for end_key in ordered_keys:
-                row[labels[end_key]] = "%.5f" % prob_row[end_key]
-            saver.writerow(row)
-
-def save_summary_tab(labels, probs, dirpath, mnemonics=None, clobber=False):
-    ordered_keys, labels = get_ordered_labels(labels, mnemonics)
-    # Get fieldnames in order
-    assert "label" not in labels.keys()
-    fieldnames = ["label"] + list(labels[key] for key in ordered_keys)
-    with tab_saver(dirpath, NAMEBASE_SUMMARY, fieldnames,
-                   clobber=clobber) as saver:
-        for start_key in ordered_keys:
-            prob_row = probs[start_key]
-            row = {}
-            row["label"] = labels[start_key]
             for end_key in ordered_keys:
                 row[labels[end_key]] = "%.5f" % prob_row[end_key]
             saver.writerow(row)
@@ -159,17 +143,14 @@ def save_plot(dirpath, namebase=NAMEBASE, filename=None, ddgram=False,
     if not os.path.isfile(filename):
         die("Unable to find tab file: %s" % filename)
 
-    if mnemonic_file is None:
-        mnemonic_file = ""  # None not yet supported in rpy2
-
-    r["save.transition"](dirpath, namebase, filename,
-                         mnemonic_file=mnemonic_file,
-                         ddgram=ddgram, gmtk=gmtk,
-                         clobber=clobber)
+    r_plot("save.transition", dirpath, namebase, filename, clobber=clobber,
+           mnemonic_file=mnemonic_file, ddgram=ddgram,
+           gmtk=gmtk, verbose=verbose)
 
 def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
                clobber=False, mnemonic_file=None, fontname="Helvetica",
-               lenient_thresh=True, gene_graph=False, namebase=NAMEBASE_GRAPH):
+               lenient_thresh=True, gene_graph=False, namebase=NAMEBASE_GRAPH,
+               verbose=True):
     assert labels is not None and probs is not None
     try:
         import pygraphviz as pgv
@@ -191,11 +172,15 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
 
     # Threshold
     if q_thresh > 0:
-        quantile = r['matrix.find_quantile'](probs, q_thresh)[0]
-        print >>sys.stderr, "Removing edges below %.4f" % float(quantile)
+        quantile = r_call('matrix.find_quantile', probs, q_thresh)[0]
+        if verbose:
+            print >>sys.stderr, "Removing edges below %.4f" % float(quantile)
+
         probs[probs < quantile] = 0
     elif p_thresh > 0:
-        print >>sys.stderr, "Removing connections below %.4f" % p_thresh
+        if verbose:
+            print >>sys.stderr, "Removing connections below %.4f" % p_thresh
+
         if lenient_thresh:
             row_wise_remove = (probs < p_thresh)
             col_wise = probs / probs.sum(axis=0) # Col-normalize
@@ -229,13 +214,15 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
 
     G.write(dotfilename)
 
-    print >>sys.stderr, "Drawing graphs...",
+    if verbose:
+        print >>sys.stderr, "Drawing graphs...",
+
     G.layout()
 
     try:
         G.draw(pngfilename)
     except:
-        print >>sys.stderr, "Failed to draw png graph"
+        print >>sys.stderr, "Error: Failed to draw png graph"
 
     try:
         # Try to generate pdf from dot
@@ -250,14 +237,15 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
         if code != 0:
             raise Exception()
     except Exception, e:
-        print >>sys.stderr, "Failed to draw pdf graph: %s" % str(e)
+        print >>sys.stderr, "Error: Failed to draw pdf graph: %s" % str(e)
 
-    print >>sys.stderr, "done"
+    if verbose:
+        print >>sys.stderr, "done"
 
 ## Package entry point
 def validate(bedfilename, dirpath, ddgram=False, p_thresh=P_THRESH,
              q_thresh=Q_THRESH, replot=False, noplot=False, nograph=False,
-             gene_graph=False, clobber=False, gmtk=False,
+             gene_graph=False, clobber=False, gmtk=False, verbose=True,
              mnemonic_file=None):
     setup_directory(dirpath)
 
@@ -266,9 +254,10 @@ def validate(bedfilename, dirpath, ddgram=False, p_thresh=P_THRESH,
         labels, probs = load_gmtk_transitions(bedfilename)
         if mnemonic_file is None:
             mnemonic_file = create_mnemonic_file(bedfilename, dirpath,
-                                                    clobber=clobber, gmtk=gmtk)
+                                                 clobber=clobber,
+                                                 gmtk=gmtk, verbose=verbose)
     else:
-        segmentation = Segmentation(bedfilename)
+        segmentation = Segmentation(bedfilename, verbose=verbose)
         assert segmentation is not None
 
         if replot:
@@ -280,18 +269,17 @@ def validate(bedfilename, dirpath, ddgram=False, p_thresh=P_THRESH,
 
 
     if not replot:
-#         save_summary_tab(labels, probs, dirpath,
-#                          clobber=clobber, mnemonics=mnemonics)
-        save_tab(labels, probs, dirpath, clobber=clobber)
+        save_tab(labels, probs, dirpath, clobber=clobber, verbose=verbose)
 
     if not noplot:
-        save_plot(dirpath, ddgram=ddgram,
+        save_plot(dirpath, ddgram=ddgram, verbose=verbose,
                   clobber=clobber, mnemonic_file=mnemonic_file)
 
     if not nograph:
         save_graph(labels, probs, dirpath, clobber=clobber,
                    p_thresh=p_thresh, q_thresh=q_thresh,
-                   gene_graph=gene_graph, mnemonic_file=mnemonic_file)
+                   gene_graph=gene_graph, mnemonic_file=mnemonic_file,
+                   verbose=verbose)
 
     save_html(dirpath, p_thresh=p_thresh, q_thresh=q_thresh,
               clobber=clobber)
@@ -308,6 +296,9 @@ def parse_options(args):
                      dest="clobber", default=False,
                      help="Overwrite existing output files if the specified"
                      " directory already exists.")
+    group.add_option("-q", "--quiet", action="store_false",
+                     dest="verbose", default=True,
+                     help="Do not print diagnostic messages.")
     group.add_option("--replot", action="store_true",
                      dest="replot", default=False,
                      help="Regenerate graphs/plots from tab files")
@@ -320,12 +311,12 @@ def parse_options(args):
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Output")
-    group.add_option("--mnemonic-file", dest="mnemonic_file",
-                     default=None,
+    group.add_option("-m", "--mnemonic-file", dest="mnemonic_file",
+                     default=None, metavar="FILE",
                      help="If specified, labels will be shown using"
-                     " mnemonics found in this file")
+                     " mnemonics found in FILE.")
     group.add_option("-o", "--outdir",
-                     dest="outdir", default="%s" % MODULE,
+                     dest="outdir", default="%s" % MODULE, metavar="DIR",
                      help="File output directory (will be created"
                      " if it does not exist) [default: %default]")
     parser.add_option_group(group)
@@ -338,12 +329,12 @@ def parse_options(args):
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Transition graph options")
-    group.add_option("-p", "--prob-threshold", dest="p_thresh",
-                     type="float", default=P_THRESH,
+    group.add_option("-P", "--prob-threshold", dest="p_thresh",
+                     type="float", default=P_THRESH, metavar="VAL",
                      help="ignore all transitions with probabilities below"
                      " this absolute threshold [default: %default]")
-    group.add_option("-q", "--quantile-threshold", dest="q_thresh",
-                     type="float", default=Q_THRESH,
+    group.add_option("-Q", "--quantile-threshold", dest="q_thresh",
+                     type="float", default=Q_THRESH, metavar="VAL",
                      help="ignore transitions with probabilities below this"
                      " probability quantile [default: %default]")
     group.add_option("--gene-graph", dest="gene_graph",
@@ -384,6 +375,7 @@ def main(args=sys.argv[1:]):
               "p_thresh": options.p_thresh,
               "q_thresh": options.q_thresh,
               "clobber": options.clobber,
+              "verbose": options.verbose,
               "replot": options.replot,
               "noplot": options.noplot,
               "nograph": options.nograph,

@@ -16,10 +16,9 @@ import sys
 
 from collections import defaultdict
 from numpy import bincount, cast, iinfo, invert, logical_or, zeros
-from rpy2.robjects import r, numpy2ri
 
 from . import Segmentation
-from .common import check_clobber, die, get_ordered_labels, load_features, make_tabfilename, r_source, setup_directory, SUFFIX_GZ, tab_saver
+from .common import check_clobber, die, get_ordered_labels, load_features, make_tabfilename, r_plot, r_source, setup_directory, SUFFIX_GZ, tab_saver
 from .html import save_html_div
 
 # A package-unique, descriptive module name used for filenames, etc
@@ -240,14 +239,14 @@ def make_tab_row(col_indices, data, none, total):
 
 ## Saves the data to a tab file
 def save_tab(dirpath, row_labels, col_labels, counts, totals, nones, mode,
-             namebase=NAMEBASE, clobber=False):
+             namebase=NAMEBASE, clobber=False, verbose=True):
     assert counts is not None and totals is not None and nones is not None
 
     row_label_keys, row_labels = get_ordered_labels(row_labels)
     col_label_keys, col_labels = get_ordered_labels(col_labels)
     colnames = [col_labels[label_key] for label_key in col_label_keys]
     metadata = {"mode": mode}
-    with tab_saver(dirpath, namebase, clobber=clobber,
+    with tab_saver(dirpath, namebase, clobber=clobber, verbose=verbose,
                    metadata=metadata) as count_saver:
         header = [""] + colnames + [NONE_COL, TOTAL_COL]
         count_saver.writerow(header)
@@ -257,43 +256,33 @@ def save_tab(dirpath, row_labels, col_labels, counts, totals, nones, mode,
             row.insert(0, row_labels[row_label_key])
             count_saver.writerow(row)
 
-def save_plot(dirpath, namebase=NAMEBASE, clobber=False,
-                      row_mnemonic_file="", col_mnemonic_file="",
-                      cluster=False):
+def save_plot(dirpath, namebase=NAMEBASE, clobber=False, verbose=True,
+              row_mnemonic_file=None, col_mnemonic_file=None,
+              cluster=False):
     start_R()
 
     tabfilename = make_tabfilename(dirpath, namebase)
     if not os.path.isfile(tabfilename):
         die("Unable to find tab file: %s" % tabfilename)
 
-    if not row_mnemonic_file:
-        row_mnemonic_file=""
-    if not col_mnemonic_file:
-        col_mnemonic_file=""
-
-    r["save.overlap.heatmap"](dirpath, namebase, tabfilename,
-                              mnemonic_file=row_mnemonic_file,
-                              col_mnemonic_file=col_mnemonic_file,
-                              clobber=clobber, cluster=cluster)
+    r_plot("save.overlap.heatmap", dirpath, namebase, tabfilename,
+           mnemonic_file=row_mnemonic_file,
+           col_mnemonic_file=col_mnemonic_file,
+           clobber=clobber, cluster=cluster, verbose=verbose)
 
 def save_performance_plot(dirpath, namebase=PERFORMANCE_NAMEBASE,
-                          clobber=False,
-                          row_mnemonic_file="", col_mnemonic_file=""):
+                          clobber=False, verbose=True,
+                          row_mnemonic_file=None, col_mnemonic_file=None):
     start_R()
 
     tabfilename = make_tabfilename(dirpath, NAMEBASE)
     if not os.path.isfile(tabfilename):
         die("Unable to find tab file: %s" % tabfilename)
 
-    if not row_mnemonic_file:
-        row_mnemonic_file=""
-    if not col_mnemonic_file:
-        col_mnemonic_file=""
-
-    r["save.overlap.performance"](dirpath, namebase, tabfilename,
-                                  mnemonic_file=row_mnemonic_file,
-                                  col_mnemonic_file=col_mnemonic_file,
-                                  clobber=clobber)
+    r_plot("save.overlap.performance", dirpath, namebase, tabfilename,
+           mnemonic_file=row_mnemonic_file,
+           col_mnemonic_file=col_mnemonic_file,
+           clobber=clobber, verbose=verbose)
 
 def save_html(dirpath, bedfilename, featurefilename, mode,
               mnemonicfile=None, clobber=False):
@@ -334,7 +323,7 @@ def overlap(bedfilename, featurefilename, dirpath, regionfilename=None,
     if not replot:
         setup_directory(dirpath)
 
-        segmentation = Segmentation(bedfilename)
+        segmentation = Segmentation(bedfilename, verbose=verbose)
 
         if is_file_type(featurefilename, 'bed'):
             features = Segmentation(featurefilename, verbose=verbose)
@@ -362,16 +351,16 @@ use the appropriate extension")
                          quick=quick, dirpath=dirpath, verbose=verbose)
 
         save_tab(dirpath, seg_labels, feature_labels,
-                 counts, nones, totals, mode=mode, clobber=clobber)
+                 counts, nones, totals, mode=mode,
+                 clobber=clobber, verbose=verbose)
 
     if not noplot:
-        save_plot(dirpath, clobber=clobber, cluster=cluster,
-                  row_mnemonic_file=mnemonic_filename,
-                  col_mnemonic_file=feature_mnemonic_filename)
-        save_performance_plot(dirpath, clobber=clobber,
+        save_performance_plot(dirpath, clobber=clobber, verbose=verbose,
                               row_mnemonic_file=mnemonic_filename,
                               col_mnemonic_file=feature_mnemonic_filename)
-
+        save_plot(dirpath, clobber=clobber, cluster=cluster, verbose=verbose,
+                  row_mnemonic_file=mnemonic_filename,
+                  col_mnemonic_file=feature_mnemonic_filename)
     if verbose:
         print >>sys.stderr, "Saving HTML div...",
 
@@ -403,12 +392,12 @@ Overlap_analysis_tool_specification"
                      dest="clobber", default=False,
                      help="Overwrite existing output files if the specified"
                      " directory already exists.")
+    group.add_option("-q", "--quiet", action="store_false",
+                     dest="verbose", default=True,
+                     help="Do not print diagnostic messages.")
     group.add_option("--quick", action="store_true",
                      dest="quick", default=False,
                      help="Compute values only for one chromosome.")
-    group.add_option("-v", "--verbose", action="store_true",
-                     dest="verbose", default=False,
-                     help="Print status and diagnostic messages.")
     group.add_option("--replot", action="store_true",
                      dest="replot", default=False,
                      help="Load data from output tab files and"
@@ -430,7 +419,7 @@ Overlap_analysis_tool_specification"
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Parameters")
-    group.add_option("-b", "--by", choices=MODE_CHOICES,
+    group.add_option("-b", "--by", choices=MODE_CHOICES, metavar="MODE",
                      dest="mode", type="choice", default=MODE_DEFAULT,
                      help="One of: "+str(MODE_CHOICES)+", which determines the"
                      " definition of overlap. @segments: The value"
@@ -444,8 +433,8 @@ Overlap_analysis_tool_specification"
 #                      help="For the specified file (1, 2, or both), use only"
 #                      "the midpoint of each feature instead of the entire"
 #                      " width.")
-    group.add_option("-m", "--min-overlap", type="int",
-                     dest="min_overlap", default=1,
+    group.add_option("--min-overlap", type="int",
+                     dest="min_overlap", default=1, metavar="N",
                      help="The minimum number of base pairs that two"
                      " features must overlap for them to be classified as"
                      " overlapping. This integer can be either positive"
@@ -457,16 +446,16 @@ Overlap_analysis_tool_specification"
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Files")
-    group.add_option("--mnemonic-file", dest="mnemonic_filename",
-                     default=None,
+    group.add_option("-m", "--mnemonic-file", dest="mnemonic_filename",
+                     default=None, metavar="FILE",
                      help="If specified, BEDFILE groups will be shown using"
-                     " mnemonics found in this file")
-    group.add_option("--feature-mnemonic-file",
+                     " mnemonics found in FILE.")
+    group.add_option("--feature-mnemonic-file", metavar="FILE",
                      dest="feature_mnemonic_filename", default=None,
                      help="If specified, FEATUREFILE groups will be shown"
-                     " using mnemonics found in this file")
+                     " using mnemonics found in FILE.")
     group.add_option("-o", "--outdir",
-                     dest="outdir", default="%s" % MODULE,
+                     dest="outdir", default="%s" % MODULE, metavar="DIR",
                      help="File output directory (will be created"
                      " if it does not exist) [default: %default]")
     parser.add_option_group(group)

@@ -3,28 +3,28 @@ from __future__ import division, with_statement
 __version__ = "$Revision$"
 
 """
-Assorted utility functions and classes common or useful to most of segtools.
+Assorted utility functions and classes common or useful to most of Segtools.
 
 
 Author: Orion Buske <stasis@uw.edu>
 """
 
 import os
-import re
 import sys
 
 from collections import defaultdict
 from contextlib import closing, contextmanager
 from functools import partial
-from genomedata import Genome
 from gzip import open as _gzip_open
-from numpy import array, concatenate, empty, iinfo, int64, ndarray, searchsorted, uint16, uint32
 from operator import itemgetter
+from warnings import warn
+
+from numpy import array, empty, iinfo, int64, ndarray, searchsorted, uint16, uint32
 from pkg_resources import resource_filename
 from tabdelim import DictReader, DictWriter, ListReader, ListWriter
-from rpy2.robjects import r, rinterface, numpy2ri
-# numpy2ri imported for side-effect
-from warnings import warn
+from rpy2.robjects import r, rinterface
+
+from .gff import read_native as read_gff
 
 try:
     PKG = __package__  # Python 2.6
@@ -33,8 +33,6 @@ except NameError:
 
 PKG_R = os.extsep.join([PKG, "R"])
 PKG_RESOURCE = os.extsep.join([PKG, "resources"])
-
-from .gff import read_native as read_gff
 
 EXT_GZ = "gz"
 EXT_PDF = "pdf"
@@ -70,7 +68,7 @@ DTYPE_TRANSCRIPT_ID = '|S%d' % MAXLEN_ID_DTYPE
 #FEATURE_FIELDS = ["chrom", "source", "name", "start", "end", "score", "strand"]
 
 r_filename = partial(resource_filename, PKG_R)
-
+RError = rinterface.RRuntimeError
 
 ## Wrapper for gff/gtf feature data
 class Features(object):
@@ -336,20 +334,52 @@ def fill_array(scalar, shape, dtype=None, *args, **kwargs):
     res.fill(scalar)
     return res
 
-
-## XXX: No known usage
-@contextmanager
-def none_contextmanager():
-    yield None
-
 def r_source(filename):
-    """
-    Simplify importing R source in the package
-    """
+    """Simplify importing R source in the package"""
+
     try:
         r.source(r_filename(filename))
-    except rinterface.RRuntimeError:
+    except RError:
         die("Failed to load R package: %s\n" % filename)
+
+def r_call(func, *args, **kwargs):
+    """Safer way to call R functions (without importing all that junk)
+
+    None values are substituted with ""
+    """
+    from rpy2.robjects import numpy2ri
+    # numpy2ri imported for side-effect
+
+    # Make sure there are no None values in args or kwargs
+    # rpy2 currently doesn't support passing Nones, so replace them with ""
+    for arg_i, arg in enumerate(args):
+        if arg is None:
+            args[arg_i] = ""
+
+    for key, val in kwargs.iteritems():
+        if val is None:
+            kwargs[key] = ""
+
+    return r[func](*args, **kwargs)
+
+def r_plot(func, *args, **kwargs):
+    """Safely call R plotting function (with verbose print option)
+
+    Calls r_call
+    Argument "verbose" is caught by r_plot and not passed on to R functions
+    """
+
+    # Grab verbose value, with default to True
+    verbose = kwargs.pop("verbose", True)
+
+    if verbose:
+        print >>sys.stderr, "Saving plots with R function: %r..." % func,
+
+    result = r_call(func, *args, **kwargs)
+    if verbose:
+        print >>sys.stderr, "done"
+
+    return result
 
 @contextmanager
 def tab_saver(dirpath, basename, fieldnames=None, header=True,
@@ -419,41 +449,6 @@ def tab_reader(dirpath, basename, verbose=True, fieldnames=False):
 
     if verbose:
         print >>sys.stderr, "done"
-
-@contextmanager
-def image_saver(dirpath, basename, clobber=False, verbose=True,
-                downsample=False, **kwargs):
-    """
-    Generator to save an R plot to both png and pdf with only one plot
-    Yields to caller to plot, then saves images
-    """
-    if verbose:
-        print >>sys.stderr, "Creating images...",
-
-    png_filename = make_pngfilename(dirpath, basename)
-    check_clobber(png_filename, clobber)
-    try:
-        r.png(png_filename, **kwargs)
-        png_device = r["dev.cur"]()
-        r["dev.control"]("enable")
-    except rinterface.RRuntimeError:
-        die('Image creation failed.\nIf unable to start PNG device, try'
-            ' setting (export/setenv) variable DISPLAY to ":1" from the'
-            ' (bash/c) shell before re-running validation.')
-
-    yield  # Wait for plot
-
-    # Use R routine to create all the other images (pdf, slide, etc)
-    try:
-        r["dev.print.images"](basename=basename, dirname=dirpath,
-                              downsample=downsample, clobber=clobber, **kwargs)
-        r["dev.off"](png_device)
-    except rinterface.RRuntimeError:
-        print >> sys.stderr, 'ERROR: Images might not have been saved!'
-
-    if verbose:
-        print >>sys.stderr, "done"
-
 
 ## Maps label_keys over segments
 def map_segments(segments, labels, chrom_size):

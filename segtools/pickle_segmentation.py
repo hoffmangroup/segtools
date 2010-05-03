@@ -13,7 +13,6 @@ from __future__ import division, with_statement
 
 __version__ = "$Revision$"
 
-import os
 import sys
 
 from . import Segmentation
@@ -31,12 +30,12 @@ def parse_options(args):
     parser = OptionParser(usage=usage, version=version,
                           description=description)
 
-    parser.add_option("-v", "--verbose", dest="verbose",
-                      default=False, action="store_true",
-                      help="Print diagnostic messages")
     parser.add_option("--clobber", dest="clobber",
                       default=False, action="store_true",
                       help="Overwrite existing output files without warning")
+    parser.add_option("-q", "--quiet", action="store_false",
+                      dest="verbose", default=True,
+                      help="Do not print diagnostic messages.")
 
     (options, args) = parser.parse_args(args)
 

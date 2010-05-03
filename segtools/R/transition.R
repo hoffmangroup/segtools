@@ -87,7 +87,7 @@ levelplot.transition <-
            scales = list(x = list(rot = 90)),
            legend = if (ddgram) ddgram.legend(dd.row, dd.col, row.ord, col.ord)
                     else list(),
-           palette = colorRampPalette(rev(brewer.pal(11, "PiYG")),
+           palette = colorRampPalette(rev(brewer.pal(9, "PiYG")),
              interpolate = "spline", 
              space = "Lab")(100),
            ...)

@@ -21,11 +21,8 @@ def main(verbose=True):
     if verbose:
         print "Found test modules: %r" % modulenames
 
-    map(__import__, modulenames)  # Import them all
-    modules = [sys.modules[modulename] for modulename in modulenames]
-
     # Run the test suite for each
-    suite = unittest.TestSuite([module.suite() for module in modules])
+    suite = unittest.defaultTestLoader.loadTestsFromNames(modulenames)
     if verbose:
         verbosity = 2
     else:

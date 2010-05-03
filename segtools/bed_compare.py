@@ -19,7 +19,7 @@ def bases_in_segments(segments):
     else:
         return (segments['end'] - segments['start']).sum()
 
-def edit_distance(bedfile1, bedfile2, quick=False, verbose=False):
+def edit_distance(bedfile1, bedfile2, quick=False, verbose=True):
     """Given two segmentations, returns the edit distance (bp) between them"""
     segmentations = [Segmentation(bedfile, verbose=verbose)
                      for bedfile in [bedfile1, bedfile2]]
@@ -42,7 +42,7 @@ def edit_distance(bedfile1, bedfile2, quick=False, verbose=False):
     bases_missing2 = 0
     for chrom in chroms:
         if verbose:
-            print "%s" % chrom
+            print >>sys.stderr, "%s" % chrom
 
         # If no segments in segmentation 1
         try:
@@ -139,18 +139,18 @@ def parse_options(args):
     usage = "%prog [OPTIONS] BEDFILE BEDFILE"
     version = "%%prog %s" % __version__
     parser = OptionParser(usage=usage, version=version,
-                          description=__doc__.split())
+                          description=__doc__.strip())
 
     parser.add_option("-d", "--edit-distance", dest="edit_distance",
                       default=False, action="store_true",
                       help="Measure the base-wise edit distance between"
                       " the two specified segmentations")
-    parser.add_option("-q", "--quick", dest="quick",
+    parser.add_option("--quick", dest="quick",
                       default=False, action="store_true",
                       help="Output results after only one chromosome")
-    parser.add_option("-v", "--verbose", dest="verbose",
-                      default=False, action="store_true",
-                      help="Print diagnostic messages")
+    parser.add_option("-q", "--quiet", dest="verbose",
+                      default=True, action="store_false",
+                      help="Don't print diagnostic messages")
 
     (options, args) = parser.parse_args(args)
 

@@ -226,7 +226,7 @@ def save_html_div(template_filename, dirpath, namebase,
 
     write_html_div(dirpath, namebase, html, clobber=clobber)
 
-def form_mnemonic_div(mnemonicfile, results_dir, clobber=False):
+def form_mnemonic_div(mnemonicfile, results_dir, clobber=False, verbose=True):
     """Copy mnemonic file to results_dir and create the HTML div with a link"""
     filebase = os.path.basename(mnemonicfile)
     link_file = os.path.join(results_dir, filebase)
@@ -239,7 +239,8 @@ def form_mnemonic_div(mnemonicfile, results_dir, clobber=False):
                              " the the former." % (mnemonicfile, link_file))
         link_file = mnemonicfile  # Link to the existing file
     else:
-        print >>sys.stderr, "Copied %s to %s" % (mnemonicfile, link_file)
+        if verbose:
+            print >>sys.stderr, "Copied %s to %s" % (mnemonicfile, link_file)
 
     fields = {}
     fields["tabfilename"] = link_file
@@ -315,7 +316,7 @@ def form_html_header(bedfilename, modules, layeredbed=None, bigbed=None):
 def form_html_footer():
     return template_substitute(FOOTER_TEMPLATE_FILENAME)()
 
-def find_divs(rootdir=os.getcwd()):
+def find_divs(rootdir=os.getcwd(), verbose=True):
     """Look one level deep in directory, adding any .div files found.
     """
     divs = []
@@ -327,46 +328,95 @@ def find_divs(rootdir=os.getcwd()):
                 if ext == ".div":
                     filepath = os.path.join(folderpath, filename)
                     divs.append(filepath)
-                    print >>sys.stderr, "Found div: %s" % filename
+                    if verbose:
+                        print >>sys.stderr, "Found div: %s" % filename
     return divs
 
+def make_html_report(bedfilename, results_dir, outfile, mnemonicfile=None,
+                     clobber=False, verbose=True,
+                     layeredbed=None, bigbed=None):
+    check_clobber(outfile, clobber)
+
+    divs = find_divs(results_dir, verbose=verbose)
+    if len(divs) == 0:
+        die("Unable to find any module .div files."
+            " Make sure to run this from the parent directory of the"
+            " module output directories or specify the --results-dir option")
+
+    body = []
+    modules = [DESCRIPTION_MODULE]
+    if mnemonicfile is not None:
+        modules.append(MNEMONIC_MODULE)
+        body.append(form_mnemonic_div(mnemonicfile, results_dir, clobber=clobber, verbose=verbose))
+
+    regex = re.compile('"module" id="(.*?)".*?<h.>.*?</a>\s*(.*?)\s*</h.>',
+                       re.DOTALL)
+    for div in divs:
+        with open(div) as ifp:
+            divstring = "".join(ifp.readlines())
+            matching = regex.search(divstring)
+            assert matching
+            module = (matching.group(1), matching.group(2))
+            modules.append(module)
+            body.append(divstring)
+
+    header = form_html_header(bedfilename, modules,
+                              layeredbed=layeredbed,
+                              bigbed=bigbed)
+    footer = form_html_footer()
+
+    components = [header] + body + [footer]
+    separator = "<br /><hr>"
+    with open(outfile, "w") as ofp:
+        print >>ofp, separator.join(components)
+
 def parse_args(args):
-    from optparse import OptionParser
+    from optparse import OptionGroup, OptionParser
     usage = "%prog [OPTIONS] BEDFILE"
     version = "%%prog %s" % __version__
     parser = OptionParser(usage=usage, version=version)
 
+    group = OptionGroup(parser, "Flags")
+    group.add_option("--clobber", action="store_true",
+                     dest="clobber", default=False,
+                     help="Overwrite existing output files if the specified"
+                     " directory already exists.")
+    group.add_option("-q", "--quiet", action="store_false",
+                     dest="verbose", default=True,
+                     help="Do not print diagnostic messages.")
+    parser.add_option_group(group)
 
-    parser.add_option("--clobber", action="store_true",
-                      dest="clobber", default=False,
-                      help="Overwrite existing output files if the specified"
-                      " directory already exists.")
-    parser.add_option("--mnemonic-file", dest="mnemonicfile",
-                      default=None, metavar="FILE",
-                      help="If specified, this mnemonic mapping will be"
-                      " included in the report (this should be the same"
-                      " mnemonic file used by the individual modules)")
-    parser.add_option("-L", "--layered-bed", dest="layeredbed",
-                      default=None, metavar="FILE",
-                      help="If specified, this layered BED file will be linked"
-                      " into the the HTML document (assumed to be the same"
-                      " data as in BEDFILE)")
-    parser.add_option("-B", "--big-bed", dest="bigbed",
-                      default=None, metavar="FILE",
-                      help="If specified, this bigBed file will be linked into"
-                      " the the HTML document and a UCSC genome brower link"
-                      " will be generated for it (assumed to be the same data"
-                      " as in BEDFILE)")
-    parser.add_option("--results-dir", dest="resultsdir",
-                      default=".", metavar="DIR",
-                      help="This should be the directory containing all the"
-                      " module output directories (`ls` should return things"
-                      " like \"length_distribution/\", etc)"
-                      " [default: %default]")
-    parser.add_option("-o", "--outfile", metavar="FILE",
-                      dest="outfile", default="index.html",
-                      help="HTML report file (must be in current directory"
-                      " or the links will break [default: %default]")
+    group = OptionGroup(parser, "Linking")
+    group.add_option("-m", "--mnemonic-file", dest="mnemonicfile",
+                     default=None, metavar="FILE",
+                     help="If specified, this mnemonic mapping will be"
+                     " included in the report (this should be the same"
+                     " mnemonic file used by the individual modules).")
+    group.add_option("-L", "--layered-bed", dest="layeredbed",
+                     default=None, metavar="FILE",
+                     help="If specified, this layered BED file will be linked"
+                     " into the the HTML document (assumed to be the same"
+                     " data as in BEDFILE)")
+    group.add_option("-B", "--big-bed", dest="bigbed",
+                     default=None, metavar="FILE",
+                     help="If specified, this bigBed file will be linked into"
+                     " the the HTML document and a UCSC genome brower link"
+                     " will be generated for it (assumed to be the same data"
+                     " as in BEDFILE)")
+    parser.add_option_group(group)
+
+    group = OptionGroup(parser, "Output")
+    group.add_option("--results-dir", dest="resultsdir",
+                     default=".", metavar="DIR",
+                     help="This should be the directory containing all the"
+                     " module output directories (`ls` should return things"
+                     " like \"length_distribution/\", etc)"
+                     " [default: %default]")
+    group.add_option("-o", "--outfile", metavar="FILE",
+                     dest="outfile", default="index.html",
+                     help="HTML report file (must be in current directory"
+                     " or the links will break [default: %default]")
+    parser.add_option_group(group)
 
     options, args = parser.parse_args(args)
 
@@ -382,44 +432,14 @@ def parse_args(args):
 def main(args=sys.argv[1:]):
     options, args = parse_args(args)
     bedfilename = args[0]
-    mnemonicfile = options.mnemonicfile
     outfile = options.outfile
     results_dir = options.resultsdir
-    clobber = options.clobber
-    check_clobber(outfile, clobber)
-
-    divs = find_divs(results_dir)
-    if len(divs) == 0:
-        die("Unable to find any module .div files."
-            " Make sure to run this from the parent directory of the"
-            " module output directories or specify the --results-dir option")
-
-    body = []
-    modules = [DESCRIPTION_MODULE]
-    if mnemonicfile is not None:
-        modules.append(MNEMONIC_MODULE)
-        body.append(form_mnemonic_div(mnemonicfile, results_dir, clobber))
-
-    regex = re.compile('"module" id="(.*?)".*?<h.>.*?</a>\s*(.*?)\s*</h.>',
-                       re.DOTALL)
-    for div in divs:
-        with open(div) as ifp:
-            divstring = "".join(ifp.readlines())
-            matching = regex.search(divstring)
-            assert matching
-            module = (matching.group(1), matching.group(2))
-            modules.append(module)
-            body.append(divstring)
-
-    header = form_html_header(bedfilename, modules,
-                              layeredbed=options.layeredbed,
-                              bigbed=options.bigbed)
-    footer = form_html_footer()
-
-    components = [header] + body + [footer]
-    separator = "<br /><hr>"
-    with open(outfile, "w") as ofp:
-        print >>ofp, separator.join(components)
+    kwargs = {"mnemonicfile": options.mnemonicfile,
+              "clobber": options.clobber,
+              "verbose": options.verbose,
+              "layeredbed": options.layeredbed,
+              "bigbed": options.bigbed}
+    make_html_report(bedfilename, results_dir, outfile, **kwargs)
 
 if __name__ == "__main__":
     sys.exit(main())

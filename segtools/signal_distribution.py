@@ -24,10 +24,9 @@ from genomedata import Genome
 from itertools import repeat
 from functools import partial
 from numpy import array, ceil, compress, floor, fromiter, histogram, isfinite, NAN, nanmax, nanmin, nansum, NINF, PINF
-from rpy2.robjects import r, numpy2ri
 
 from . import Segmentation
-from .common import die, iter_segments_continuous, iter_supercontig_segments, make_tabfilename, r_source, setup_directory, tab_reader, tab_saver
+from .common import die, iter_segments_continuous, iter_supercontig_segments, make_tabfilename, r_plot, r_source, setup_directory, tab_reader, tab_saver
 from .html import save_html_div
 from .mnemonics import create_mnemonic_file
 
@@ -367,9 +366,10 @@ def calc_stats(histogram):
 
 
 ## Saves the track stats to a tab file
-def save_stats_tab(stats, dirpath, clobber=False,
+def save_stats_tab(stats, dirpath, clobber=False, verbose=True,
                    namebase=NAMEBASE_STATS, fieldnames=FIELDNAMES_STATS):
-    with tab_saver(dirpath, namebase, fieldnames, clobber=clobber) as saver:
+    with tab_saver(dirpath, namebase, fieldnames, verbose=verbose,
+                   clobber=clobber) as saver:
         for label, label_stats in stats.iteritems():
             for trackname, track_stats in label_stats.iteritems():
                 mean = track_stats["mean"]
@@ -619,7 +619,7 @@ def load_track_ranges(genome, segmentation=None):
 
 def save_stats_plot(dirpath, namebase=NAMEBASE_STATS, filename=None,
                     clobber=False, mnemonic_file=None, translation_file=None,
-                    allow_regex=False, gmtk=False):
+                    allow_regex=False, gmtk=False, verbose=True):
     """
     if filename is specified, it overrides dirpath/namebase.tab as
     the data file for plotting.
@@ -635,18 +635,11 @@ def save_stats_plot(dirpath, namebase=NAMEBASE_STATS, filename=None,
     if not os.path.isfile(filename):
         die("Unable to find stats data file: %s" % filename)
 
-    # None is not currently supported in rpy2
-    if mnemonic_file is None:
-        mnemonic_file = ""
-
-    if translation_file is None:
-        translation_file = ""
-
-    r["save.track.stats"](dirpath, namebase, filename,
-                          mnemonic_file=mnemonic_file,
-                          translation_file=translation_file,
-                          as_regex=allow_regex, gmtk=gmtk,
-                          clobber=clobber)
+    r_plot("save.track.stats", dirpath, namebase, filename,
+           mnemonic_file=mnemonic_file,
+           translation_file=translation_file,
+           as_regex=allow_regex, gmtk=gmtk,
+           clobber=clobber, verbose=verbose)
 
 def save_html(dirpath, genomedatadir, nseg_dps=None,
               ecdf=False, clobber=False):
@@ -668,7 +661,7 @@ def save_html(dirpath, genomedatadir, nseg_dps=None,
 ## Package entry point
 def validate(bedfilename, genomedatadir, dirpath,
              clobber=False, calc_ranges=False, inputdirs=None,
-             quick=False, replot=False, noplot=False,
+             quick=False, replot=False, noplot=False, verbose=True,
              nbins=NBINS, value_range=(None, None),
              ecdf=False, mnemonic_file=None,
              create_mnemonics=False, chroms=None):
@@ -676,7 +669,7 @@ def validate(bedfilename, genomedatadir, dirpath,
     if not replot:
         setup_directory(dirpath)
         genome = Genome(genomedatadir)
-        segmentation = Segmentation(bedfilename)
+        segmentation = Segmentation(bedfilename, verbose=verbose)
 
         ntracks = genome.num_tracks_continuous  # All tracks; not just segtracks
         segtracks = segmentation.tracks
@@ -689,7 +682,7 @@ def validate(bedfilename, genomedatadir, dirpath,
         histogram = SignalHistogram()
         for inputdir in inputdirs:
             try:
-                sub_histogram = SignalHistogram.read(inputdir)
+                sub_histogram = SignalHistogram.read(inputdir, verbose=verbose)
             except IOError, e:
                 print >>sys.stderr, "Problem reading data from %s: %s" % \
                     (inputdir, e)
@@ -699,28 +692,29 @@ def validate(bedfilename, genomedatadir, dirpath,
     elif not replot:
         # Generate histogram
         histogram = SignalHistogram.calculate(genome, segmentation,
-                                              nbins=nbins,
+                                              nbins=nbins, verbose=verbose,
                                               calc_ranges=calc_ranges,
                                               value_range=value_range,
                                               quick=quick, chroms=chroms)
     else:
-        histogram = SignalHistogram.read(dirpath)
+        histogram = SignalHistogram.read(dirpath, verbose=verbose)
 
     if not replot:
-        histogram.save(dirpath, clobber=clobber)
+        histogram.save(dirpath, clobber=clobber, verbose=verbose)
 
         stats = calc_stats(histogram)
-        save_stats_tab(stats, dirpath, clobber=clobber,
+        save_stats_tab(stats, dirpath, clobber=clobber, verbose=verbose,
                        namebase=NAMEBASE_STATS)
 
         if mnemonic_file is None and create_mnemonics:
             statsfilename = make_tabfilename(dirpath, NAMEBASE_STATS)
             mnemonic_file = create_mnemonic_file(statsfilename, dirpath,
-                                                    clobber=clobber)
+                                                 clobber=clobber,
+                                                 verbose=verbose)
 
     if not noplot:
         save_stats_plot(dirpath, namebase=NAMEBASE_STATS, clobber=clobber,
-                        mnemonic_file=mnemonic_file)
+                        mnemonic_file=mnemonic_file, verbose=verbose)
 
     if histogram:
         try:
@@ -743,6 +737,9 @@ def parse_options(args):
                      dest="clobber", default=False,
                      help="Overwrite existing output files if the specified"
                      " directory already exists.")
+    group.add_option("-q", "--quiet", action="store_false",
+                     dest="verbose", default=True,
+                     help="Do not print diagnostic messages.")
     group.add_option("--quick", action="store_true",
                      dest="quick", default=False,
                      help="Compute values only for one chromosome.")
@@ -792,7 +789,7 @@ def parse_options(args):
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "I/O options")
-    group.add_option("--mnemonic-file", dest="mnemonic_file",
+    group.add_option("-m", "--mnemonic-file", dest="mnemonic_file",
                      default=None, metavar="FILE",
                      help="If specified, labels will be shown using"
                      " mnemonics found in FILE")
@@ -811,16 +808,13 @@ def parse_options(args):
 
     (options, args) = parser.parse_args(args)
 
-    if len(args) < 2:
-        parser.error("Insufficient number of arguments")
+    if len(args) != 2:
+        parser.error("Inappropriate number of arguments")
 
     if options.inputdirs:
         for inputdir in options.inputdirs:
             if inputdir == options.outdir:
                 parser.error("Output directory cannot be an input directory")
-
-    if options.noplot and options.replot:
-        parser.error("noplot and replot are contradictory")
 
     return (options, args)
 
@@ -830,6 +824,7 @@ def main(args=sys.argv[1:]):
     bedfilename = args[0]
     genomedatadir = args[1]
     kwargs = {"clobber": options.clobber,
+              "verbose": options.verbose,
               "quick": options.quick,
               "calc_ranges": options.calc_ranges,
               "replot": options.replot,
@@ -842,7 +837,7 @@ def main(args=sys.argv[1:]):
               "create_mnemonics": options.create_mnemonics,
               "chroms": options.chroms}
 
-    validate(bedfilename, genomedatadir, options.outdir, **kwargs )
+    validate(bedfilename, genomedatadir, options.outdir, **kwargs)
 
 if __name__ == "__main__":
     sys.exit(main())

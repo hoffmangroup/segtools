@@ -22,10 +22,9 @@ import sys
 from collections import defaultdict
 from functools import partial
 from operator import itemgetter
-from rpy2.robjects import r, numpy2ri
 
 from . import Segmentation
-from .common import die, fill_array, get_ordered_labels, load_gff_data, make_tabfilename, map_segments, maybe_gzip_open, r_source, setup_directory, tab_saver
+from .common import die, fill_array, get_ordered_labels, load_gff_data, make_tabfilename, map_segments, maybe_gzip_open, r_plot, r_source, setup_directory, tab_saver
 
 from .html import save_html_div
 
@@ -265,8 +264,8 @@ def preprocess_entries(entries):
         if gene_source is None:
             gene_source = source
         elif gene_source != source:
-            print >>sys.stderr, ("Found gene features from more than one"
-                                 "source: [%s, %s]\n%s" %
+            print >>sys.stderr, ("Warning: Found gene features from more than"
+                                 " one source: [%s, %s]\n%s" %
                                  (gene_source, source, str(entries)))
 
         partial_entry = (start, end)
@@ -592,7 +591,8 @@ def load_gtf_data(gtf_filename, min_exons=MIN_EXONS, min_cdss=MIN_CDSS):
 ##   groups: a list of the groups aggregated over
 ##   counts: dict(label_key -> dict(feature -> dict(component -> histogram)))
 def calc_aggregation(segmentation, mode, features, groups, components=[],
-                     component_bins=None, quick=False, by_groups=False):
+                     component_bins=None, quick=False, by_groups=False,
+                     verbose=True):
     assert len(groups) > 0
 
     if component_bins is None:
@@ -606,16 +606,17 @@ def calc_aggregation(segmentation, mode, features, groups, components=[],
 
     labels = segmentation.labels
 
-    print >>sys.stderr, "\tGroups: %s" % groups
-    print >>sys.stderr, "\tComponents and bins:"
-    for component in components:
-        print >>sys.stderr, "\t\t",
-        # Try to substitute number of bins in first
-        try:
-            print >>sys.stderr, component % component_bins[component]
-        except TypeError:
-            print >>sys.stderr, "%s: %d" % (component,
-                                            component_bins[component])
+    if verbose:
+        print >>sys.stderr, "\tGroups: %s" % groups
+        print >>sys.stderr, "\tComponents and bins:"
+        for component in components:
+            print >>sys.stderr, "\t\t",
+            # Try to substitute number of bins in first
+            try:
+                print >>sys.stderr, component % component_bins[component]
+            except TypeError:
+                print >>sys.stderr, "%s: %d" % (component,
+                                                component_bins[component])
 
     # dict:
     #   key: feature_group
@@ -630,7 +631,8 @@ def calc_aggregation(segmentation, mode, features, groups, components=[],
     counted_features = 0
 
     for chrom, segments in segmentation.chromosomes.iteritems():
-        print >>sys.stderr, "\t%s" % chrom
+        if verbose:
+            print >>sys.stderr, "\t%s" % chrom
 
         # XXX: Segments and features are in sorted order. TAKE ADVANTAGE
 
@@ -686,7 +688,7 @@ def make_row(labels, row_data):
 
 ## Saves the data to a tab file
 def save_tab(segmentation, labels, counts, components, component_bins,
-             counted_features, dirpath, mode,
+             counted_features, dirpath, mode, verbose=True,
              clobber=False, namebase=NAMEBASE):
     metadata = {"num_features": counted_features}
     # Add metadata to tell R how to display gene model.
@@ -700,11 +702,13 @@ def save_tab(segmentation, labels, counts, components, component_bins,
         assert label not in metadata
         metadata[label] = segmentation.num_label_bases(label)
 
-    print >>sys.stderr, "Saving metadata: %r" % metadata
+    if verbose:
+        print >>sys.stderr, "Saving metadata: %r" % metadata
+
     fieldnames = STATIC_FIELDNAMES + [labels[label_key]
                                       for label_key in label_keys]
     with tab_saver(dirpath, namebase, fieldnames=fieldnames, metadata=metadata,
-                   clobber=clobber) as saver:
+                   clobber=clobber, verbose=verbose) as saver:
         for group in counts:
             for component in components:
                 hist = counts[group][component]
@@ -727,7 +731,7 @@ def save_tab(segmentation, labels, counts, components, component_bins,
                     saver.writerow(row)
 
 ## Plots aggregation data from tab file
-def save_plot(dirpath, mode, namebase=NAMEBASE, clobber=False,
+def save_plot(dirpath, mode, namebase=NAMEBASE, clobber=False, verbose=True,
               mnemonic_file=None, normalize=False):
     start_R()
 
@@ -740,14 +744,13 @@ def save_plot(dirpath, mode, namebase=NAMEBASE, clobber=False,
 
     # Plot data in tab file
     if mode == GENE_MODE:
-        r["save.gene.aggregations"](dirpath, NAMEBASE_TRANSCRIPTION,
-                                    NAMEBASE_TRANSLATION, tabfilename,
-                                    mnemonic_file=mnemonic_file,
-                                    normalize=normalize, clobber=clobber)
+        r_plot("save.gene.aggregations", dirpath, NAMEBASE_TRANSCRIPTION,
+               NAMEBASE_TRANSLATION, tabfilename, mnemonic_file=mnemonic_file,
+               normalize=normalize, clobber=clobber, verbose=verbose)
     else:
-        r["save.aggregation"](dirpath, namebase, tabfilename,
-                              mnemonic_file=mnemonic_file,
-                              normalize=normalize, clobber=clobber)
+        r_plot("save.aggregation", dirpath, namebase, tabfilename,
+               mnemonic_file=mnemonic_file, normalize=normalize,
+               clobber=clobber, verbose=verbose)
 
 def save_html(dirpath, featurefilename, mode, clobber=False, normalize=False):
     featurebasename = os.path.basename(featurefilename)
@@ -785,15 +788,17 @@ def validate(bedfilename, featurefilename, dirpath,
              by_groups=False, mode=DEFAULT_MODE, clobber=False,
              quick=False, replot=False, noplot=False, normalize=False,
              min_exons=MIN_EXONS, min_cdss=MIN_CDSS,
-             mnemonic_file=None):
+             mnemonic_file=None, verbose=True):
 
     if not replot:
         setup_directory(dirpath)
-        segmentation = Segmentation(bedfilename)
+        segmentation = Segmentation(bedfilename, verbose=verbose)
 
         assert segmentation is not None
 
-        print >>sys.stderr, "Using file %s" % featurefilename
+        if verbose:
+            print >>sys.stderr, "Using file %s" % featurefilename
+
         if mode == GENE_MODE:
             features = load_gtf_data(featurefilename,
                                      min_exons=min_exons,
@@ -820,7 +825,9 @@ def validate(bedfilename, featurefilename, dirpath,
         num_features = 0
         for chrom_features in features.itervalues():
             num_features += len(chrom_features)
-        print >>sys.stderr, "\tAggregating over %d features" % num_features
+
+        if verbose:
+            print >>sys.stderr, "\tAggregating over %d features" % num_features
 
         component_bins = get_component_bins(components,
                                             flank_bins=flank_bins,
@@ -831,7 +838,7 @@ def validate(bedfilename, featurefilename, dirpath,
         res = calc_aggregation(segmentation, mode=mode, features=features,
                                groups=groups, components=components,
                                component_bins=component_bins, quick=quick,
-                               by_groups=by_groups)
+                               by_groups=by_groups, verbose=verbose)
         counts, counted_features = res
         for group in groups:
             for component in components:
@@ -841,16 +848,17 @@ def validate(bedfilename, featurefilename, dirpath,
                 except TypeError:
                     component_name = component
                 component_counts = counts[group][component].sum(axis=1)
-                print_array(component_counts, tag="%s:%s count" % \
+                if verbose:
+                    print_array(component_counts, tag="%s:%s count" %
                                 (group, component_name))
 
         save_tab(segmentation, labels, counts, components, component_bins,
-                 counted_features, dirpath, mode, clobber=clobber)
+                 counted_features, dirpath, mode, clobber=clobber,
+                 verbose=verbose)
 
     if not noplot:
-        save_plot(dirpath, mode, clobber=clobber,
-                  mnemonic_file=mnemonic_file,
-                  normalize=normalize)
+        save_plot(dirpath, mode, clobber=clobber, verbose=verbose,
+                  mnemonic_file=mnemonic_file, normalize=normalize)
 
     save_html(dirpath, featurefilename, mode=mode,
               clobber=clobber, normalize=normalize)
@@ -870,7 +878,7 @@ def parse_options(args):
                           description=description)
 
     group = OptionGroup(parser, "Input options")
-    group.add_option("--mnemonic-file", dest="mnemonic_file",
+    group.add_option("-m", "--mnemonic-file", dest="mnemonic_file",
                       default=None, metavar="FILE",
                       help="If specified, labels will be shown using"
                       " mnemonics found in FILE")
@@ -885,6 +893,9 @@ def parse_options(args):
                      dest="clobber", default=False,
                      help="Overwrite existing output files if the specified"
                      " directory already exists.")
+    group.add_option("-q", "--quiet", action="store_false",
+                     dest="verbose", default=True,
+                     help="Do not print diagnostic messages.")
     group.add_option("--quick", action="store_true",
                      dest="quick", default=False,
                      help="Compute values only for one chromosome.")
@@ -910,7 +921,7 @@ def parse_options(args):
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Main aggregation options")
-    group.add_option("-m", "--mode", choices=MODES,
+    group.add_option("--mode", choices=MODES,
                      dest="mode", type="choice", default=DEFAULT_MODE,
                      help="one of: "+str(MODES)+". [default: %default]")
     group.add_option("-f", "--flank-bases", metavar="N",
@@ -963,6 +974,7 @@ def main(args=sys.argv[1:]):
               "intron_bins": options.intronbins,
               "exon_bins": options.exonbins,
               "clobber": options.clobber,
+              "verbose": options.verbose,
               "quick": options.quick,
               "replot": options.replot,
               "noplot": options.noplot,

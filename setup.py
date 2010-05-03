@@ -45,6 +45,7 @@ segtools-nucleotide-frequency = segtools.nucleotide_frequency:main
 segtools-overlap = segtools.overlap:main
 segtools-signal-distribution = segtools.signal_distribution:main
 segtools-html-report = segtools.html:main
+segtools-pickle-segmentation = segtools.pickle_segmentation:main
 """
 #segtools = segtools.validate_all:main
 

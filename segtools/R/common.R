@@ -419,8 +419,6 @@ dev.print.images <- function(basename, dirname,
 }
 
 save.images <- function(dirpath, basename, image, ..., clobber = FALSE) {
-  cat("Saving images...", file=stderr())
   plot(image)
   dev.print.images(basename, dirpath, ..., clobber = clobber)
-  cat("... done saving images.", file=stderr())
 }

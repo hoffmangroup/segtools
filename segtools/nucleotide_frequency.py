@@ -4,8 +4,6 @@ from __future__ import division, with_statement
 __version__ = "$Revision$"
 
 """
-validate.py:
-
 Provides command-line and package entry points for analyzing nucleotide
 and dinucleotide frequencies for each segmentation label.
 
@@ -18,10 +16,9 @@ import sys
 from collections import defaultdict
 from genomedata import Genome
 from numpy import zeros
-from rpy2.robjects import r, numpy2ri
 
 from . import Segmentation
-from .common import die, make_tabfilename, r_source, setup_directory, tab_saver
+from .common import die, make_tabfilename, r_plot,  r_source, setup_directory, tab_saver
 
 from .html import save_html_div
 
@@ -60,7 +57,7 @@ def start_R():
 def calc_nucleotide_frequencies(segmentation, genome,
                                 nuc_categories=NUC_CATEGORIES,
                                 dinuc_categories=DINUC_CATEGORIES,
-                                quick=False):
+                                quick=False, verbose=True):
 
     # Store categories efficiently as dict
     # from each entry directly to category index
@@ -90,7 +87,8 @@ def calc_nucleotide_frequencies(segmentation, genome,
     # Count (di)nucleotides over segmentation
     for chromosome in genome:
         chrom = chromosome.name
-        print >>sys.stderr, "\t%s" % chrom
+        if verbose:
+            print >>sys.stderr, "\t%s" % chrom
 
         try:
             segments = segmentation.chromosomes[chrom]
@@ -151,27 +149,25 @@ def make_row(label, nuc_counts, dinuc_counts, fieldnames=FIELDNAMES):
 # Fieldnames must agree with categories in order and content
 # with a "label" category at the beginning, and nuc before dinuc
 def save_tab(labels, nuc_counts, dinuc_counts, dirpath,
-             fieldnames=FIELDNAMES, clobber=False):
-    with tab_saver(dirpath, NAMEBASE, fieldnames, clobber=clobber) as saver:
+             fieldnames=FIELDNAMES, clobber=False, verbose=True):
+    with tab_saver(dirpath, NAMEBASE, fieldnames,
+                   clobber=clobber, verbose=verbose) as saver:
         for label_key in sorted(labels.keys()):
             row = make_row(labels[label_key],
                            nuc_counts[label_key],
                            dinuc_counts[label_key])
             saver.writerow(row)
 
-def save_plot(dirpath, clobber=False, mnemonic_file="", namebase=NAMEBASE):
+def save_plot(dirpath, clobber=False, verbose=True,
+              mnemonic_file="", namebase=NAMEBASE):
     start_R()
 
     tabfilename = make_tabfilename(dirpath, NAMEBASE)
     if not os.path.isfile(tabfilename):
         die("Unable to find tab file: %s" % tabfilename)
 
-    if not mnemonic_file:
-        mnemonic_file = ""  # None cannot be passed to R
-
-    r["save.dinuc"](dirpath, namebase, tabfilename,
-                    mnemonic_file=mnemonic_file,
-                    clobber=clobber)
+    r_plot("save.dinuc", dirpath, namebase, tabfilename,
+           mnemonic_file=mnemonic_file, clobber=clobber, verbose=verbose)
 
 def save_html(dirpath, clobber=False, mnemonicfile=None):
     save_html_div(HTML_TEMPLATE_FILENAME, dirpath, NAMEBASE, clobber=clobber,
@@ -180,62 +176,68 @@ def save_html(dirpath, clobber=False, mnemonicfile=None):
 
 ## Package entry point
 def validate(bedfilename, genomedatadir, dirpath, clobber=False, quick=False,
-             replot=False, noplot=False, mnemonic_file=None):
+             replot=False, noplot=False, mnemonic_file=None, verbose=True):
     setup_directory(dirpath)
     if not replot:
-        segmentation = Segmentation(bedfilename)
+        segmentation = Segmentation(bedfilename, verbose=verbose)
         labels = segmentation.labels
 
         with Genome(genomedatadir) as genome:
             nuc_counts, dinuc_counts = \
-                        calc_nucleotide_frequencies(segmentation,
-                                                    genome, quick=quick)
+                calc_nucleotide_frequencies(segmentation, genome,
+                                            quick=quick, verbose=verbose)
 
-        save_tab(labels, nuc_counts, dinuc_counts, dirpath, clobber=clobber)
+        save_tab(labels, nuc_counts, dinuc_counts, dirpath,
+                 clobber=clobber, verbose=verbose)
 
     if not noplot:
-        save_plot(dirpath, clobber=clobber, mnemonic_file=mnemonic_file)
+        save_plot(dirpath, clobber=clobber, verbose=verbose,
+                  mnemonic_file=mnemonic_file)
 
     save_html(dirpath, clobber=clobber, mnemonicfile=mnemonic_file)
 
 def parse_options(args):
-    from optparse import OptionParser
+    from optparse import OptionGroup, OptionParser
 
     usage = "%prog [OPTIONS] BEDFILE GENOMEDATADIR"
     version = "%%prog %s" % __version__
     parser = OptionParser(usage=usage, version=version)
 
-    parser.add_option("--clobber", action="store_true",
-                      dest="clobber", default=False,
-                      help="Overwrite existing output files if the specified"
-                      " directory already exists.")
-    parser.add_option("--quick", action="store_true",
-                      dest="quick", default=False,
-                      help="Compute values only for one chromosome.")
-    parser.add_option("--replot", action="store_true",
-                      dest="replot", default=False,
-                      help="Load data from output tab files and"
-                      " regenerate plots instead of recomputing data")
-    parser.add_option("--noplot", action="store_true",
-                      dest="noplot", default=False,
-                      help="Do not generate plots")
+    group = OptionGroup(parser, "Flags")
+    group.add_option("--clobber", action="store_true",
+                     dest="clobber", default=False,
+                     help="Overwrite existing output files if the specified"
+                     " directory already exists.")
+    group.add_option("-q", "--quiet", action="store_false",
+                     dest="verbose", default=True,
+                     help="Do not print diagnostic messages.")
+    group.add_option("--quick", action="store_true",
+                     dest="quick", default=False,
+                     help="Compute values only for one chromosome.")
+    group.add_option("--replot", action="store_true",
+                     dest="replot", default=False,
+                     help="Load data from output tab files and"
+                     " regenerate plots instead of recomputing data")
+    group.add_option("--noplot", action="store_true",
+                     dest="noplot", default=False,
+                     help="Do not generate plots")
+    parser.add_option_group(group)
 
-    parser.add_option("--mnemonic-file", dest="mnemonic_file",
-                      default=None,
-                      help="If specified, labels will be shown using"
-                      " mnemonics found in this file")
-    parser.add_option("-o", "--outdir",
-                      dest="outdir", default="%s" % MODULE,
-                      help="File output directory (will be created"
-                      " if it does not exist) [default: %default]")
+    group = OptionGroup(parser, "Output")
+    group.add_option("-m", "--mnemonic-file", dest="mnemonic_file",
+                     default=None, metavar="FILE",
+                     help="If specified, labels will be shown using"
+                     " mnemonics found in FILE.")
+    group.add_option("-o", "--outdir",
+                     dest="outdir", default="%s" % MODULE, metavar="DIR",
+                     help="File output directory (will be created"
+                     " if it does not exist) [default: %default]")
+    parser.add_option_group(group)
 
     (options, args) = parser.parse_args(args)
 
-    if len(args) < 2:
-        parser.error("Insufficient number of arguments")
-
-    if options.noplot and options.replot:
-        parser.error("noplot and replot are contradictory")
+    if len(args) != 2:
+        parser.error("Inappropriate number of arguments")
 
     return (options, args)
 
@@ -245,10 +247,13 @@ def main(args=sys.argv[1:]):
     bedfilename = args[0]
     genomedatadir = args[1]
 
-    validate(bedfilename, genomedatadir, options.outdir,
-             clobber=options.clobber, quick=options.quick,
-             replot=options.replot, noplot=options.noplot,
-             mnemonic_file=options.mnemonic_file)
+    kwargs = {"clobber": options.clobber,
+              "verbose": options.verbose,
+              "quick": options.quick,
+              "replot": options.replot,
+              "noplot": options.noplot,
+              "mnemonic_file": options.mnemonic_file}
+    validate(bedfilename, genomedatadir, options.outdir, **kwargs)
 
 if __name__ == "__main__":
     sys.exit(main())

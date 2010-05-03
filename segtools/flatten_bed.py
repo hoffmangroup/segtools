@@ -251,12 +251,13 @@ def print_readme(labels, filename=DEFAULT_HELPFILE):
         for key, label in labels.iteritems():
             print >>ofp, "\t".join([str(key), str(key), label])
 
-def flatten_bed(bedfiles, outfile=None, helpfile=DEFAULT_HELPFILE):
+def flatten_bed(bedfiles, outfile=None, helpfile=DEFAULT_HELPFILE,
+                verbose=True):
     segmentations = {}
     for bedfile in bedfiles:
         assert os.path.isfile(bedfile)
         nice_filename = os.path.basename(bedfile)
-        segmentations[nice_filename] = Segmentation(bedfile)
+        segmentations[nice_filename] = Segmentation(bedfile, verbose=verbose)
 
     labels, segments = merge_segments(segmentations)
     print_bed(segments, filename=outfile)
@@ -268,6 +269,10 @@ def parse_args(args):
     usage = "%prog [OPTIONS] BEDFILE..."
     parser = OptionParser(usage=usage, version=__version__,
                           description=__doc__.strip())
+
+    parser.add_option("-q", "--quiet", dest="verbose",
+                      default=True, action="store_false",
+                      help="Do not print diagnostic messages.")
     parser.add_option("-m", "--mnemonic-file", dest="helpfile",
                       default=DEFAULT_HELPFILE, metavar="FILE",
                       help="Save mapping information to FILE instead of"
@@ -277,6 +282,7 @@ def parse_args(args):
                       default=None, metavar="FILE",
                       help="Save flattened bed file to FILE instead of"
                       " printing to stdout (default)")
+
     options, args = parser.parse_args(args)
 
     if len(args) == 0:
@@ -292,6 +298,7 @@ def main(args=sys.argv[1:]):
             die("Could not find file: %s" % arg)
 
     kwargs = {"helpfile": options.helpfile,
+              "verbose": options.verbose,
               "outfile": options.outfile}
     flatten_bed(args, **kwargs)
 

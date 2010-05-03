@@ -13,7 +13,6 @@ import re
 import sys
 
 from collections import defaultdict
-from pkg_resources import resource_listdir
 from numpy import array
 
 from .bed import read_native as read_bed

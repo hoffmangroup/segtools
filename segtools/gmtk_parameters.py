@@ -19,9 +19,8 @@ import sys
 
 
 from numpy import array
-from rpy2.robjects import r, numpy2ri
 
-from .common import die, r_source, setup_directory
+from .common import die, r_call, r_source, setup_directory
 from .html import save_html_div
 from .label_transition import save_plot, save_graph
 from .mnemonics import create_mnemonic_file
@@ -52,7 +51,7 @@ def load_gmtk_transitions(gmtk_file):
     """
     start_R()
 
-    r_data = r["read.gmtk.transition"](gmtk_file)
+    r_data = r_call("read.gmtk.transition", gmtk_file)
     # Rpy automatically transposes, so need to transpose it back
     probs = array(r_data, dtype="double").transpose()
     num_labels = probs.shape[0]
@@ -78,37 +77,42 @@ def save_html(dirpath, gmtk_file, p_thresh, q_thresh, clobber=False):
 def validate(gmtk_file, dirpath, p_thresh=P_THRESH, q_thresh=Q_THRESH,
              noplot=False, nograph=False, gene_graph=False, clobber=False,
              translation_file=None, allow_regex=False, mnemonic_file=None,
-             create_mnemonics=False):
+             create_mnemonics=False, verbose=True):
 
     setup_directory(dirpath)
 
     if not os.path.isfile(gmtk_file):
         die("Could not find GMTK file: %s" % gmtk_file)
 
-    print >>sys.stderr, "Loading gmtk transitions...",
+    if verbose:
+        print >>sys.stderr, "Loading gmtk transitions...",
+
     labels, probs = load_gmtk_transitions(gmtk_file)
-    print >>sys.stderr, "done"
+    if verbose:
+        print >>sys.stderr, "done"
 
     # If mnemonics weren't specified, let's create a mnemonic file!
     if mnemonic_file is None and create_mnemonics:
         mnemonic_file = create_mnemonic_file(gmtk_file, dirpath,
-                                             clobber=clobber, gmtk=True)
-
+                                             verbose=verbose,
+                                             clobber=clobber,
+                                             gmtk=True)
 
     if not noplot:
         save_plot(dirpath, namebase=NAMEBASE, filename=gmtk_file,
-                  clobber=clobber, gmtk=True, mnemonic_file=mnemonic_file)
+                  verbose=verbose, clobber=clobber, gmtk=True,
+                  mnemonic_file=mnemonic_file)
         save_stats_plot(dirpath, namebase=NAMEBASE_STATS, filename=gmtk_file,
                         clobber=clobber, gmtk=True,
                         mnemonic_file=mnemonic_file,
                         translation_file=translation_file,
-                        allow_regex=allow_regex)
+                        allow_regex=allow_regex, verbose=verbose)
 
     if not nograph:
         save_graph(labels, probs, dirpath, clobber=clobber,
                    p_thresh=p_thresh, q_thresh=q_thresh,
                    gene_graph=gene_graph, mnemonic_file=mnemonic_file,
-                   namebase=NAMEBASE_GRAPH)
+                   namebase=NAMEBASE_GRAPH, verbose=verbose)
 
     save_html(dirpath, gmtk_file, p_thresh=p_thresh, q_thresh=q_thresh,
               clobber=clobber)
@@ -126,6 +130,9 @@ def parse_options(args):
                      dest="clobber", default=False,
                      help="Overwrite existing output files if the specified"
                      " directory already exists.")
+    group.add_option("-q", "--quiet", action="store_false",
+                     dest="verbose", default=True,
+                     help="Do not print diagnostic messages.")
     group.add_option("--noplot", action="store_true",
                      dest="noplot", default=False,
                      help="Do not generate transition plots")
@@ -149,11 +156,11 @@ def parse_options(args):
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Output")
-    group.add_option("--mnemonic-file", dest="mnemonic_file",
-                     default=None,
+    group.add_option("-m", "--mnemonic-file", dest="mnemonic_file",
+                     default=None, metavar="FILE",
                      help="If specified, labels will be shown using"
                      " mnemonics found in this file")
-    group.add_option("--trackname-translation", dest="translation_file",
+    group.add_option("-t", "--trackname-translation", dest="translation_file",
                      default=None, metavar="FILE",
                      help="Should be a file with rows <old-trackname>"
                      "<TAB><new-trackname>. Tracknames will be translated"
@@ -162,18 +169,18 @@ def parse_options(args):
                      " the name of a track, but --allow-regex provides"
                      " more flexibility.")
     group.add_option("-o", "--outdir",
-                     dest="outdir", default="%s" % MODULE,
+                     dest="outdir", default="%s" % MODULE, metavar="DIR",
                      help="File output directory (will be created"
                      " if it does not exist) [default: %default]")
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Transition graph options")
-    group.add_option("-p", "--prob-threshold", dest="p_thresh",
-                     type="float", default=P_THRESH,
+    group.add_option("-P", "--prob-threshold", dest="p_thresh",
+                     type="float", default=P_THRESH, metavar="VAL",
                      help="ignore all transitions with probabilities below"
                      " this absolute threshold [default: %default]")
-    group.add_option("-q", "--quantile-threshold", dest="q_thresh",
-                     type="float", default=Q_THRESH,
+    group.add_option("-Q", "--quantile-threshold", dest="q_thresh",
+                     type="float", default=Q_THRESH, metavar="VAL",
                      help="ignore transitions with probabilities below this"
                      " probability quantile [default: %default]")
     group.add_option("--gene-graph", dest="gene_graph",
@@ -205,6 +212,7 @@ def main(args=sys.argv[1:]):
     kwargs = {"p_thresh": options.p_thresh,
               "q_thresh": options.q_thresh,
               "clobber": options.clobber,
+              "verbose": options.verbose,
               "noplot": options.noplot,
               "nograph": options.nograph,
               "create_mnemonics": options.create_mnemonics,

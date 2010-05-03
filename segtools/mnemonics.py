@@ -11,12 +11,10 @@ mnemonics.py
 import os
 import sys
 
-from rpy2.robjects import r, rinterface, numpy2ri
-
-from .common import check_clobber, r_source
+from .common import check_clobber, r_call, r_source, RError
 
 def create_mnemonic_file(datafile, dirpath, clobber=False,
-                         namebase=None, gmtk=False):
+                         namebase=None, gmtk=False, verbose=True):
     """Generate a mnemonic file with R clustering code.
 
     Datafile can either be a signal stats file or a GMTK params file
@@ -43,13 +41,16 @@ def create_mnemonic_file(datafile, dirpath, clobber=False,
 
     # Create mnemonic file via R
     try:
-        r_filename = r["make.mnemonic.file"](datafile, filename,
-                                             gmtk=gmtk)
+        r_filename = r_call("make.mnemonic.file",
+                            datafile, filename, gmtk=gmtk)
+        # Peel off rpy2 layers
         mnemonicfilename = str(r_filename[0])
 
-        print >>sys.stderr, "Generated mnemonic file: %s" % mnemonicfilename
+        if verbose:
+            print >>sys.stderr, "Created mnemonic file: %s" % mnemonicfilename
+
         return mnemonicfilename
-    except rinterface.RRuntimeError:
+    except RError:
         print >>sys.stderr, ("ERROR: Failed to create mnemonic file."
                              " Continuing without mnemonics.")
         return None
