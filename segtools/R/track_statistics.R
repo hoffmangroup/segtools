@@ -250,9 +250,10 @@ normalize.binary.track.stats <- function(stats, cov = FALSE) {
 hierarchical.dist <- function(mat) {
   ## Returns a distance matrix, accomodating a hierarchical model
   
-  ## Hierarchy is denoted in the rownames, with "a_b" specifying a's child, b
+  ## Hierarchy is denoted in the rownames, with "a_b" or "a.b"
+  ## specifying a's child, b
   ## All nodes of a given level must have the same number of children
-  levels.tokens <- strsplit(rownames(mat), "_", fixed = TRUE)
+  levels.tokens <- strsplit(rownames(mat), "[_.]")
   depth <- length(levels.tokens[[1]])
   for (level.row in levels.tokens) {
     if (length(level.row) != depth) {
@@ -405,7 +406,9 @@ panel.track.stats <-
 }
 
 levelplot.track.stats <-
-  function(track.stats,
+  function(stats.obj = NULL,
+           track.stats = stats.obj[["stats"]],
+           hierarchical = stats.obj[["hierarchical"]],
            axis.cex = 1.0,
            scale.cex = 1.0,
            xlab = list("Segment label", cex = axis.cex),
@@ -413,7 +416,6 @@ levelplot.track.stats <-
            hclust.label = TRUE,
            hclust.track = TRUE,
            clust.func = hclust,
-           hierarchical = FALSE,
            aspect = "fill",
            sd.shape = "line",
            box.fill = NULL,
@@ -430,6 +432,9 @@ levelplot.track.stats <-
 {
   if (!is.array(track.stats)) {
     track.stats <- as.stats.array(track.stats)
+  }
+  if (is.null(hierarchical)) {
+    hierarchical <- FALSE
   }
 
   if (dim(track.stats[, , "mean"])[2] == 2) {
@@ -535,9 +540,7 @@ load.track.stats <- function(filename, mnemonics = NULL,
 
 plot.track.stats <- function(filename, symmetric = FALSE, ...) {
   res <- load.track.stats(filename, ...)
-  levelplot.track.stats(res$stats,
-                        hierarchical = res$hierarchical,
-                        symmetric = symmetric, ...)
+  levelplot.track.stats(res, symmetric = symmetric, ...)
 }
 
 save.track.stats <- function(dirpath, namebase, filename,
@@ -553,18 +556,14 @@ save.track.stats <- function(dirpath, namebase, filename,
                           mnemonics = mnemonics,
                           translations = translations,
                           ...)
-  stats <- res$stats
-  hierarchical <- res$hierarchical
 
-  ntracks <- nlevels(stats$trackname)
-  nlabels <- nlevels(stats$label)
+  ntracks <- nlevels(res$stats$trackname)
+  nlabels <- nlevels(res$stats$label)
   height <- 200 + square.size * ntracks
   width <- 450 + square.size * nlabels
-  
+
   save.images(dirpath, namebase,
-              levelplot.track.stats(stats,
-                                    hierarchical = hierarchical,
-                                    symmetric = symmetric, ...),
+              levelplot.track.stats(res, symmetric = symmetric, ...),
               height = height,
               width = width,
               clobber = clobber)
