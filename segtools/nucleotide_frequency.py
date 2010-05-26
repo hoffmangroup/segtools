@@ -17,7 +17,7 @@ from collections import defaultdict
 from genomedata import Genome
 from numpy import zeros
 
-from . import Segmentation
+from . import log, Segmentation
 from .common import die, make_tabfilename, r_plot,  r_source, setup_directory, tab_saver
 
 from .html import save_html_div
@@ -87,8 +87,7 @@ def calc_nucleotide_frequencies(segmentation, genome,
     # Count (di)nucleotides over segmentation
     for chromosome in genome:
         chrom = chromosome.name
-        if verbose:
-            print >>sys.stderr, "\t%s" % chrom
+        log("\t%s" % chrom, verbose)
 
         try:
             segments = segmentation.chromosomes[chrom]
@@ -199,7 +198,7 @@ def validate(bedfilename, genomedatadir, dirpath, clobber=False, quick=False,
 def parse_options(args):
     from optparse import OptionGroup, OptionParser
 
-    usage = "%prog [OPTIONS] BEDFILE GENOMEDATADIR"
+    usage = "%prog [OPTIONS] SEGMENTATION GENOMEDATAFILE"
     version = "%%prog %s" % __version__
     parser = OptionParser(usage=usage, version=version)
 

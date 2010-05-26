@@ -24,7 +24,7 @@ from pkg_resources import resource_filename
 from tabdelim import DictReader, DictWriter, ListReader, ListWriter
 from rpy2.robjects import r, rinterface
 
-from .gff import read_native as read_gff
+from . import log
 
 try:
     PKG = __package__  # Python 2.6
@@ -56,45 +56,8 @@ LABEL_ALL = "all"
 
 THUMB_SIZE = 100
 
-DTYPE_SEGMENT_START = int64
-DTYPE_SEGMENT_END = int64
-DTYPE_SEGMENT_KEY = uint32
-DTYPE_SOURCE_KEY = uint16
-DTYPE_STRAND = '|S1'
-MAXLEN_ID_DTYPE = 20
-DTYPE_GENE_ID = '|S%d' % MAXLEN_ID_DTYPE
-DTYPE_TRANSCRIPT_ID = '|S%d' % MAXLEN_ID_DTYPE
-
-#FEATURE_FIELDS = ["chrom", "source", "name", "start", "end", "score", "strand"]
-
 r_filename = partial(resource_filename, PKG_R)
 RError = rinterface.RRuntimeError
-
-## Wrapper for gff/gtf feature data
-class Features(object):
-    """
-    sequences: a dict
-      key: chromosome/scaffold name
-      val: segments: numpy.ndarray
-           each row is a struct of: start, end, key, source_key
-           sorted by start, end
-    features: a dict
-      key: int ("feature_key")  (a unique id)
-      val: printable (str or int)  (what's in the actual GFF/GTF file)
-    sources: a dict
-      key: int ("source_key")  (a unique id)
-      val: printable (str or int)  (what's in the actual GFF/GTF file)
-
-    tracks: a list of track names that were used to obtain the segmentation
-    segtool: the tool that was used to obtain this segmentation (e.g. segway)
-    """
-    def __init__(self, sequences, features, sources):
-        self.sequences = sequences
-        self.features = features
-        self.sources = sources
-        # Allow Segmentation-like access
-        self.chromosomes = self.sequences
-        self.labels = self.features
 
 class OutputMasker(object):
     """Class to mask the output of a stream.
@@ -282,7 +245,7 @@ class FeatureScanner(object):
 
 ## Die with error message
 def die(msg="Unexpected error"):
-    print >> sys.stderr, "\nERROR: %s\n" % msg
+    log("\nERROR: %s\n" % msg)
     sys.exit(1)
 
 def inverse_dict(d):
@@ -372,12 +335,10 @@ def r_plot(func, *args, **kwargs):
     # Grab verbose value, with default to True
     verbose = kwargs.pop("verbose", True)
 
-    if verbose:
-        print >>sys.stderr, "Saving plots with R function: %r..." % func,
+    log("Saving plots with R function: %r..." % func, verbose, end="")
 
     result = r_call(func, *args, **kwargs)
-    if verbose:
-        print >>sys.stderr, "done"
+    log(" done", verbose)
 
     return result
 
@@ -393,8 +354,7 @@ def tab_saver(dirpath, basename, fieldnames=None, header=True,
       Comment line will start with '# ' and then will be a space-delimited
       list of <field>=<value> pairs, one for each element of the dict.
     """
-    if verbose:
-        print >>sys.stderr, "Saving tab file...",
+    log("Saving tab file...", verbose, end="")
 
     outfilename = make_tabfilename(dirpath, basename)
     check_clobber(outfilename, clobber)
@@ -410,8 +370,7 @@ def tab_saver(dirpath, basename, fieldnames=None, header=True,
         else:
             yield ListWriter(outfile)
 
-    if verbose:
-        print >>sys.stderr, "done"
+    log(" done", verbose)
 
 @contextmanager
 def tab_reader(dirpath, basename, verbose=True, fieldnames=False):
@@ -423,8 +382,7 @@ def tab_reader(dirpath, basename, verbose=True, fieldnames=False):
 
     metadata: a dict describing the data included in the comment line.
     """
-    if verbose:
-        print >>sys.stderr, "Reading tab file...",
+    log("Reading tab file...", verbose, end="")
 
     infilename = make_tabfilename(dirpath, basename)
     if not os.path.isfile(infilename):
@@ -447,8 +405,7 @@ def tab_reader(dirpath, basename, verbose=True, fieldnames=False):
         else:
             yield ListReader(infile), metadata
 
-    if verbose:
-        print >>sys.stderr, "done"
+    log(" done", verbose)
 
 ## Maps label_keys over segments
 def map_segments(segments, labels, chrom_size):
@@ -761,126 +718,3 @@ def load_gff_data(gff_filename, sort=True):
             chrom_features.sort(key=itemgetter("start"))
 
     return data
-
-def gff2arraydict(filename, gtf=False, sort=None, verbose=True):
-    """Parses a gff/gtf file and returns a dict of numpy arrays for each chrom.
-
-    Default behavior is to sort features unless 'gtf' is True
-
-    Returns labels, sequences, where:
-      labels: a dict from feature_key -> feature string
-      sequences: a dict from seqname -> features (numpy array)
-        (features: structured array with start, end, key, and source fields.
-         If stranded, a strand field is included.
-         If gtf-mode, gene_id and transcript_id fields are included.)
-    """
-    if sort is None:
-        sort = not gtf
-
-    data = defaultdict(list)  # A dictionary-like object
-    feature_dict = {}
-    source_dict = {}
-    last_segment_start = {}  # per seq
-    unsorted_seqs = set()
-    stranded = None
-    with maybe_gzip_open(filename) as infile:
-        for datum in read_gff(infile, gtf=gtf):
-            try:
-                if datum.start < last_segment_start[datum.seqname]:
-                    unsorted_seqs.add(datum.seqname)
-            except KeyError:
-                pass
-
-            feature = str(datum.feature)
-            try:  # Lookup feature key
-                feature_key = feature_dict[feature]
-            except KeyError:  # Map new feature to key
-                feature_key = len(feature_dict)
-                feature_dict[feature] = feature_key
-
-            source = str(datum.source)
-            try:  # Lookup source key
-                source_key = source_dict[source]
-            except KeyError:  # Map new source to key
-                source_key = len(source_dict)
-                source_dict[source] = source_key
-
-            try:
-                strand = datum.strand
-            except AttributeError:
-                strand = "."
-
-            if strand == "+" or strand == "-":
-                assert stranded is None or stranded
-                stranded = True
-            else:
-                assert not stranded
-                stranded = False
-
-            feature = [datum.start, datum.end, feature_key, source_key]
-            if stranded:
-                feature.append(datum.strand)
-
-            if gtf:
-                gene_id = datum.attributes["gene_id"]
-                transcript_id = datum.attributes["transcript_id"]
-                if len(gene_id) > MAXLEN_ID_DTYPE:
-                    raise ValueError("gene_id field was too long (over \
-%d characters): %s" % (MAXLEN_ID_DTYPE, gene_id))
-                elif len(transcript_id) > MAXLEN_ID_DTYPE:
-                    raise ValueError("transcript_id field was too long (over \
-%d characters): %s" % (MAXLEN_ID_DTYPE, transcript_id))
-                feature.extend([gene_id, transcript_id])
-
-            data[datum.seqname].append(tuple(feature))
-            last_segment_start[datum.seqname] = datum.start
-
-    # Create reverse dict for return
-    features = inverse_dict(feature_dict)
-    sources = inverse_dict(source_dict)
-
-    # convert lists of tuples to array
-    dtype = [('start', DTYPE_SEGMENT_START),
-             ('end', DTYPE_SEGMENT_END),
-             ('key', DTYPE_SEGMENT_KEY),
-             ('source_key', DTYPE_SOURCE_KEY)]
-    if stranded:
-        dtype.append(('strand', DTYPE_STRAND))
-    if gtf:
-        dtype.extend([('gene_id', DTYPE_GENE_ID),
-                      ('transcript_id', DTYPE_TRANSCRIPT_ID)])
-
-    sequences = dict((seq, array(segments, dtype=dtype))
-                       for seq, segments in data.iteritems())
-
-    # Sort segments within each chromosome
-    for seq, segments in sequences.iteritems():
-        if sort and seq in unsorted_seqs:
-            if verbose:
-                print >>sys.stderr, \
-                    "Segments were unsorted relative to %s. Sorting..." % seq,
-            segments.sort(order=['start'])
-            if verbose:
-                print >>sys.stderr, "done"
-
-    return features, sources, sequences
-
-def load_features(filename, verbose=True, *args, **kwargs):
-    if verbose:
-        print >>sys.stderr, "Loading features from: %s..." % filename
-
-    features, sources, sequences = \
-        gff2arraydict(filename, verbose=verbose, *args, **kwargs)
-
-    if verbose:
-        print >>sys.stderr, "\tFound %d sources:" % len(sources)
-        for source_key, source in sources.iteritems():
-            print >>sys.stderr, '\t\t"%s" -> %d' % (source, source_key)
-
-        print >>sys.stderr, "\tFound %d feature classes" % len(features)
-        for key, feature in features.iteritems():
-            print >>sys.stderr, '\t\t"%s" -> %d' % (feature, key)
-
-        print >>sys.stderr, "done"
-
-    return Features(sequences, features, sources)

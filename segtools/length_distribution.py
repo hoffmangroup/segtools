@@ -2,8 +2,6 @@
 from __future__ import division, with_statement
 
 """
-validate.py:
-
 Provides command-line and package entry points for analyzing the segment
 length distribution in a provided BED-formatted segmentation.
 
@@ -186,7 +184,7 @@ def validate(bedfilename, dirpath, clobber=False, replot=False, noplot=False,
 def parse_options(args):
     from optparse import OptionGroup, OptionParser
 
-    usage = "%prog [OPTIONS] BEDFILE"
+    usage = "%prog [OPTIONS] SEGMENTATION"
     version = "%%prog %s" % __version__
     parser = OptionParser(usage=usage, version=version)
 

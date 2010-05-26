@@ -8,7 +8,7 @@ observing that label at that position relative the the feature.
 
 If using gene mode, the input file should have features with names:
 exon, start_codon, CDS
-as provided by exporting UCSC gene data in GFF format.
+as provided by exporting UCSC gene data in GTF format.
 """
 
 # A package-unique, descriptive module name used for filenames, etc
@@ -23,7 +23,7 @@ from collections import defaultdict
 from functools import partial
 from operator import itemgetter
 
-from . import Segmentation
+from . import log, Segmentation
 from .common import die, fill_array, get_ordered_labels, load_gff_data, make_tabfilename, map_segments, maybe_gzip_open, r_plot, r_source, setup_directory, tab_saver
 
 from .html import save_html_div
@@ -264,9 +264,9 @@ def preprocess_entries(entries):
         if gene_source is None:
             gene_source = source
         elif gene_source != source:
-            print >>sys.stderr, ("Warning: Found gene features from more than"
-                                 " one source: [%s, %s]\n%s" %
-                                 (gene_source, source, str(entries)))
+            log("Warning: Found gene features from more than"
+                " one source: [%s, %s]\n%s" %
+                (gene_source, source, str(entries)))
 
         partial_entry = (start, end)
         if component == EXON_COMPONENT:
@@ -607,16 +607,15 @@ def calc_aggregation(segmentation, mode, features, groups, components=[],
     labels = segmentation.labels
 
     if verbose:
-        print >>sys.stderr, "\tGroups: %s" % groups
-        print >>sys.stderr, "\tComponents and bins:"
+        log("\tGroups: %s" % groups)
+        log("\tComponents and bins:")
         for component in components:
-            print >>sys.stderr, "\t\t",
+            log("\t\t", end="")
             # Try to substitute number of bins in first
             try:
-                print >>sys.stderr, component % component_bins[component]
+                log(component % component_bins[component])
             except TypeError:
-                print >>sys.stderr, "%s: %d" % (component,
-                                                component_bins[component])
+                log("%s: %d" % (component, component_bins[component]))
 
     # dict:
     #   key: feature_group
@@ -631,8 +630,7 @@ def calc_aggregation(segmentation, mode, features, groups, components=[],
     counted_features = 0
 
     for chrom, segments in segmentation.chromosomes.iteritems():
-        if verbose:
-            print >>sys.stderr, "\t%s" % chrom
+        log("\t%s" % chrom, verbose)
 
         # XXX: Segments and features are in sorted order. TAKE ADVANTAGE
 
@@ -702,8 +700,7 @@ def save_tab(segmentation, labels, counts, components, component_bins,
         assert label not in metadata
         metadata[label] = segmentation.num_label_bases(label)
 
-    if verbose:
-        print >>sys.stderr, "Saving metadata: %r" % metadata
+    log("Saving metadata: %r" % metadata, verbose)
 
     fieldnames = STATIC_FIELDNAMES + [labels[label_key]
                                       for label_key in label_keys]
@@ -774,12 +771,12 @@ def save_html(dirpath, featurefilename, mode, clobber=False, normalize=False):
 
 def print_array(arr, tag="", type="%d"):
     fstring = "%%s: \t%s, %s, ..., %s, ..., %s, %s" % tuple([type]*5)
-    print >>sys.stderr, fstring % (tag,
-                                   arr[0],
-                                   arr[1],
-                                   arr[int(arr.shape[0] / 2)],
-                                   arr[-2],
-                                   arr[-1])
+    log(fstring % (tag,
+                   arr[0],
+                   arr[1],
+                   arr[int(arr.shape[0] / 2)],
+                   arr[-2],
+                   arr[-1]))
 
 ## Package entry point
 def validate(bedfilename, featurefilename, dirpath,
@@ -796,8 +793,7 @@ def validate(bedfilename, featurefilename, dirpath,
 
         assert segmentation is not None
 
-        if verbose:
-            print >>sys.stderr, "Using file %s" % featurefilename
+        log("Using file %s" % featurefilename, verbose)
 
         if mode == GENE_MODE:
             features = load_gtf_data(featurefilename,
@@ -826,8 +822,7 @@ def validate(bedfilename, featurefilename, dirpath,
         for chrom_features in features.itervalues():
             num_features += len(chrom_features)
 
-        if verbose:
-            print >>sys.stderr, "\tAggregating over %d features" % num_features
+        log("\tAggregating over %d features" % num_features, verbose)
 
         component_bins = get_component_bins(components,
                                             flank_bins=flank_bins,
@@ -959,8 +954,8 @@ def parse_options(args):
 
     (options, args) = parser.parse_args(args)
 
-    if len(args) < 2:
-        parser.error("Insufficient number of arguments")
+    if len(args) != 2:
+        parser.error("Inappropriate number of arguments")
 
     return (options, args)
 

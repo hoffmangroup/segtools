@@ -101,7 +101,8 @@ panel.scales <- function(data, layout, num_panels, x.axis = FALSE) {
                  y = list(alternating = c(2, 0),
                           tck = c(0, 1),
                           limits = limits.y,
-                          at = at.y))
+                          at = at.y)
+                 )
 
   scales
 }
@@ -138,7 +139,7 @@ cast.aggregation <- function(data.df) {
   cast(data.df, group + component + offset ~ label, value = "count")
 }
 
-calc.signif <- function(count, total, random.prob) {
+calc.pvals <- function(count, total, random.prob) {
   ## Calculate "significance" of count and total given
   ## current random.prob.
   if (!is.finite(count) || !is.finite(total)) {
@@ -176,7 +177,7 @@ calc.signif <- function(count, total, random.prob) {
 ## normalizing the counts over all labels and by the sizes of the labels
 ## as well as calculating a significance level for each row.
 process.counts <- function(data, label.sizes, pseudocount = 1,
-                           normalize = TRUE, pval.thresh = 0.001) {
+                           normalize = TRUE) {
   if (!is.vector(label.sizes)) stop("Expected vector of label sizes")
   total.size <- sum(label.sizes)
   if (length(total.size) != 1) stop("Error summing label size vector")
@@ -188,11 +189,13 @@ process.counts <- function(data, label.sizes, pseudocount = 1,
   
   ## Get sum over labels for each component and offset
   labels.sum <- with(data, aggregate(count, list(offset = offset,
-                                                 component = component), sum))
+                                                 component = component,
+                                                 group = group), sum))
   names(labels.sum) <- gsub("^x$", "sum", names(labels.sum))
   
   for (label in levels(data$label)) {
     random.prob <- label.sizes[label] / total.size
+##    if (label == "NONE") cat(paste("\n\nNONE:\nrandom.prob:", random.prob))
     cur.rows <- data$label == label
     cur.data <- data[cur.rows,]
     ## Add order row to keep track of order extracted
@@ -202,16 +205,16 @@ process.counts <- function(data, label.sizes, pseudocount = 1,
     cur.data <- merge(cur.data, labels.sum)
     ## Reorder merged data back to the order extracted
     cur.data <- cur.data[order(cur.data$order),]
-    calc.row.signif <- function(row) {
+    calc.row.pvals <- function(row) {
       count <- row[1]
       total <- row[2]
-      calc.signif(count, total, random.prob)
+      calc.pvals(count, total, random.prob)
     }
 
-    pvals <- apply(subset(cur.data, select = c(count, sum)), 1,
-                   calc.row.signif)
-    data$significant[cur.rows] <- (is.finite(pvals) & (pvals < pval.thresh))
-
+##    if (label == "NONE") print(cur.data[1:1,])
+    data$pval[cur.rows] <- apply(subset(cur.data, select = c(count, sum)), 1,
+                                 calc.row.pvals)
+    
     if (normalize) {
       cur.enrichments <- log2((cur.data$count / cur.data$sum + 1) /
                               (random.prob + 1))
@@ -223,6 +226,10 @@ process.counts <- function(data, label.sizes, pseudocount = 1,
                   sep = "\n"))
         stop()
       }
+##       if (label == "NONE") {
+##         cat("\ncur.enrichments:")
+##         cat(cur.enrichments[1:3])
+##       }
       
       data$count[cur.rows] = cur.enrichments
     }
@@ -230,19 +237,19 @@ process.counts <- function(data, label.sizes, pseudocount = 1,
   data
 }
 
-panel.significance <- function(x, y, height, significant, col = plot.line$col,
+panel.significance <- function(x, y, height, signif, col = plot.line$col,
                                lty = plot.line$lty, lwd = plot.line$lwd, ...) {
-  ## significant should be a boolean vector as long as x
+  ## signif should be a boolean vector as long as x
   n <- length(x)
-  if (n != length(significant)) stop()
+  if (n != length(signif)) stop()
   require("grid", quietly = TRUE)
   x.units <- "native"
   y.units <- "npc"
   plot.line <- trellis.par.get("plot.line")
   
   ## Identify contiguous blocks of significance
-  starts <- x[c(significant[1], !significant[-n] & significant[-1])]
-  ends <- x[c(significant[-n] & !significant[-1], significant[n])]
+  starts <- x[c(signif[1], !signif[-n] & signif[-1])]
+  ends <- x[c(signif[-n] & !signif[-1], signif[n])]
 
   gp <- gpar(col = col, lty = 1, lwd = 0, fill = col)
   x0 <- unit(starts - 0.5, x.units)
@@ -259,7 +266,7 @@ get.rug.start <- function(group.number, rug.height = 0.03, rug.spacing = 0.015,
   rug.offset + (rug.spacing + rug.height) * (group.number - 1)
 }
 
-panel.aggregation <- function(x, y, significant, ngroups, groups = NULL,
+panel.aggregation <- function(x, y, signif, ngroups, groups = NULL,
                               subscripts = NULL, font = NULL, col = NULL,
                               col.line = NULL, pch = NULL,
                               group.number = NULL, rug.height = 0.03, ...) {
@@ -267,25 +274,25 @@ panel.aggregation <- function(x, y, significant, ngroups, groups = NULL,
   ## font and fontface
   panel.refline(h = 0)
 
-  significant <- as.logical(significant)[subscripts]
-  significant[!is.finite(significant)] <- FALSE
+  signif <- as.logical(signif)[subscripts]
+  signif[!is.finite(signif)] <- FALSE
   
   x <- as.numeric(x)
   y <- as.numeric(y)
-  if (any(significant)) {
+  if (any(signif)) {
     ## Only shade region for first.
     if (ngroups == 1) {
       fill.col <- "black"
       y.sig <- y
-      y.sig[!significant] <- 0
+      y.sig[!signif] <- 0
       panel.polygon(cbind(c(min(x), x, max(x)), c(0, y.sig, 0)),
                     col = fill.col)
     } else {
-      #x.sig <- x[significant]
-      #y.sig <- y[significant]
+      #x.sig <- x[signif]
+      #y.sig <- y[signif]
       #panel.points(x.sig, y.sig, col = fill.col, pch = "*")
       rug.start <- get.rug.start(group.number, rug.height = rug.height, ...)
-      panel.significance(x, rug.start, rug.height, significant,
+      panel.significance(x, rug.start, rug.height, signif,
                          col = col.line, ...)
     }
   }
@@ -309,6 +316,12 @@ get.label.sizes <- function(data, metadata) {
   label.sizes
 }
 
+calculate.signif <- function(data, fdr.level = 0.05) {
+  require("qvalue", quietly = TRUE)
+  qobj <- qvalue(p = data$pval, pi0.method = "bootstrap", fdr.level = fdr.level)
+  qobj$significant
+}
+
 ## Plots overlap vs position for each label
 ##   data: a data frame with fields: count, offset, label
 ##   spacers should be a vector of indices, where a spacer will be placed after
@@ -321,7 +334,7 @@ xyplot.aggregation <- function(agg.data = NULL,
     spacers = metadata$spacers,
     normalize = TRUE,
     x.axis = FALSE,  # Show x axis
-    pval.thresh = 0.001,
+    fdr.level = 0.05,
     text.cex = 1,
     spacing.x = 0.4,
     spacing.y = 0.4,
@@ -338,15 +351,16 @@ xyplot.aggregation <- function(agg.data = NULL,
     ylab = if (normalize) "Enrichment {log2[(fObs + 1)/(fRand + 1)]}"
            else "Count",
     sub = paste(if (ngroups > 1) "Rug" else "Black",
-                " regions are significant with p<",
-                pval.thresh, sep = ""),
+                " regions are significant with FDR<=",
+                fdr.level, sep = ""),
     ...)
 {
   label.sizes <- get.label.sizes(data, metadata)
   ## Normalize and/or calculate significance if metadata exists
-  data <- process.counts(data, label.sizes, pval.thresh = pval.thresh,
-                         normalize = normalize)
-  colnames(data) <- gsub("^count$", "overlap", colnames(data))
+  data <- process.counts(data, label.sizes, normalize = normalize)
+  data$signif <- calculate.signif(data, fdr.level)
+  
+  names(data) <- gsub("^count$", "overlap", names(data))
   data$overlap[!is.finite(data$overlap)] <- 0
 
   ## Determine panel layout
@@ -390,7 +404,7 @@ xyplot.aggregation <- function(agg.data = NULL,
   args <- list(x, data = data, type = "l", groups = quote(group),
                auto.key = auto.key, as.table = TRUE, strip = strip,
                xlab = xlab, ylab = ylab, sub = sub,
-               significant = data$significant, ngroups = ngroups,
+               signif = data$signif, ngroups = ngroups,
                panel = "panel.superpose", panel.groups = panel, ...)
 
   trellis.raw <- do.call(xyplot, args)

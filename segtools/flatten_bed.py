@@ -21,7 +21,7 @@ import sys
 
 from numpy import concatenate
 
-from . import Segmentation
+from . import log, Segmentation
 from .common import die
 
 
@@ -232,24 +232,24 @@ def print_bed(segments, filename=None):
         outfile = sys.stdout
     else:
         if os.path.isfile(filename):
-            print >>sys.stderr, "Warning: overwriting file: %s" % filename
+            log("Warning: overwriting file: %s" % filename)
 
         outfile = open(filename, "w")
 
     for segment in segments:
-        print >>outfile, "\t".join([str(val) for val in segment])
+        outfile.write("%s\n" % "\t".join([str(val) for val in segment]))
 
     if outfile is not sys.stdout:
         outfile.close()
 
 def print_readme(labels, filename=DEFAULT_HELPFILE):
     if os.path.isfile(filename):
-        print >>sys.stderr, "Warning: overwriting file: %s" % filename
+        log("Warning: overwriting file: %s" % filename)
 
     with open(filename, "w") as ofp:
-        print >>ofp, "\t".join(["old", "new", "description"])
+        ofp.write("%s\n" % "\t".join(["old", "new", "description"]))
         for key, label in labels.iteritems():
-            print >>ofp, "\t".join([str(key), str(key), label])
+            ofp.write("%s\n" % "\t".join([str(key), str(key), label]))
 
 def flatten_bed(bedfiles, outfile=None, helpfile=DEFAULT_HELPFILE,
                 verbose=True):

@@ -19,7 +19,7 @@ from pkg_resources import resource_string
 from shutil import copy
 from string import Template
 
-from . import Segmentation
+from . import log, Segmentation
 from .common import check_clobber, die, get_ordered_labels, make_divfilename, make_id, make_filename, make_tabfilename, map_mnemonics, NICE_EXTS, PKG_RESOURCE
 
 MNEMONIC_TEMPLATE_FILENAME = "mnemonic_div.tmpl"
@@ -211,7 +211,7 @@ def write_html_div(dirpath, namebase, html, clobber=False):
     check_clobber(filename, clobber)
 
     with open(filename, "w") as ofp:
-        print >>ofp, html
+        ofp.write("%s\n" % html)
 
 def save_html_div(template_filename, dirpath, namebase,
                   clobber=False, **kwargs):
@@ -221,7 +221,7 @@ def save_html_div(template_filename, dirpath, namebase,
     try:
         html = template_substitute(template_filename)(fields)
     except KeyError, e:
-        print >>sys.stderr, "Skipping HTML output. Missing data: %s" % e
+        log("Skipping HTML output. Missing data: %s" % e)
         return
 
     write_html_div(dirpath, namebase, html, clobber=clobber)
@@ -235,12 +235,11 @@ def form_mnemonic_div(mnemonicfile, results_dir, clobber=False, verbose=True):
     try:
         copy(mnemonicfile, link_file)
     except (IOError, os.error):
-        print >>sys.stderr, ("Error: could not copy %s to %s. Linking"
-                             " the the former." % (mnemonicfile, link_file))
+        log("Error: could not copy %s to %s. Linking"
+            " the the former." % (mnemonicfile, link_file))
         link_file = mnemonicfile  # Link to the existing file
     else:
-        if verbose:
-            print >>sys.stderr, "Copied %s to %s" % (mnemonicfile, link_file)
+        log("Copied %s to %s" % (mnemonicfile, link_file), verbose)
 
     fields = {}
     fields["tabfilename"] = link_file
@@ -328,8 +327,7 @@ def find_divs(rootdir=os.getcwd(), verbose=True):
                 if ext == ".div":
                     filepath = os.path.join(folderpath, filename)
                     divs.append(filepath)
-                    if verbose:
-                        print >>sys.stderr, "Found div: %s" % filename
+                    log("Found div: %s" % filename, verbose)
     return divs
 
 def make_html_report(bedfilename, results_dir, outfile, mnemonicfile=None,
@@ -368,7 +366,7 @@ def make_html_report(bedfilename, results_dir, outfile, mnemonicfile=None,
     components = [header] + body + [footer]
     separator = "<br /><hr>"
     with open(outfile, "w") as ofp:
-        print >>ofp, separator.join(components)
+        ofp.write("%s\n" % separator.join(components))
 
 def parse_args(args):
     from optparse import OptionGroup, OptionParser

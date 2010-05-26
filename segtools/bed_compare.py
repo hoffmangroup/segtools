@@ -10,7 +10,7 @@ __version__ = "$Revision$"
 
 import sys
 
-from . import Segmentation
+from . import log, Segmentation
 
 def bases_in_segments(segments):
     """Return the number of bases in a segment array"""
@@ -41,8 +41,7 @@ def edit_distance(bedfile1, bedfile2, quick=False, verbose=True):
     bases_missing1 = 0
     bases_missing2 = 0
     for chrom in chroms:
-        if verbose:
-            print >>sys.stderr, "%s" % chrom
+        log("%s" % chrom, verbose)
 
         # If no segments in segmentation 1
         try:
@@ -136,7 +135,7 @@ def edit_distance(bedfile1, bedfile2, quick=False, verbose=True):
 def parse_options(args):
     from optparse import OptionParser
 
-    usage = "%prog [OPTIONS] BEDFILE BEDFILE"
+    usage = "%prog [OPTIONS] SEGMENTATION SEGMENTATION"
     version = "%%prog %s" % __version__
     parser = OptionParser(usage=usage, version=version,
                           description=__doc__.strip())
@@ -165,9 +164,9 @@ def print_edit_distance(*args):
               "bases missing in first file",
               "bases missing in second file"]
     values = [int(val) for val in args]
-    print >>sys.stderr, "\n===== EDIT DISTANCE ====="
+    log("\n===== EDIT DISTANCE =====")
     for label, value in zip(labels, values):
-        print >>sys.stderr, "%s: \t%s" % (label, value)
+        log("%s: \t%s" % (label, value))
 
 
 ## Command-line entry point
@@ -180,7 +179,7 @@ def main(args=sys.argv[1:]):
         results = edit_distance(*bedfiles, **kwargs)
         print_edit_distance(*results)
     else:
-        print >>sys.stderr, "No actions were specified"
+        log("No actions were specified")
 
 if __name__ == "__main__":
     sys.exit(main())

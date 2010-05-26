@@ -77,7 +77,7 @@ label.colors <-
 
 panel.overlap <-
   function(x, y, groups, subscripts, labels, colors,
-           plot.text = TRUE, plot.points = TRUE, ...)
+           plot.text = TRUE, plot.points = TRUE, cumulative = TRUE, ...)
 {
   if (plot.points) {
     panel.xyplot(x, y, pch = 20, col = "black",
@@ -90,11 +90,13 @@ panel.overlap <-
     } else {
       adj <- NULL
     }
-    # Prepend a "+" to all but the first label
     labels <- as.character(labels)
-    x.ord <- order(x)
-    indices <- x.ord[2:length(x.ord)]
-    labels[indices] <- paste("+", labels[indices], sep = "")
+    if (cumulative) {
+      ## Prepend a "+" to all but the first label
+      x.ord <- order(x)
+      indices <- x.ord[2:length(x.ord)]
+      labels[indices] <- paste("+", labels[indices], sep = "")
+    }
     panel.text(x, y, 
                labels = labels,
                col = colors,
@@ -183,7 +185,9 @@ xyplot.overlap <-
            auto.key = FALSE, #list(space = "right"),
            xlab = list("Recall (TP / (TP + FN))", cex = large.cex),
            ylab = list("Precision (TP / (TP + FP))", cex = large.cex),
-           sub = list("Cumulative P-R (left-to-right, by precision)"),
+           cumulative = TRUE,
+           sub = if (cumulative) "Cumulative P-R (left-to-right, by precision)"
+                 else NULL,
            x.lim = c(0, 1),
            y.lim = NULL,
            scales = list(cex = small.cex,
@@ -215,6 +219,7 @@ xyplot.overlap <-
          ylab = ylab,
          sub = sub,
          scales = scales,
+         cumulative = cumulative,
          panel = panel,
          labels = labels,
          colors = colors,
@@ -224,6 +229,7 @@ xyplot.overlap <-
 
 plot.overlap.performance <-  function(tabfile, mnemonics = NULL,
                                       col_mnemonics = NULL,
+                                      cumulative = TRUE,
                                       comment.char = "#", ...) {
   ## Plot the predictive ability of each segment label for each feature class
   ##   in PR space
@@ -235,15 +241,16 @@ plot.overlap.performance <-  function(tabfile, mnemonics = NULL,
   data <- read.overlap(tabfile, mnemonics = mnemonics,
                        col_mnemonics = col_mnemonics,
                        comment.char = comment.char)
-  stats <- pr.stats(data, cumulative = TRUE)
+  stats <- pr.stats(data, cumulative = cumulative)
   
-  xyplot.overlap(stats, ...)
+  xyplot.overlap(stats, cumulative = cumulative, ...)
 }
 
 save.overlap.performance <- function(dirpath, namebase, tabfilename,
                                      mnemonic_file = NULL,
                                      col_mnemonic_file = NULL,
                                      clobber = FALSE,
+                                     cumulative = TRUE,
                                      panel.size = 300,  # px
                                      comment.char = "#",
                                      ...) {
@@ -252,14 +259,14 @@ save.overlap.performance <- function(dirpath, namebase, tabfilename,
   data <- read.overlap(tabfilename, mnemonics = mnemonics,
                        col_mnemonics = col.mnemonics,
                        comment.char = comment.char)
-  stats <- pr.stats(data, cumulative = TRUE)
+  stats <- pr.stats(data, cumulative = cumulative)
   write.stats(stats, namebase, dirpath, clobber = clobber)
   
   panels.sqrt <- max(c(sqrt(nlevels(stats$data$group)), 1))
   width <- 100 + panel.size * ceiling(panels.sqrt)
   height <- 200 + panel.size * floor(panels.sqrt)
   save.images(dirpath, namebase,
-              xyplot.overlap(stats, ...),
+              xyplot.overlap(stats, cumulative = cumulative, ...),
               width = width,
               height = height,
               clobber = clobber)

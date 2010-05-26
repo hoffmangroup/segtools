@@ -2,8 +2,6 @@
 from __future__ import division, with_statement
 
 """
-validate.py:
-
 Provides command-line and package entry points for analyzing the signal
 distribution over tracks and labels.
 
@@ -25,7 +23,7 @@ from itertools import repeat
 from functools import partial
 from numpy import array, ceil, compress, floor, fromiter, histogram, isfinite, NAN, nanmax, nanmin, nansum, NINF, PINF
 
-from . import Segmentation
+from . import log, Segmentation
 from .common import die, iter_segments_continuous, iter_supercontig_segments, make_tabfilename, r_plot, r_source, setup_directory, tab_reader, tab_saver
 from .html import save_html_div
 from .mnemonics import create_mnemonic_file
@@ -129,8 +127,7 @@ class SignalHistogram(object):
                        track_hist_funcs.iteritems())
 
         nseg_dps = 0  # Number of non-NaN data points in segmentation tracks
-        if verbose:
-            print >>sys.stderr, "Generating signal distribution histograms"
+        log("Generating signal distribution histograms", verbose)
 
         with genome:
             if chroms:
@@ -175,11 +172,9 @@ class SignalHistogram(object):
 
                 if quick: break  # 1 chromosome
 
-        if verbose:
-            print >>sys.stderr, "Segmentation tracks: %s\n" % \
-                str(segmentation.tracks)
-            print >>sys.stderr, ("Read %s non-NaN values from"
-                                 " segmentation tracks" % nseg_dps)
+        log("Segmentation tracks: %s\n" % str(segmentation.tracks), verbose)
+        log("Read %s non-NaN values from segmentation tracks" % nseg_dps,
+            verbose)
 
         return SignalHistogram(res, nseg_dps=nseg_dps)
 
@@ -228,8 +223,7 @@ class SignalHistogram(object):
                        track_hist_funcs.iteritems())
 
         nseg_dps = 0  # Number of non-NaN data points in segmentation tracks
-        if verbose:
-            print >>sys.stderr, "Generating signal distribution histograms"
+        log("Generating signal distribution histograms", verbose)
 
         with genome:
             if chroms:
@@ -271,11 +265,9 @@ class SignalHistogram(object):
 
                 if quick: break  # 1 chromosome
 
-        if verbose:
-            print >>sys.stderr, "Segmentation tracks: %s\n" % \
-                str(segmentation.tracks)
-            print >>sys.stderr, ("Read %s non-NaN values from"
-                                 " segmentation tracks" % nseg_dps)
+        log("Segmentation tracks: %s\n" % str(segmentation.tracks), verbose)
+        log("Read %s non-NaN values from segmentation tracks" % nseg_dps,
+            verbose)
 
         return SignalHistogram(res, nseg_dps=nseg_dps)
 
@@ -429,7 +421,7 @@ def load_track_ranges(genome, segmentation=None):
     res = defaultdict(constant_factory((PINF, NINF)))
     for chromosome in genome:
         if segmentation is not None:
-            print >>sys.stderr, "\t%s" % chromosome.name
+            log("\t%s" % chromosome.name)
             res_chrom = seg_min_max(chromosome, segmentation)
             for trackname, limits in res_chrom.iteritems():
                 old_min, old_max = res[trackname]
@@ -684,8 +676,7 @@ def validate(bedfilename, genomedatadir, dirpath,
             try:
                 sub_histogram = SignalHistogram.read(inputdir, verbose=verbose)
             except IOError, e:
-                print >>sys.stderr, "Problem reading data from %s: %s" % \
-                    (inputdir, e)
+                log("Problem reading data from %s: %s" % (inputdir, e))
             else:
                 histogram.add(sub_histogram)
 
@@ -728,7 +719,7 @@ def validate(bedfilename, genomedatadir, dirpath,
 def parse_options(args):
     from optparse import OptionParser, OptionGroup
 
-    usage = "%prog [OPTIONS] BEDFILE GENOMEDATADIR"
+    usage = "%prog [OPTIONS] SEGMENTATION GENOMEDATAFILE"
     version = "%%prog %s" % __version__
     parser = OptionParser(usage=usage, version=version)
 

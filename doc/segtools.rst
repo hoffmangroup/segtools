@@ -94,9 +94,9 @@ Command-line interface
 
 Core commands:
 
-- :ref:`segtools-feature-aggregation <segtools-feature-aggregation>`: 
+- :ref:`segtools-aggregation <segtools-feature-aggregation>`: 
   Analyzes the relative 
-  occurrance of each segment label around the provided genomic features.
+  occurrence of each segment label around the provided genomic features.
 - :ref:`segtools-label-transition <segtools-label-transition>`: 
   Analyzes the transitions 
   between segment labels and the structure of their interaction.
@@ -124,7 +124,7 @@ Utility commands:
 - :ref:`segtools-feature-distance <segtools-feature-distance>`: 
   Reports the distance from 
   each segment to the nearest feature in each of a list of feature files.
-- :ref:`segtools-flatten-bed <segtools-flatten-bed>`: 
+- :ref:`segtools-flatten <segtools-flatten-bed>`: 
   General tool for flattening 
   overlapping segments, but flattens them into segments defined 
   by the set of segment labels that overlap the region. 
@@ -168,21 +168,21 @@ segtools-bed-compare
 
 .. ####################### FEATURE AGGREGATION #######################
 
-.. _segtools-feature-aggregation:
+.. _segtools-aggregation:
 
-segtools-feature-aggregation
+segtools-aggregation
 ----------------------------
 
-.. program:: segtools-feature-aggregation
+.. program:: segtools-aggregation
 
-This command looks at the aggregate occurance of segment labels around
+This command looks at the aggregate occurrence of segment labels around
 and within annotated features. A typical example of this would be to
-look at the relative occurances of segment labels around transcription
+look at the relative occurrences of segment labels around transcription
 start sites (TSSs). You would do this with something like::
 
-  segtools-feature-aggregation --normalize segmentation.bed tss.gff
+  segtools-aggregation --normalize segmentation.bed tss.gff
 
-If you had two different classes of TSSs that you were interrested in
+If you had two different classes of TSSs that you were interested in
 (say, expressed and unexpressed), you can use the 3rd column of the GFF
 file as a grouping variable and then specify the :option:`--groups` flag. 
 
@@ -221,7 +221,7 @@ In these cases, the :option:`--normalize` flag should be used.
 
    Display complete usage information
 
-.. cmdoption:: --mode <mode>, -m <mode>
+.. cmdoption:: --mode <mode>
 
    Specify the aggregation mode. The following options are available: 
    ``point``, ``region``, and ``gene``. The default is ``point``.
@@ -257,7 +257,7 @@ In these cases, the :option:`--normalize` flag should be used.
    corresponding to initial, internal, and terminal exons and introns. 
    For the translational model, there are initial, internal, and terminal
    5' and 3' UTR regions, and initial and terminal CDSs. These two models
-   are layed out in logical progressions so that genes are
+   are laid out in logical progressions so that genes are
    viewed in profile and gene-component-specific associations can
    be easily seen. Because introns and exons
    are typically different lengths, ``--intron-samples`` and
@@ -271,7 +271,7 @@ In these cases, the :option:`--normalize` flag should be used.
    This option normalizes the y-axis of the aggregation plot,
    displaying enrichment and depletion instead of counts at each
    position. The enrichment of label :math:`l` at position :math:`p`
-   is calulated with the following formula:
+   is calculated with the following formula:
 
    .. math:: enrichment(l, p) = \log_2 \dfrac{f_{obs} + 1}{f_{rand} + 1}
 
@@ -314,12 +314,12 @@ segtools-feature-distance
 
 .. ####################### FLATTEN BED #######################
 
-.. _segtools-flatten-bed:
+.. _segtools-flatten:
 
-segtools-flatten-bed
+segtools-flatten
 --------------------
 
-.. program:: segtools-flatten-bed
+.. program:: segtools-flatten
 
 
 
@@ -457,7 +457,7 @@ each other in plots, you should construct the following mnemonic file::
   C	A2
   B	B
 
-Including the B line is not neccessary, but it makes it easier to
+Including the B line is not necessary, but it makes it easier to
 reorder the labels later (for instance, if you want B to come first).
 A description column could also have been included. This file should be
 saved as something like ``second_try.mnemonics`` and should be passed
@@ -480,3 +480,8 @@ arguments should still be specified to ensure correctness).
 .. _GMTK: http://ssli.ee.washington.edu/~bilmes/gmtk/
 .. _Genomedata: http://noble.gs.washington.edu/proj/genomedata/
 .. _`UCSC Table Browser`: http://genome.ucsc.edu/cgi-bin/hgTables?command=start
+
+ LocalWords:  Segtools Buske uw edu currentmodule segtools WS segmentations py
+ LocalWords:  wget Zlib replot GFF GTF Genomedata Workflow TSSs tss gff binom
+ LocalWords:  cmdoption TESs bp ChIP exon CDS UCSC exons introns UTR CDSs dfrac
+ LocalWords:  intron BEDFILE command's

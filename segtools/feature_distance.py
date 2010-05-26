@@ -21,36 +21,11 @@ import sys
 
 from numpy import array, NaN
 
-from . import Segmentation
-from .common import FeatureScanner, load_features
-
-EXT_BED = "bed"
-EXT_GFF = "gff"
-EXT_GTF = "gtf"
-EXT_GZ = "gz"
+from . import Annotations, log, Segmentation
+from .common import FeatureScanner
 
 STANDARD_FIELDS = ["chrom", "start", "end", "name"]
 DELIM = "\t"
-
-def get_file_ext(filename):
-    # Ignore g'zipping
-    head, tail = os.path.splitext(os.path.basename(filename))
-    if tail == os.extsep + EXT_GZ:
-        head, tail = os.path.splitext(head)
-
-    if tail:
-        return tail[1:]  # Drop leading "."
-    else:
-        return None  # Didn't find ext
-
-def load_data(filename, verbose=True):
-    ext = get_file_ext(filename)
-    if ext == EXT_BED:
-        return Segmentation(filename, verbose=verbose)
-    elif ext == EXT_GFF or ext == EXT_GTF:
-        return load_features(filename, verbose=verbose)
-    else:
-        raise NotImplementedError("Unexpected file type: %s" % ext)
 
 def print_header_line(feature_files):
     file_fields = [os.path.basename(filename) for filename in feature_files]
@@ -117,19 +92,18 @@ def feature_distance(segment_file, feature_files, verbose=True,
         die("File index for all overlapping: %s is invalid" % e)
 
     # Load segment file
-    segment_obj = load_data(segment_file, verbose=verbose)
+    segment_obj = Segmentation(segment_file, verbose=verbose)
     labels = segment_obj.labels
     segment_data = segment_obj.chromosomes
 
     # Load feature files
-    feature_objs = [load_data(feature_file, verbose=verbose)
+    feature_objs = [Annotations(feature_file, verbose=verbose)
                     for feature_file in feature_files]
     feature_datas = [feature_obj.chromosomes for feature_obj in feature_objs]
 
     print_header_line(feature_files)
     for chrom in segment_data:
-        if verbose:
-            print >>sys.stderr, "%s" % chrom
+        log("%s" % chrom, verbose)
 
         segments = segment_data[chrom]
         features_list = []
@@ -192,7 +166,7 @@ def feature_distance(segment_file, feature_files, verbose=True,
 def parse_options(args):
     from optparse import OptionParser
 
-    usage = "%prog [OPTIONS] SEGMENTFILE FEATUREFILE..."
+    usage = "%prog [OPTIONS] SEGMENTATION ANNOTATIONS..."
     version = "%%prog %s" % __version__
 
     parser = OptionParser(usage=usage, version=version,

@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 """
-If Segtools is taking too long to parse your large segmentation, this
+If Segtools is taking too long to parse your large segmentation or
+annotation file, this
 tool allows you to pre-process your segmentation once
 and have it load faster in the future.
-BEDFILE will be parsed to create a special "segmentation" file with
-a name of the form: "OUTBASE.<ext>". Then, you can substitute this
-new file for the BEDFILE argument in future Segtools calls and Segtools
-will parse it in much faster (but be sure to keep the <ext> in tact)!
+INFILE will be parsed to create a special binary file with
+a name of the form: "INFILE.pkl". Then, you can substitute this
+new file for the SEGMENTATION or ANNOTATIONS argument in future
+Segtools calls and Segtools will parse it in much faster
+(but be sure to keep the ".pkl" extension intact)!
 """
 
 from __future__ import division, with_statement
@@ -17,14 +19,14 @@ import sys
 
 from . import Segmentation
 
-def pickle_segmentation(infile, outbase, verbose=False, clobber=False):
+def preprocess(infile, verbose=False, clobber=False):
     segmentation = Segmentation(infile, verbose=verbose)
-    segmentation.pickle(outbase, verbose=verbose, clobber=clobber)
+    segmentation.pickle(verbose=verbose, clobber=clobber)
 
 def parse_options(args):
     from optparse import OptionParser
 
-    usage = "%prog [OPTIONS] BEDFILE OUTBASE"
+    usage = "%prog [OPTIONS] INFILE"
     description = __doc__.strip()
     version = "%%prog %s" % __version__
     parser = OptionParser(usage=usage, version=version,
@@ -39,7 +41,7 @@ def parse_options(args):
 
     (options, args) = parser.parse_args(args)
 
-    if len(args) != 2:
+    if len(args) != 1:
         parser.error("Inappropriate number of arguments")
 
     return (options, args)
@@ -47,11 +49,10 @@ def parse_options(args):
 ## Command-line entry point
 def main(args=sys.argv[1:]):
     (options, args) = parse_options(args)
-    bedfile = args[0]
-    outbase = args[1]
+    infile = args[0]
     kwargs = {"verbose": options.verbose,
               "clobber": options.clobber}
-    pickle_segmentation(bedfile, outbase, **kwargs)
+    preprocess(infile, **kwargs)
 
 if __name__ == "__main__":
     sys.exit(main())

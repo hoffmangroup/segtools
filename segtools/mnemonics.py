@@ -11,6 +11,7 @@ mnemonics.py
 import os
 import sys
 
+from . import log
 from .common import check_clobber, r_call, r_source, RError
 
 def create_mnemonic_file(datafile, dirpath, clobber=False,
@@ -46,13 +47,12 @@ def create_mnemonic_file(datafile, dirpath, clobber=False,
         # Peel off rpy2 layers
         mnemonicfilename = str(r_filename[0])
 
-        if verbose:
-            print >>sys.stderr, "Created mnemonic file: %s" % mnemonicfilename
+        log("Created mnemonic file: %s" % mnemonicfilename, verbose)
 
         return mnemonicfilename
     except RError:
-        print >>sys.stderr, ("ERROR: Failed to create mnemonic file."
-                             " Continuing without mnemonics.")
+        log("ERROR: Failed to create mnemonic file."
+            " Continuing without mnemonics.")
         return None
 
 if __name__ == "__main__":

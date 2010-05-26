@@ -36,7 +36,7 @@ import sys
 from numpy import empty, loadtxt, where, zeros
 from subprocess import call
 
-from . import Segmentation
+from . import log, Segmentation
 from .common import check_clobber, die, get_ordered_labels, make_dotfilename, make_pdffilename, make_pngfilename, make_namebase_summary, make_tabfilename, map_mnemonics, r_call, r_plot, r_source, setup_directory, tab_saver
 from .html import save_html_div
 from .mnemonics import create_mnemonic_file
@@ -80,18 +80,16 @@ def calc_transitions(segmentation):
                     counts[label_key1, label_key2] += 1
                     if label_key1 == label_key2:
                         if self_transition_count == 0:
-                            print >>sys.stderr, \
-                                ("WARNING: unexpected self-transition"
-                                 "%s -> %s\n\tRow 1: %s\n\tRow 2: %s" % \
-                                (labels[label_key1], labels[label_key2],
-                                 row1, row2))
+                            log("WARNING: unexpected self-transition"
+                                "%s -> %s\n\tRow 1: %s\n\tRow 2: %s" % \
+                                    (labels[label_key1], labels[label_key2],
+                                     row1, row2))
                         self_transition_count += 1
 
             row1 = row2  # Inch forward
 
     if self_transition_count > 0:
-        print >>sys.stderr, "WARNING: %d self-transitions observed" % \
-            self_transition_count
+        log("WARNING: %d self-transitions observed" % self_transition_count)
 
     # Row-normalize to turn counts into probabilities
     probs = empty(counts.shape, dtype='double')
@@ -155,8 +153,7 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
     try:
         import pygraphviz as pgv
     except ImportError:
-        print >>sys.stderr, ("Unable to load PyGraphviz library."
-                             " Skipping transition graph")
+        log("Unable to load PyGraphviz library. Skipping transition graph")
         return
 
     dotfilename = make_dotfilename(dirpath, namebase)
@@ -173,13 +170,11 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
     # Threshold
     if q_thresh > 0:
         quantile = r_call('matrix.find_quantile', probs, q_thresh)[0]
-        if verbose:
-            print >>sys.stderr, "Removing edges below %.4f" % float(quantile)
+        log("Removing edges below %.4f" % float(quantile), verbose)
 
         probs[probs < quantile] = 0
     elif p_thresh > 0:
-        if verbose:
-            print >>sys.stderr, "Removing connections below %.4f" % p_thresh
+        log("Removing connections below %.4f" % p_thresh, verbose)
 
         if lenient_thresh:
             row_wise_remove = (probs < p_thresh)
@@ -214,15 +209,14 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
 
     G.write(dotfilename)
 
-    if verbose:
-        print >>sys.stderr, "Drawing graphs...",
+    log("Drawing graphs...", verbose, end="")
 
     G.layout()
 
     try:
         G.draw(pngfilename)
     except:
-        print >>sys.stderr, "Error: Failed to draw png graph"
+        log("Error: Failed to draw png graph")
 
     try:
         # Try to generate pdf from dot
@@ -237,10 +231,9 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
         if code != 0:
             raise Exception()
     except Exception, e:
-        print >>sys.stderr, "Error: Failed to draw pdf graph: %s" % str(e)
+        log("Error: Failed to draw pdf graph: %s" % str(e))
 
-    if verbose:
-        print >>sys.stderr, "done"
+    log(" done", verbose)
 
 ## Package entry point
 def validate(bedfilename, dirpath, ddgram=False, p_thresh=P_THRESH,
@@ -287,7 +280,7 @@ def validate(bedfilename, dirpath, ddgram=False, p_thresh=P_THRESH,
 def parse_options(args):
     from optparse import OptionParser, OptionGroup
 
-    usage = "%prog [OPTIONS] BEDFILE"
+    usage = "%prog [OPTIONS] SEGMENTATION"
     version = "%%prog %s" % __version__
     parser = OptionParser(usage=usage, version=version)
 
@@ -347,8 +340,8 @@ def parse_options(args):
     group = OptionGroup(parser, "Non-segmentation files")
     group.add_option("-g", "--gmtk", action="store_true",
                      dest="gmtk", default=False,
-                     help="The BEDFILE argument will instead be treated as"
-                     " a GMTK parameter file. If a mnemonic file is not"
+                     help="The SEGMENTATION argument will instead be treated"
+                     " as a GMTK parameter file. If a mnemonic file is not"
                      " specified, one will be created and used.")
     parser.add_option_group(group)
 

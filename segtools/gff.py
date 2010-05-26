@@ -48,7 +48,7 @@ class NativeDatum(Datum):
                            + self._words[3:])
         except:
             print >>sys.stderr, "Error processing line: %s" % \
-                "\t".join(self._words)
+                  "\t".join(self._words)
             raise
 
 def read(iterator, datum_cls=Datum, *args, **kwargs):

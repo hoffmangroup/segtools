@@ -5,10 +5,7 @@ import unittest
 
 from tempfile import NamedTemporaryFile
 
-from segtools.feature_distance import DELIM, EXT_BED, EXT_GFF, EXT_GTF, feature_distance, STANDARD_FIELDS
-
-def ext2suffix(ext):
-    return os.extsep + ext
+from segtools.feature_distance import DELIM, feature_distance, STANDARD_FIELDS
 
 def data2bed(lines):
     # Input lines should each be a tuple of (chrom, start, end, label)
@@ -74,7 +71,7 @@ class MainTester(unittest.TestCase):
         self.segment_file = None
         self._open_files = []
 
-        new_file = NamedTemporaryFile(suffix=ext2suffix(EXT_BED))
+        new_file = NamedTemporaryFile(suffix=".bed")
         new_file.write(data2bed(self.segments))
         new_file.flush()
         self._open_files.append(new_file)
@@ -82,18 +79,16 @@ class MainTester(unittest.TestCase):
 
         for type, data in self.features_list:
             if type == "bed":
-                new_file = NamedTemporaryFile(suffix=ext2suffix(EXT_BED))
+                new_file = NamedTemporaryFile(suffix=".bed")
                 new_file.write(data2bed(data))
-                new_file.flush()
             elif type == "gff":
-                new_file = NamedTemporaryFile(suffix=ext2suffix(EXT_GFF))
+                new_file = NamedTemporaryFile(suffix=".gff")
                 new_file.write(data2gff(data))
-                new_file.flush()
             elif type == "gtf":
-                new_file = NamedTemporaryFile(suffix=ext2suffix(EXT_GTF))
+                new_file = NamedTemporaryFile(suffix=".gtf")
                 new_file.write(data2gff(data))
-                new_file.flush()
 
+            new_file.flush()
             self._open_files.append(new_file)
             self.feature_files.append(new_file.name)
 

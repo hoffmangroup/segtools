@@ -15,103 +15,139 @@ import sys
 from collections import defaultdict
 from numpy import array
 
-from .bed import read_native as read_bed
-from .common import check_clobber, DTYPE_SEGMENT_KEY, DTYPE_SEGMENT_START, DTYPE_SEGMENT_END, inverse_dict, maybe_gzip_open
+PICKLED_EXT = "pkl"
 
-PICKLED_EXT = "seg"
-PICKLED_SUFFIX = os.extsep + PICKLED_EXT
+DTYPE_SEGMENT_START = int64
+DTYPE_SEGMENT_END = int64
+DTYPE_SEGMENT_KEY = uint32
+DTYPE_SOURCE_KEY = uint16
+DTYPE_STRAND = '|S1'
 
-class SegmentOverlapError(ValueError):
-    pass
+class Annotations(object):
+    """Base class for representing annotations (BED/GFF/GTF files)
 
-class Segmentation(object):
-    """
     chromosomes: a dict
       key: chromosome name
-      val: segments: numpy.ndarray, (each row is a (start, end, key) struct)
+      val: segments, a numpy.ndarray, (each row is a (start, end, key) struct)
            sorted by start, end
            * These segments are not necessarily non-overlapping
     labels: a dict
-      key: int ("label_key")  (a unique id; segment['end'])
-      val: printable (str or int)  (what's in the actual BED file)
+      key: int ("label_key")  (a unique id; segment['key'])
+      val: printable (str or int)  (what's in the actual file)
+           This is the 4th column in a BED file and the 3rd column
+           in GFF and GTF files.
 
-    tracks: a list of track names that were used to obtain the segmentation
-    segtool: the tool that was used to obtain this segmentation (e.g. segway)
-    name: the filename of the segmentation
+    filename: the filename from which the annotations were loaded
+
     """
+    class UnpickleError(Exception):
+        pass
 
-    def __init__(self, filename, verbose=True, pickled=None):
-        """Returns a segmentation object derived from the given BED3+ file
+    class FilenameError(Exception):
+        pass
 
-        filename: path to the segmentation file (bed or pickled Segmentation)
-        pickled: read filename as bed (False), pickled (True), or determine
-          based upon the extension (None)
+    class FormatError(Exception):
+        pass
+
+    def __init__(self, filename, verbose=True):
+        """Returns an Annotations object derived from the given file
+
+        filename: path to a data file in one of the following formats:
+          BED3+, GFF, GTF, or pickled Annotation. Format must be specified
+          by the extension of the file (bed, gff, gtf, pkl), with all but
+          pkl potentially gzipped (gz).
         """
 
         if not os.path.isfile(filename):
-            raise IOError("Could not find Segmentation: %s" % filename)
+            raise IOError("Could not find file: %s" % filename)
 
-        if verbose: print >>sys.stderr, "Loading segmentation:"
-
-        if pickled is None:
-            pickled = filename.endswith(PICKLED_SUFFIX)
-
-        if pickled:
-            # Read a pickled segmentation file in
-            self._from_pickle(filename, verbose=verbose)
-        else:
-            # Parse a segmentation from a BED file
-            self._from_bed(filename, verbose=verbose)
-
+        log("Loading %s:" % self.__class__, verbose)
+        self._load(filename, verbose=verbose)
 
     @staticmethod
-    def get_bed_metadata(filename):
-        regexp = re.compile('description="(.*) segmentation of (.*)"')
+    def _get_file_format(filepath):
+        """Determine the file format based upon the file extension"""
+        filename = os.path.basename(filepath)
+        root, ext = os.path.splitext(filename)
 
-        segtool = "Missing from BED file"
-        tracks = ["Missing from BED file"]
+        if ext:
+            # If gzip'd, process filename further
+            if ext == ".gz":
+                root, ext = os.path.splitext(root)
 
-        with maybe_gzip_open(filename) as ifp:
-            line = ifp.readline()
+            if ext:
+                return ext[1:].lower()  # remove dot
 
-        matching = regexp.search(line)
-        if matching:
-            segtool = matching.group(1)
-            tracks = matching.group(2).split(', ')
+        raise Annotations.FilenameError("File missing appropriate extension:"
+                                        " %s" % filepath)
 
-        return (segtool, tracks)
+    def _load(self, filename, verbose=True):
+        format = self._get_file_format(filename)
+        if format == PICKLED_EXT:
+            # Read pickled object file
+            self._from_pickle(filename, verbose=verbose)
+        elif format in set(["bed", "gff", "gtf"]):
+            self._from_file(filename, verbose=verbose)
+        else:
+            raise self.FormatError("Unrecognized file format: %s on file: %s"
+                                   % (format, filename))
+
+    def _iter_rows(self, filename, verbose=True):
+        from .bed import read_native as read_bed
+        from .gff import read_native as read_gff
+        from .common import maybe_gzip_open
+
+        format = self._get_file_format(filename)
+
+        if format == "bed":
+            reader = read_bed
+        elif format == "gff" or format == "gtf":
+            reader = read_gff
+        else:
+            raise self.FormatError("Cannot iterate segments in file format:"
+                                   " %s" % format)
+
+        with maybe_gzip_open(filename) as infile:
+            for datum in reader(infile):
+                fields = {}
+                d = datum.__dict__
+                if format == "bed":
+                    fields["chrom"] = d["chrom"]
+                    fields["start"] = d["chromStart"]
+                    fields["end"] = d["chromEnd"]
+                    fields["label"] = d.get("name", "")
+                    fields["strand"] = d.get("strand", ".")
+                elif format == "gff" or format == "gtf":
+                    fields["chrom"] = d["seqname"]
+                    fields["start"] = d["start"]
+                    fields["end"] = d["end"]
+                    fields["label"] = d.get("feature", "")
+                    fields["strand"] = d.get("strand", ".")
+
+                yield fields
 
     def _from_pickle(self, filename, verbose=True):
         import cPickle
 
-        if verbose: print >>sys.stderr, "  Unpickling Segmentation object...",
+        log("  Unpickling %s object..." % self.__class__,
+            verbose, end="")
+
         with open(filename, 'rb') as ifp:
-            self.__dict__ = cPickle.load(ifp).__dict__
+            object = cPickle.load(ifp)
+            if object.__class__ != self.__class__:
+                raise self.UnpickleError("Error: Trying to load an indexed %s"
+                                         " object as an indexed %s object!")
+            self.__dict__ = object.__dict__
 
-        if verbose: print >>sys.stderr, "done"
+        log(" done", verbose)
 
-    def pickle(self, namebase, verbose=True, clobber=False):
-        """Pickle the segmentation into an output file"""
-        import cPickle
+    def _from_file(self, filename, verbose=True):
+        """Parses a data file and sets object attributes
 
-        filename = namebase + PICKLED_SUFFIX
-
-        check_clobber(filename, clobber)
-        if verbose:
-            print >>sys.stderr, ("Pickling Segmentation object to file: %s..."
-                                 % filename),
-        with open(filename, 'wb') as ofp:
-            cPickle.dump(self, ofp, -1)
-
-        if verbose: print >>sys.stderr, "done"
-
-    def _from_bed(self, filename, verbose=True):
-        """Parses a bedfile and sets some of the Segmentation fields to its data
-
-        If the file is in BED3 format, labels will be None
+        Missing labels will be empty strings ("")
 
         """
-        metadata = self.get_bed_metadata(filename)
+        from .common import inverse_dict
 
         data = defaultdict(list)  # A dictionary-like object
         label_dict = {}
@@ -119,35 +155,47 @@ class Segmentation(object):
         unsorted_chroms = set()
         n_label_segments = {}
         n_label_bases = {}
-        with maybe_gzip_open(filename) as infile:
-            for datum in read_bed(infile):
-                try:
-                    if datum.chromStart < last_segment_start[datum.chrom]:
-                        unsorted_chroms.add(datum.chrom)
-                except KeyError:
-                    pass
+        stranded = None
+        for row in self._iter_rows(filename, verbose=verbose):
+            chrom = row["chrom"]
+            start = row["start"]
+            end = row["end"]
+            label = row["label"]
+            strand = row["strand"]
 
-                try:
-                    label = str(datum.name)
-                except AttributeError:
-                    # No name column, read as BED3 (no labels)
-                    label = ""
+            assert end >= start
 
-                try:  # Lookup label key
-                    label_key = label_dict[label]
-                except KeyError:  # Map new label to key
-                    label_key = len(label_dict)
-                    label_dict[label] = label_key
-                    n_label_segments[label] = 0
-                    n_label_bases[label] = 0
+            # Keep track of sorted chromosomes
+            try:
+                if start < last_segment_start[chrom]:
+                    unsorted_chroms.add(chrom)
+            except KeyError:
+                pass
 
-                assert datum.chromEnd >= datum.chromStart
-                segment = (datum.chromStart, datum.chromEnd, label_key)
-                data[datum.chrom].append(segment)
-                last_segment_start[datum.chrom] = datum.chromStart
+            # If any strands are specified, they all should be
+            if strand == "+" or strand == "-":
+                assert stranded is None or stranded
+                stranded = True
+            else:
+                assert not stranded
+                stranded = False
 
-                n_label_segments[label] += 1
-                n_label_bases[label] += segment[1] - segment[0]
+            try:  # Lookup label key
+                label_key = label_dict[label]
+            except KeyError:  # Map new label to key
+                label_key = len(label_dict)
+                label_dict[label] = label_key
+                n_label_segments[label] = 0
+                n_label_bases[label] = 0
+
+            segment = [start, end, label_key]
+            if stranded:
+                segment.append(strand)
+
+            data[chrom].append(tuple(segment))
+            n_label_segments[label] += 1
+            n_label_bases[label] += end - start
+            last_segment_start[chrom] = start
 
         # Create reverse dict for field
         labels = inverse_dict(label_dict)
@@ -156,36 +204,25 @@ class Segmentation(object):
         dtype = [('start', DTYPE_SEGMENT_START),
                  ('end', DTYPE_SEGMENT_END),
                  ('key', DTYPE_SEGMENT_KEY)]
+        if stranded:
+            dtype.append(tuple('strand', DTYPE_STRAND))
+
         chromosomes = dict((chrom, array(segments, dtype=dtype))
                            for chrom, segments in data.iteritems())
 
         # Sort segments within each chromosome
         if unsorted_chroms:
-            if verbose:
-                print >>sys.stderr, ("  Segments were unsorted relative to the"
-                                     " following chromosomes: %s" %
-                                     ", ".join(unsorted_chroms))
-                print >>sys.stderr, "  Sorting...",
+            log("  Segments were unsorted relative to the following"
+                " chromosomes: %s" % ", ".join(unsorted_chroms), verbose)
+            log("  Sorting...", verbose, end="")
 
             for chrom in unsorted_chroms:
                 segments = chromosomes[chrom]
                 segments.sort(order=['start'])
 
-            if verbose: print >>sys.stderr, "done"
+            log(" done", verbose)
 
-        if verbose:
-            print >>sys.stderr, "  Checking for overlapping segments...",
-        for chrom, segments in chromosomes.iteritems():
-            if segments.shape[0] > 1:
-                # Make sure there are no overlapping segments
-                if (segments['end'][:-1] > segments['start'][1:]).any():
-                    raise SegmentOverlapError("Found overlapping segments"
-                                              " in chromosome: %s" % chrom)
-        if verbose:
-            print >>sys.stderr, "done"
-
-        self.segtool, self.tracks = metadata
-        self.name = filename
+        self.filename = filename
         self.chromosomes = chromosomes
         self._labels = labels
         self._n_label_segments = n_label_segments
@@ -193,7 +230,21 @@ class Segmentation(object):
         self._n_label_bases = n_label_bases
         self._n_bases = sum(n_label_bases.values())
         self._inv_labels = label_dict
-        return labels, chromosomes
+
+    def pickle(self, verbose=True, clobber=False):
+        """Pickle the annotations into an output file"""
+        import cPickle
+        from .common import check_clobber
+
+        filename = os.extsep.join([self.filename, PICKLED_EXT])
+
+        check_clobber(filename, clobber)
+        log("Pickling %s object to file: %s..." % (self.__class__, filename),
+            verbose, end="")
+        with open(filename, 'wb') as ofp:
+            cPickle.dump(self, ofp, -1)
+
+        log(" done", verbose)
 
     def num_label_segments(self, label):
         return self._n_label_segments[str(label)]
@@ -216,6 +267,74 @@ class Segmentation(object):
     @property
     def labels(self):
         return dict(self._labels)
+
+    def set_labels(self, labels):
+        missing = set(self._labels.keys()).difference(set(labels.keys()))
+
+        if missing:
+            raise ValueError("New labels do not cover old label keys: %r"
+                             % missing)
+        else:
+            self._labels = labels
+
+class Segmentation(Annotations):
+    """Representation of a segmentation
+
+    Segments must be non-overlapping.
+
+    Defines additional attributes:
+      tracks: a list of track names that were used to obtain the segmentation
+      segtool: the tool that was used to obtain this segmentation (e.g. segway)
+      * both will be empty if the file was not a BED file or did not contain
+        this information
+    """
+
+
+    class SegmentOverlapError(ValueError):
+        pass
+
+    def __init__(self, filename, verbose=True):
+        super(self.__class__, self).__init__(filename, verbose=verbose)
+
+        log("  Checking for overlapping segments...", verbose, end="")
+        for chrom, segments in self.chromosomes.iteritems():
+            # Make sure there are no overlapping segments
+            if segments.shape[0] > 1 and \
+                    (segments['end'][:-1] > segments['start'][1:]).any():
+                raise self.SegmentOverlapError("Found overlapping segments"
+                                               " in chromosome: %s" % chrom)
+
+        log(" done", verbose)
+        self.segtool, self.tracks = self.get_bed_metadata(filename)
+
+    @staticmethod
+    def get_bed_metadata(filename):
+        from .common import maybe_gzip_open
+        regexp = re.compile('description="(.*) segmentation of (.*)"')
+
+        segtool = ""
+        tracks = []
+
+        with maybe_gzip_open(filename) as ifp:
+            line = ifp.readline()
+
+        matching = regexp.search(line)
+        if matching:
+            segtool = matching.group(1)
+            tracks = matching.group(2).split(', ')
+
+        return (segtool, tracks)
+
+
+def log(message, verbose=True, end="\n", file=sys.stderr):
+    """Wrapper for logging messages to stderr
+
+    Similar to Python 3.0 print() syntax
+
+    """
+    if verbose:
+        file.write(str(message))
+        file.write(end)
 
 if __name__ == "__main__":
     pass

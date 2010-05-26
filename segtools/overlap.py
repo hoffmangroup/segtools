@@ -17,8 +17,8 @@ import sys
 from collections import defaultdict
 from numpy import bincount, cast, iinfo, invert, logical_or, zeros
 
-from . import Segmentation
-from .common import check_clobber, die, get_ordered_labels, load_features, make_tabfilename, r_plot, r_source, setup_directory, SUFFIX_GZ, tab_saver
+from . import Annotations, log, Segmentation
+from .common import check_clobber, die, get_ordered_labels, make_tabfilename, r_plot, r_source, setup_directory, SUFFIX_GZ, tab_saver
 from .html import save_html_div
 
 # A package-unique, descriptive module name used for filenames, etc
@@ -74,15 +74,14 @@ def calc_overlap(subseg, qryseg, quick=False, clobber=False, mode=MODE_DEFAULT,
             outfilepath = os.path.join(dirpath, outfilename)
             check_clobber(outfilepath, clobber=clobber)
             outfiles[sub_label_key] = open(outfilepath, "w")
-            print >>outfiles[sub_label_key], header
+            outfiles[sub_label_key].write("%s\n" % header)
 
     counts = zeros((len(sub_labels), len(qry_labels)), dtype="int")
     totals = zeros(len(sub_labels), dtype="int")
     nones = zeros(len(sub_labels), dtype="int")
 
     for chrom in subseg.chromosomes:
-        if verbose:
-            print >>sys.stderr, "\t%s" % chrom
+        log("\t%s" % chrom, verbose)
 
         try:
             qry_segments = qryseg.chromosomes[chrom]
@@ -189,7 +188,7 @@ def calc_overlap(subseg, qryseg, quick=False, clobber=False, mode=MODE_DEFAULT,
                     except IndexError:
                         pass
                     values = [str(val) for val in values]
-                    print >>outfiles[sublabelkey], "\t".join(values)
+                    outfiles[sublabelkey].write("%s\n" % "\t".join(values))
 
             # Organize overlapping_segments by qrylabelkey
             label_overlaps = defaultdict(list)  # Per qrylabelkey
@@ -324,25 +323,13 @@ def overlap(bedfilename, featurefilename, dirpath, regionfilename=None,
         setup_directory(dirpath)
 
         segmentation = Segmentation(bedfilename, verbose=verbose)
-
-        if is_file_type(featurefilename, 'bed'):
-            features = Segmentation(featurefilename, verbose=verbose)
-        elif is_file_type(featurefilename, 'gff'):
-            features = load_features(featurefilename, verbose=verbose)
-        elif is_file_type(featurefilename, 'gtf'):
-            features = load_features(featurefilename, gtf=True,
-                                     sort=True, verbose=verbose)
-        else:
-            raise NotImplementedError("Only bed, gff, and gtf files are \
-supported for FEATUREFILE. If the file is in one of these formats, please \
-use the appropriate extension")
+        features = Annotations(featurefilename, verbose=verbose)
 
         seg_labels = segmentation.labels
         feature_labels = features.labels
 
         # Overlap of segmentation with features
-        if verbose:
-            print >>sys.stderr, "Measuring overlap..."
+        log("Measuring overlap:", verbose)
 
         counts, nones, totals = \
             calc_overlap(segmentation, features, clobber=clobber,
@@ -361,24 +348,21 @@ use the appropriate extension")
         save_plot(dirpath, clobber=clobber, cluster=cluster, verbose=verbose,
                   row_mnemonic_file=mnemonic_filename,
                   col_mnemonic_file=feature_mnemonic_filename)
-    if verbose:
-        print >>sys.stderr, "Saving HTML div...",
 
+    log("Saving HTML div...", verbose)
     save_html(dirpath, bedfilename, featurefilename, mode=mode,
               mnemonicfile=mnemonic_filename, clobber=clobber)
-    if verbose:
-        print >>sys.stderr, "done"
+    log(" done", verbose)
 
 def parse_options(args):
     from optparse import OptionParser, OptionGroup
 
-    usage = "%prog [OPTIONS] BEDFILE FEATUREFILE"
-    description = "BEDFILE must be in BED4+ format (name column used as \
-grouping variable). FEATUREFILE should be in BED4+ format or GFF format \
-(feature column used as grouping variable). Results summarize the overlap \
-of BEDFILE groups with FEATUREFILE groups. The symmetric analysis can \
-be performed (if both input files are in BED4+ format) \
-by rerunning the program with the input file arguments swapped \
+    usage = "%prog [OPTIONS] SEGMENTATION ANNOTATIONS"
+    description = "SEGMENTATION and ANNOTATIONS files should be in BED, GFF, \
+or GTF format (grouped on 'name'/'feature' columns). \
+Results summarize the overlap \
+of SEGMENTATION groups with ANNOTATIONS groups. The symmetric analysis can \
+be performed by rerunning the program with the input file arguments swapped \
 (and a different output directory). A rough specification can be found here: \
 http://encodewiki.ucsc.edu/EncodeDCC/index.php/\
 Overlap_analysis_tool_specification"
@@ -411,11 +395,11 @@ Overlap_analysis_tool_specification"
     group.add_option("-p", "--print-segments", action="store_true",
                      dest="print_segments", default=False,
                      help=("For each group"
-                     " in the BEDFILE, a separate output file will be"
+                     " in the SEGMENTATION, a separate output file will be"
                      " created that contains a list of all the segments that"
                      " the group was found to overlap with. Output files"
                      " are named %s.X.txt, where X is the name"
-                     " of the BEDFILE group.") % OVERLAPPING_SEGMENTS_NAMEBASE)
+                     " of the SEGMENTATION group.") % OVERLAPPING_SEGMENTS_NAMEBASE)
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Parameters")
@@ -448,11 +432,11 @@ Overlap_analysis_tool_specification"
     group = OptionGroup(parser, "Files")
     group.add_option("-m", "--mnemonic-file", dest="mnemonic_filename",
                      default=None, metavar="FILE",
-                     help="If specified, BEDFILE groups will be shown using"
-                     " mnemonics found in FILE.")
+                     help="If specified, SEGMENTATION groups will be shown"
+                     " using mnemonics found in FILE.")
     group.add_option("--feature-mnemonic-file", metavar="FILE",
                      dest="feature_mnemonic_filename", default=None,
-                     help="If specified, FEATUREFILE groups will be shown"
+                     help="If specified, ANNOTATIONS groups will be shown"
                      " using mnemonics found in FILE.")
     group.add_option("-o", "--outdir",
                      dest="outdir", default="%s" % MODULE, metavar="DIR",

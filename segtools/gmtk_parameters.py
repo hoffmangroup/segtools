@@ -20,6 +20,7 @@ import sys
 
 from numpy import array
 
+from . import log
 from .common import die, r_call, r_source, setup_directory
 from .html import save_html_div
 from .label_transition import save_plot, save_graph
@@ -84,12 +85,10 @@ def validate(gmtk_file, dirpath, p_thresh=P_THRESH, q_thresh=Q_THRESH,
     if not os.path.isfile(gmtk_file):
         die("Could not find GMTK file: %s" % gmtk_file)
 
-    if verbose:
-        print >>sys.stderr, "Loading gmtk transitions...",
+    log("Loading gmtk transitions...", verbose, end="")
 
     labels, probs = load_gmtk_transitions(gmtk_file)
-    if verbose:
-        print >>sys.stderr, "done"
+    log(" done", verbose)
 
     # If mnemonics weren't specified, let's create a mnemonic file!
     if mnemonic_file is None and create_mnemonics:

@@ -35,11 +35,11 @@ classifiers = ["Natural Language :: English",
 entry_points = """
 [console_scripts]
 segtools-bed-compare = segtools.bed_compare:main
-segtools-feature-aggregation = segtools.feature_aggregation:main
+segtools-aggregation = segtools.feature_aggregation:main
 segtools-feature-distance = segtools.feature_distance:main
-segtools-flatten-bed = segtools.flatten_bed:main
+segtools-flatten = segtools.flatten_bed:main
 segtools-gmtk-parameters = segtools.gmtk_parameters:main
-segtools-label-transition = segtools.label_transition:main
+segtools-transition = segtools.label_transition:main
 segtools-length-distribution = segtools.length_distribution:main
 segtools-nucleotide-frequency = segtools.nucleotide_frequency:main
 segtools-overlap = segtools.overlap:main
