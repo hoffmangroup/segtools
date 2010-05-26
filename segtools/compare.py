@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Compare two BED-formatted segmentations
+Compare two segmentations
 """
 
 from __future__ import division, with_statement
