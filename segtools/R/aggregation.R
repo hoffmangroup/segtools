@@ -348,11 +348,16 @@ xyplot.aggregation <- function(agg.data = NULL,
     strip = strip.custom(horizontal = FALSE),
     strip.height = 10,
     xlab = NULL,
-    ylab = if (normalize) "Enrichment {log2[(fObs + 1)/(fRand + 1)]}"
+    ylab = if (normalize)
+              expression(paste("Enrichment: ",
+                  log[2], bgroup("(", over(f[plain(obs)] + 1,
+                                          f[plain(rand)] + 1), ")")))
            else "Count",
-    sub = paste(if (ngroups > 1) "Rug" else "Black",
-                " regions are significant with FDR<=",
-                fdr.level, sep = ""),
+    sub = substitute(
+            expression(paste(FORMAT, " regions are significant with ",
+                             italic(q) <= FDR)),
+            list(FORMAT = if (ngroups > 1) "Rug" else "Black",
+                 FDR = fdr.level)),
     ...)
 {
   label.sizes <- get.label.sizes(data, metadata)

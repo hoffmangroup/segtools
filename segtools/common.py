@@ -12,14 +12,12 @@ Author: Orion Buske <stasis@uw.edu>
 import os
 import sys
 
-from collections import defaultdict
 from contextlib import closing, contextmanager
 from functools import partial
 from gzip import open as _gzip_open
-from operator import itemgetter
 from warnings import warn
 
-from numpy import array, empty, iinfo, int64, ndarray, searchsorted, uint16, uint32
+from numpy import array, empty, iinfo, ndarray, searchsorted
 from pkg_resources import resource_filename
 from tabdelim import DictReader, DictWriter, ListReader, ListWriter
 from rpy2.robjects import r, rinterface
@@ -407,33 +405,12 @@ def tab_reader(dirpath, basename, verbose=True, fieldnames=False):
 
     log(" done", verbose)
 
-## Maps label_keys over segments
-def map_segments(segments, labels, chrom_size):
-    """
-    converts a segment mapping into label_keys at every nucleotide position
-        in the chromosome
-
-    e.g.  segment labeled 0 at position [0,4) followed by
-          segment labeled 1 at position [4,7) gets converted into:
-          0000111
-    """
-    segments_dtype = segments['key'].dtype  # MA: the data type of segments
-    segments_dtype_max = iinfo(segments_dtype).max  # sentinel value
-    # MA: the maximum value supported by the type
-    assert segments_dtype_max not in labels.keys()
-
-    res = fill_array(segments_dtype_max, (chrom_size,), segments_dtype)
-
-    # will overwrite in overlapping case
-    for start, end, key in segments:
-        res[start:end] = key
-
-    return res
-
 def map_segment_label(segments, range):
     """Flatten segments to a segment label per base vector
 
-    Returns a numpy.array of the segment key at every base
+    Returns a tuple of:
+      numpy.array of the segment key at every base
+      sentinal value assigned to non-overlapped bases
 
     The given range must either be a tuple of (start, end), or
       have 'start' and 'end' attributes, and the returned array
@@ -462,13 +439,16 @@ def map_segment_label(segments, range):
         return res
 
     # will overwrite in overlapping case
-    for start, end, key in segments:
+    for segment in segments:
+        start = segment['start']
+        end = segment['end']
+        key = segment['key']
         if start < map_end and end > map_start:
             start_i = max(start - map_start, 0)
             end_i = min(end - map_start, map_size)
             res[start_i:end_i] = key
 
-    return res
+    return res, sentinal
 
 ## Yields segment and the continuous corresponding to it, for each segment
 ##   in the chromosome inside of a supercontig
@@ -654,67 +634,3 @@ def load_mnemonics(filename):
             label_data[label_index] = row
 
     return (label_order, label_data)
-
-## Parses gff file for features
-def load_gff_data(gff_filename, sort=True):
-    '''
-    Expects data in GFF format (1-indexed locations):
-    CHROM<tab>source<tab>feature<tab>START<tab>END<tab>score<tab>STRAND
-    chrom, start, end, and strand are required
-    strand can be '+'/'-' or '.', but not both in the same file
-
-    File may be gzip'd, but if so, must have .gz as the extension
-
-    Returns gffdata
-    gffdata: a dict
-      key: string chromosome name (e.g. "chr13")
-      val: a list of dicts (ordered by the start index, ascending)
-        key: "start", "end", "strand", "source"
-        val: the associated data item, if it exists
-             string for strand
-             int (zero-indexed) for start and end (exclusive)
-    '''
-    data = defaultdict(list)
-    stranded = None
-    with maybe_gzip_open(gff_filename) as infile:
-        for line in infile:
-            # Ignore comments
-            if line.startswith("#"): continue
-
-            # Parse tokens from GFF line
-            try:
-                fields = {}
-                tokens = line.strip().split("\t")
-
-                chrom = tokens[0]
-                fields["source"] = tokens[1]
-                fields["name"] = tokens[2]
-                fields["start"] = int(tokens[3]) - 1  # Make zero-indexed
-                # Make zero-indexed and exclusive (these cancel out)
-                fields["end"] = int(tokens[4])
-
-                try:
-                    strand = tokens[6]
-                except IndexError:
-                    strand = "."
-
-                if strand == "+" or strand == "-":
-                    assert stranded or stranded is None
-                    stranded = True
-                else:
-                    assert not stranded  # Don't have both +/- and .
-                    strand = "."  # N/A
-                    stranded = False
-
-                fields["strand"] = strand
-
-                data[chrom].append(fields)
-            except (IndexError, ValueError):
-                die("Error parsing fields from feature line:\n\t%s" % line)
-
-    if sort:
-        # Sort features by ascending start
-        for chrom_features in data.itervalues():
-            chrom_features.sort(key=itemgetter("start"))
-
-    return data

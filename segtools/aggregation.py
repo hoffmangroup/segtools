@@ -21,15 +21,16 @@ import sys
 
 from collections import defaultdict
 from functools import partial
-from operator import itemgetter
+from numpy import arange, array, linspace, round
 
-from . import log, Segmentation
-from .common import die, fill_array, get_ordered_labels, load_gff_data, make_tabfilename, map_segments, maybe_gzip_open, r_plot, r_source, setup_directory, tab_saver
+from . import Annotations, log, Segmentation, \
+    DTYPE_SEGMENT_START, DTYPE_SEGMENT_END, DTYPE_SEGMENT_KEY, DTYPE_STRAND
+from .common import die, fill_array, get_ordered_labels, make_tabfilename, map_segment_label, r_plot, r_source, setup_directory, tab_saver
 
 from .html import save_html_div
 
 NAMEBASE = "%s" % MODULE
-NAMEBASE_TRANSCRIPTION=os.extsep.join([NAMEBASE, "transcription"])
+NAMEBASE_SPLICING=os.extsep.join([NAMEBASE, "splicing"])
 NAMEBASE_TRANSLATION=os.extsep.join([NAMEBASE, "translation"])
 
 STATIC_FIELDNAMES = ["group", "component", "offset"]
@@ -43,48 +44,383 @@ MODES = [POINT_MODE, REGION_MODE, GENE_MODE]
 DEFAULT_MODE = POINT_MODE
 
 # Component names
-#   A single %d/%s in the name will automatically be substituted with the number
-#   of bins used for that component
+#   A single %f/%d/%s will automatically be substituted with the average number
+#   of bases in that component over all features
 FLANK_5P = "5' flanking: %d bp"
 FLANK_3P = "3' flanking: %d bp"
 FLANK_COMPONENTS = [FLANK_5P, FLANK_3P]
-POINT_COMPONENTS = list(FLANK_COMPONENTS)
-REGION_COMPONENT = "internal"
+POINT_COMPONENTS = FLANK_COMPONENTS
+
+REGION_COMPONENT = "internal (%d bp)"
 REGION_COMPONENTS = [FLANK_5P, REGION_COMPONENT, FLANK_3P]
-INITIAL_EXON = "initial exon"
-TERMINAL_EXON = "terminal exon"
+
+INITIAL_EXON = "initial exon (%d bp)"
+TERMINAL_EXON = "terminal exon (%d bp)"
 SPLICE_COMPONENTS = [
     INITIAL_EXON,
-    "initial intron",
-    "internal exons",
-    "internal introns",
+    "initial intron (%d bp)",
+    "internal exons (%d bp)",
+    "internal introns (%d bp)",
     TERMINAL_EXON,
-    "terminal intron"]
+    "terminal intron (%d bp)"]
 CODING_COMPONENTS = [
-    "initial 5' UTR",
-    "5' UTR introns",
-    "internal 5' UTR",
-    "terminal 5' UTR",
-    "initial CDS",
-    "terminal CDS",
-    "initial 3' UTR",
-    "internal 3' UTR",
-    "3' UTR introns",
-    "terminal 3' UTR"]
+    "initial 5' UTR (%d bp)",
+    "5' UTR introns (%d bp)",
+    "internal 5' UTR (%d bp)",
+    "terminal 5' UTR (%d bp)",
+    "initial CDS (%d bp)",
+    "terminal CDS (%d bp)",
+    "initial 3' UTR (%d bp)",
+    "internal 3' UTR (%d bp)",
+    "3' UTR introns (%d bp)",
+    "terminal 3' UTR (%d bp)"]
+
 EXON_COMPONENTS = [FLANK_5P] + SPLICE_COMPONENTS + [FLANK_3P]
 GENE_COMPONENTS = EXON_COMPONENTS + CODING_COMPONENTS
 
 # For parsing GTF file
-EXON_COMPONENT = "exon"
-CDS_COMPONENT = "CDS"
+EXON_FEATURE = "exon"
+CDS_FEATURE = "CDS"
 MIN_EXONS = 1
 MIN_CDSS = 0
 
 # Default parameter values
-FLANK_BINS = 500
+FLANK_BASES = 500
 REGION_BINS = 50
 INTRON_BINS = 50
 EXON_BINS = 25
+
+class GeneAnnotations(Annotations):
+    """Annotations class for gene-type annotations"""
+
+    def _from_file(self, filename, verbose=True):
+        """Load the gtf file in terms of idealized gene features.
+
+        Parses the given feature file and replaces feature names from:
+          CDS
+          exon
+          (other features ignored)
+        with feature components from:
+          GENE_COMPONENTS
+
+        Field 8 of the feature file must be a list of semi-colon delimited
+        properties and gene_id must be the first one of them.
+
+        All features must be stranded.
+
+        """
+        from .common import inverse_dict
+
+        log("  Parsing GTF file...", verbose, end="")
+        format = self._get_file_format(filename)
+        if format != "gtf":
+            raise self.FormatError("ANNOTATIONS must be in GTF format to"
+                                   " aggregate with --mode=gene")
+
+        # Start with establishing a dict:
+        #   gene_id -> dict(transcript_id -> (chrom, start, end, name, strand))
+        #   start is 0-indexed, end is non-inclusive (BED)
+        gene_dict = defaultdict(partial(defaultdict, list))
+        for row in self._iter_rows(filename, verbose=verbose):
+            if row['strand'] not in set(["+", "-"]):
+                raise self.FormatError("ANNOTATIONS must specify a strand"
+                                       " for every entry to aggregate with"
+                                       " --mode=gene")
+
+            # Add feature to dict
+            gene_dict[row['gene_id']][row['transcript_id']].append(row)
+
+        log(" done", verbose)
+        log("  Mapping onto gene model...", verbose, end="")
+
+        # Eventually create feature dict: chrom -> list(features)
+        data = defaultdict(list)
+        label_dict = {}
+        n_genes = 0
+        n_label_segments = {}
+        n_label_bases = {}
+        for gene_id, transcript_dict in gene_dict.iteritems():
+            # Select only longest transcript
+            transcript_id, transcript = \
+                self._get_longest_transcript(transcript_dict)
+            gene_model = self._transcript_to_gene_features(transcript)
+
+            if gene_model is not None:
+                n_genes += 1
+                # Add features to a normal, chrom-based feature dict
+                for gene_part in gene_model:
+                    # label is the component of that gene part
+                    chrom, start, end, strand, label = gene_part
+                    try:
+                        label_key = label_dict[label]
+                    except KeyError:
+                        label_key = len(label_dict)
+                        label_dict[label] = label_key
+                        n_label_segments[label] = 0
+                        n_label_bases[label] = 0
+
+                    feature = (start, end, label_key, strand)
+                    data[chrom].append(feature)
+                    n_label_segments[label] += 1
+                    n_label_bases[label] += end - start
+#            raw_input()
+
+        labels = inverse_dict(label_dict)
+        dtype = [('start', DTYPE_SEGMENT_START),
+                 ('end', DTYPE_SEGMENT_END),
+                 ('key', DTYPE_SEGMENT_KEY),
+                 ('strand', DTYPE_STRAND)]
+
+        chromosomes = dict((chrom, array(features, dtype=dtype))
+                           for chrom, features in data.iteritems())
+
+        log(" done", verbose)
+        log("  Sorting...", verbose, end="")
+
+        # Sort features by ascending start
+        for chrom_features in chromosomes.itervalues():
+            chrom_features.sort(order=['start'])
+
+        log(" done", verbose)
+
+        self.filename = filename
+        self.chromosomes = chromosomes
+        self._labels = labels
+        self._n_label_segments = n_label_segments
+        self._n_label_bases = n_label_bases
+        self._n_genes = n_genes
+        self._inv_labels = label_dict
+
+    def num_genes(self):
+        return self._n_genes
+
+    def _preprocess_entries(self, rows):
+        """Convert list of gene feature entries to processed gene data.
+
+        If multiple transcripts are found, only the longest is taken.
+
+        :param entries: each entry is a dict
+                        and all entries should correspond to the same gene_id
+        :returns: chrom, strand, list(exon), list(cds)
+
+        """
+        # Remove list of gene features and preprocess
+        #   (extracting constant strand, chrom)
+        # Returns gene info and list of exons and CDSs
+        gene_strand = None
+        gene_chrom = None
+        exons = []
+        cdss = []
+
+        for row in rows:
+            chrom = row['chrom']
+            start = row['start']
+            end = row['end']
+            strand = row['strand']
+            name = row['name']
+
+            # Ensure strand and chrom match rest for this gene
+            if gene_strand is None:
+                gene_strand = strand
+            elif gene_strand != strand:
+                die("Found gene features on more than one strand: [%s, %s]\n%s"
+                    % (gene_strand, strand, row))
+
+            if gene_chrom is None:
+                gene_chrom = chrom
+            elif gene_chrom != chrom:
+                die("Found gene features on more than one chromosome:"
+                    " [%s, %s]\n%s" % (gene_chrom, chrom, row))
+
+            partial_entry = (start, end)
+            if name == EXON_FEATURE:
+                exons.append(partial_entry)
+            elif name == CDS_FEATURE:
+                cdss.append(partial_entry)
+        return gene_chrom, gene_strand, exons, cdss
+
+    def _transcript_to_gene_features(self, rows):
+        """Returns a set of gene-model entries based upon the given entries.
+
+        Interprets the given set of entries in terms of an idealized gene model
+        with 5' and 3' UTRs, initial, internal, and terminal exons and introns.
+
+        :param entries: see preprocess_entries for a description
+        :returns: a new set of entries based upon this gene model
+                  or None if the entries don't fit the model.
+        """
+
+        chrom, strand, exons, cdss = self._preprocess_entries(rows)
+
+        # Ignore genes without any exons
+        if not exons:
+            return None
+
+        exons.sort()
+        cdss.sort()
+
+        # Create introns between every pair of now-sorted exons
+        introns = []
+        prev_end = None
+        for exon_start, exon_end in exons:
+            if prev_end is not None:
+                introns.append((prev_end, exon_start))
+            prev_end = exon_end
+
+        # Flip directions for '-' strand
+        if strand == "-":
+            exons.reverse()
+            introns.reverse()
+            cdss.reverse()
+
+        features = []
+        # Add gene features to new list, renaming components
+        #   according to an idealized gene model
+        # Assumes exons and cdss in sorted order (ensured by sort() above)
+
+        # Binds local variables: chrom, strand
+        def add_feature(component, start, end):
+            """Makes tuple feature for feature list"""
+            features.append((chrom, start, end, strand, component))  # tuple
+
+        # first exon
+        add_feature(SPLICE_COMPONENTS[0], *exons[0])
+        # first intron
+        if len(introns) > 0:
+            add_feature(SPLICE_COMPONENTS[1], *introns[0])
+        # internal exons
+        for exon in exons[1:-1]:
+            add_feature(SPLICE_COMPONENTS[2], *exon)
+        # internal introns
+        for intron in introns[1:-1]:
+            add_feature(SPLICE_COMPONENTS[3], *intron)
+        # last intron
+        if len(introns) > 0:
+            add_feature(SPLICE_COMPONENTS[5], *introns[-1])
+        # last exon
+        add_feature(SPLICE_COMPONENTS[4], *exons[-1])
+
+
+        # If there were no CDS's, then there is no point in dealing with UTR/CDS
+        #   regions, so skip all that.
+        if len(cdss) == 0:
+            return features
+
+        # Binds local variable strand to strand-correct
+        def upstream(x, y):
+            """Returns true if x starts before (is 5') of y, false otherwise"""
+            return (strand == "+" and x[0] < y[0]) or \
+                (strand == "-" and x[1] > y[1])
+
+        # Go through exons and introns and pick out those that are in UTR
+        # Exons are a little trickier because the UTR region has to be trimmed
+        #   to the CDS if they overlap
+        UTR5p_exons = []
+        UTR5p_introns = []
+        UTR3p_exons = []
+        UTR3p_introns = []
+        first_cds = cdss[0]
+        last_cds = cdss[-1]
+        first_cds_start, first_cds_end = first_cds
+        last_cds_start, last_cds_end, = last_cds
+        for exon in exons:
+            exon_start, exon_end = exon
+            # See if exon is in UTR relative to CDSs, and trim to UTR fragment
+            utr_list = None
+            if strand == "+":
+                if exon_start < first_cds_start:
+                    exon_end = min(exon_end, first_cds_start)
+                    utr_list = UTR5p_exons
+                elif exon_end > last_cds_end:
+                    exon_start = max(exon_start, last_cds_end)
+                    utr_list = UTR3p_exons
+            else:  # strand == "-":
+                if exon_end > first_cds_end:
+                    exon_start = max(exon_start, first_cds_end)
+                    utr_list = UTR5p_exons
+                elif exon_start < last_cds_start:
+                    exon_end = min(exon_end, last_cds_start)
+                    utr_list = UTR3p_exons
+            # Add if exon was in UTR and has positive length
+            if utr_list is not None and exon_start < exon_end:
+                utr_list.append((exon_start, exon_end))  # Append tuple
+
+        for intron in introns:
+            if upstream(intron, first_cds):
+                UTR5p_introns.append(intron)
+            elif upstream(last_cds, intron):
+                UTR3p_introns.append(intron)
+
+
+        # Go through the list of UTR elements and add them to the feature list
+        #   with appropriate component names
+        # initial 5' UTR
+        if len(UTR5p_exons) > 0:
+            add_feature(CODING_COMPONENTS[0], *UTR5p_exons[0])
+        # 5' UTR introns
+        for intron in UTR5p_introns:
+            add_feature(CODING_COMPONENTS[1], *intron)
+        # internal 5' UTR
+        for exon in UTR5p_exons[1:-1]:
+            add_feature(CODING_COMPONENTS[2], *exon)
+        # terminal 5' UTR
+        if len(UTR5p_exons) > 0:
+            add_feature(CODING_COMPONENTS[3], *UTR5p_exons[-1])
+        # first CDS
+        add_feature(CODING_COMPONENTS[4], *first_cds)
+        # last CDS
+        add_feature(CODING_COMPONENTS[5], *last_cds)
+        # initial 3' UTR
+        if len(UTR3p_exons) > 0:
+            add_feature(CODING_COMPONENTS[6], *UTR3p_exons[0])
+        # internal 3' UTR
+        for exon in UTR3p_exons[1:-1]:
+            add_feature(CODING_COMPONENTS[7], *exon)
+        # 3' UTR introns
+        for intron in UTR3p_introns:
+            add_feature(CODING_COMPONENTS[8], *intron)
+        # terminal 3' UTR
+        if len(UTR3p_exons) > 0:
+            add_feature(CODING_COMPONENTS[9], *UTR3p_exons[-1])
+
+#         for row in rows:
+#             log("%s\t%d\t%d\t%s" % (row['chrom'], row['start'],
+#                                     row['end'], row['name']))
+#         for feature in features:
+#             log("\t%s" % str(feature))
+#         raw_input()
+        return features
+
+    @staticmethod
+    def _get_longest_transcript(transcript_dict):
+        """Return the longest transcript in the dict.
+
+        :type transcript_dict: transcript_id -> entries
+        :returns: tuple of (transcript_id, entries) for the longest transcript
+                  or None if there were no transcripts.
+        """
+
+        def get_transcript_length(rows):
+            assert len(rows) > 0
+            start = rows[0]['start']
+            end = rows[0]['end']
+            for row in rows[1:]:
+                start = min(start, row['start'])
+                end = max(end, row['end'])
+
+            return end - start
+
+        max_length = 0
+        longest = None
+        for id, rows in transcript_dict.iteritems():
+            start = None
+            end = None
+            length = get_transcript_length(rows)
+            if length > max_length:
+                max_length = length
+                longest = (id, rows)
+        return longest
+
 
 def start_R():
     r_source("common.R")
@@ -100,83 +436,75 @@ def print_bed_from_gene_component(features, component="terminal exon"):
                                                       feature["end"],
                                                       feature["name"])
 
-# Given a feature, returns the group it is in
-def get_feature_group(feature, mode):
-    if mode == GENE_MODE:
-        return feature["source"]
-    else:
-        return feature["name"]
+def calc_feature_windows(feature, labels, mode, component_bins):
+    """Return a list of tuples: (component, window (array of base indices))"""
+    name = labels[feature['key']]
+    start = feature['start']
+    end = feature['end']
+    try:
+        strand = feature['strand']
+    except IndexError, KeyError:
+        assert mode != GENE_MODE
+        strand = "."
 
-
-## Returns a dict of component -> window (list of base indices)
-def calc_feature_windows(feature, mode, components, component_bins):
-    name = feature["name"]
-    start = feature["start"]
-    end = feature["end"]
-    strand = feature["strand"]
     length = end - start
     assert length >= 0
 
     # Include flanks by default
     num_5p_bins = component_bins[FLANK_5P]
     num_3p_bins = component_bins[FLANK_3P]
-    if mode == GENE_MODE:  # by gene
-        assert name in components
+    if mode == GENE_MODE:
+        assert name in component_bins
         component = name
         if component != INITIAL_EXON:
             # Not initial exon, so no 5' flank
             num_5p_bins = 0
+
         if component != TERMINAL_EXON:
             # Not terminal exon, so no 3' flank
             num_3p_bins = 0
-    elif mode == REGION_MODE:  # by region
-        component = REGION_COMPONENT
-    else:  # by point
-        component = None
 
-    try:
-        num_internal_bins = component_bins[component]
-    except KeyError:
+    elif mode == REGION_MODE:
+        component = REGION_COMPONENT
+    else:
+        assert mode == POINT_MODE
+        component = None
         num_internal_bins = 0
+
+    if component is not None:
+        try:
+            num_internal_bins = component_bins[component]
+        except KeyError:
+            num_internal_bins = 0
 
     if num_internal_bins > length:
         #print >> sys.stderr, "Warning: %d %s bins > %d bases" % \
         #    (num_internal_bins, component, length)
         num_internal_bins = 0
 
-    # Calculate internal bin locations
-    spacing = length / (num_internal_bins + 1)
-    internal_bins = []
-    for i in range(0, num_internal_bins):
-        # Round to nearest bin
-        # XXX: This probably isn't quite right in every case, but it's very close
-        internal_bins.append(int(start + ((i + 1)*spacing) + 0.5))
-
-    bins_5p = []
-    bins_3p = []
-    if strand == "-":
-        for i in range(0, num_5p_bins):
-            bins_5p.append(end + i)
-        for i in range(0, num_3p_bins):
-            bins_3p.append(start - num_3p_bins + i)
+    if num_internal_bins > 0:
+        # Calculate internal bin locations (end included in linspace)
+        internal_bins = round(linspace(start, end - 1,
+                                       num_internal_bins)).astype("int")
     else:
-        for i in range(0, num_5p_bins):
-            bins_5p.append(start - num_5p_bins + i)
-        for i in range(0, num_3p_bins):
-            bins_3p.append(end + i)
+        internal_bins = []
 
-    if strand == "-":  # Flip for negative strand
-        bins_5p = reversed(bins_5p)
-        internal_bins = reversed(internal_bins)
-        bins_3p = reversed(bins_3p)
+    # Calculate flanking base locations
+    if strand == "-":
+        bins_5p = arange(end, end + num_5p_bins, dtype="int")[::-1]
+        internal_bins = internal_bins[::-1]  # reverse
+        bins_3p = arange(start - num_3p_bins, start, dtype="int")[::-1]
+    else:
+        bins_5p = arange(start - num_5p_bins, start, dtype="int")
+        bins_3p = arange(end, end + num_3p_bins, dtype="int")
 
-    windows = {}
+    windows = []
     if len(bins_5p) > 0:
-        windows[FLANK_5P] = bins_5p
-    if len(internal_bins) > 0 and component is not None:
-        windows[component] = internal_bins
+        windows.append((FLANK_5P, bins_5p))
+    if len(internal_bins) > 0:
+        windows.append((component, internal_bins))
     if len(bins_3p) > 0:
-        windows[FLANK_3P] = bins_3p
+        windows.append((FLANK_3P, bins_3p))
 
     #for key, val in locals().iteritems():
     #    print >>sys.stderr, "%s : %s" % (key, val)
@@ -184,400 +512,8 @@ def calc_feature_windows(feature, mode, components, component_bins):
 
     return windows
 
-# Returns a dict: component -> number of bins for that component
-# and a list of the new components (with flanking regions)
-def get_component_bins(components=[], flank_bins=FLANK_BINS,
-                       region_bins=REGION_BINS, intron_bins=INTRON_BINS,
-                       exon_bins=EXON_BINS):
-    component_bins = {}
-    for component in components:
-        if component in FLANK_COMPONENTS:
-            bins = flank_bins
-        elif component in GENE_COMPONENTS:
-            if "intron" in component:
-                bins = intron_bins
-            elif "exon" in component or \
-                    "UTR" in component or \
-                    "CDS" in component:
-                # All UTR components that don't contain "intron" are exons
-                bins = exon_bins
-            else:
-                bins = region_bins
-        else:
-            bins = region_bins
 
-        component_bins[component] = bins
-
-    return component_bins
-
-
-## Given a list of features, returns:
-##   A list of the values that occur for that field
-def feature_field_values(features, field="name"):
-    vals = []
-    val_set = set()
-    for chrom_features in features.itervalues():
-        for feature in chrom_features:
-            val = feature[field]
-            if val not in val_set:
-                val_set.add(val)
-                vals.append(val)
-
-    return vals
-
-
-def preprocess_entries(entries):
-    """Convert list of gene feature entries to processed gene data.
-
-    If multiple transcripts are found, only the longest is taken.
-
-    :param entries: each entry is (chrom, start, end, strand, component, source)
-                    and all entries should correspond to the same gene_id
-    :type entries: list of 6-tuples
-    :returns: chrom, strand, source, list(exons), list(cds's)
-
-    """
-    # Remove list of gene features and preprocess
-    #   (extracting constant strand, chrom, source)
-    # Returns gene info and list of exons and CDSs
-    gene_strand = None
-    gene_chrom = None
-    gene_source = None
-    exons = []
-    cdss = []
-
-    for entry in entries:
-        #print entry[4], "\t", entry[1:3], entry[3]
-        chrom, start, end, strand, component, source = entry
-
-        # Ensure strand, chrom, and source match rest for this gene
-        if gene_strand is None:
-            gene_strand = strand
-        elif gene_strand != strand:
-            die("Found gene features on more than one strand: [%s, %s]\n%s" %
-                (gene_strand, strand, str(entries)))
-        if gene_chrom is None:
-            gene_chrom = chrom
-        elif gene_chrom != chrom:
-            die("Found gene features on more than one chromosome:"
-                " [%s, %s]\n%s" % (gene_chrom, chrom, str(entries)))
-        if gene_source is None:
-            gene_source = source
-        elif gene_source != source:
-            log("Warning: Found gene features from more than"
-                " one source: [%s, %s]\n%s" %
-                (gene_source, source, str(entries)))
-
-        partial_entry = (start, end)
-        if component == EXON_COMPONENT:
-            exons.append(partial_entry)
-        elif component == CDS_COMPONENT:
-            cdss.append(partial_entry)
-    return gene_chrom, gene_strand, gene_source, exons, cdss
-
-def interpret_features_as_gene(entries, min_exons=MIN_EXONS, min_cdss=MIN_CDSS):
-    """Returns a set of gene-model entries based upon the given entries.
-
-    Interprets the given set of entries in terms of an idealized gene model
-    with 5' and 3' UTRs, initial, internal, and terminal exons and introns.
-
-    :param entries: see preprocess_entries for a description
-    :returns: a new set of entries based upon this gene model
-              or None if the entries don't fit the model.
-    """
-
-    gene_chrom, gene_strand, gene_source, exons, cdss = \
-        preprocess_entries(entries)
-
-    # ... removing gene if without a coding exon or enough exons
-    if len(exons) < min_exons or len(cdss) < min_cdss:
-        return None
-
-    exons.sort()
-    cdss.sort()
-
-    # Create introns between every pair of now-sorted exons
-    introns = []
-    prev_end = None
-    for exon_start, exon_end in exons:
-        if prev_end is not None:
-            introns.append((prev_end, exon_start))
-        prev_end = exon_end
-
-    # Flip directions for '-' strand
-    if gene_strand == "-":
-        exons.reverse()
-        introns.reverse()
-        cdss.reverse()
-
-    features = []
-    # Add gene features to new list, renaming components
-    #   according to an idealized gene model
-    # Assumes exons and cdss in sorted order (ensured by sort() above)
-
-    # Binds local variables: gene_chrom, gene_strand, gene_source
-    def make_feature(component, start, end):
-        """Makes tuple feature for feature list"""
-        return (gene_chrom, start, end, gene_strand, component, gene_source)
-
-    # first exon
-    features.append(make_feature(SPLICE_COMPONENTS[0], *exons[0]))
-    # first intron
-    if len(introns) > 0:
-        features.append(make_feature(SPLICE_COMPONENTS[1], *introns[0]))
-    # internal exons
-    for exon in exons[1:-1]:
-        features.append(make_feature(SPLICE_COMPONENTS[2], *exon))
-    # internal introns
-    for intron in introns[1:-1]:
-        features.append(make_feature(SPLICE_COMPONENTS[3], *intron))
-    # last intron
-    if len(introns) > 0:
-        features.append(make_feature(SPLICE_COMPONENTS[5], *introns[-1]))
-    # last exon
-    features.append(make_feature(SPLICE_COMPONENTS[4], *exons[-1]))
-
-
-    # If there were no CDS's, then there is no point in dealing with UTR/CDS
-    #   regions, so skip all that.
-    if len(cdss) == 0:
-        return features
-
-    # Binds local variable gene_strand to strand-correct
-    def upstream(x, y):
-        """Returns true if x starts before (is 5') of y, false otherwise"""
-        return (gene_strand == "+" and x[0] < y[0]) or \
-            (gene_strand == "-" and x[1] > y[1])
-
-    # Go through exons and introns and pick out those that are in UTR regions
-    # Exons are a little trickier because the UTR region has to be trimmed to
-    #   the CDS if they overlap
-    UTR5p_exons = []
-    UTR5p_introns = []
-    UTR3p_exons = []
-    UTR3p_introns = []
-    first_cds = cdss[0]
-    last_cds = cdss[-1]
-    first_cds_start, first_cds_end = first_cds
-    last_cds_start, last_cds_end, = last_cds
-    for exon in exons:
-        exon_start, exon_end = exon
-        # See if exon is in UTR relative to CDSs, and trim to UTR fragment
-        utr_list = None
-        if gene_strand == "+":
-            if exon_start < first_cds_start:
-                exon_end = min(exon_end, first_cds_start)
-                utr_list = UTR5p_exons
-            elif exon_end > last_cds_end:
-                exon_start = max(exon_start, last_cds_end)
-                utr_list = UTR3p_exons
-        else:  # gene_strand == "-":
-            if exon_end > first_cds_end:
-                exon_start = max(exon_start, first_cds_end)
-                utr_list = UTR5p_exons
-            elif exon_start < last_cds_start:
-                exon_end = min(exon_end, last_cds_start)
-                utr_list = UTR3p_exons
-        # Add if exon was in UTR and has positive length
-        if utr_list is not None and exon_start < exon_end:
-            utr_list.append((exon_start, exon_end))  # Append tuple
-
-    for intron in introns:
-        if upstream(intron, first_cds):
-            UTR5p_introns.append(intron)
-        elif upstream(last_cds, intron):
-            UTR3p_introns.append(intron)
-
-
-    # Go through the list of UTR elements and add them to the feature list
-    #   with appropriate component names
-    # initial 5' UTR
-    if len(UTR5p_exons) > 0:
-        features.append(make_feature(CODING_COMPONENTS[0], *UTR5p_exons[0]))
-    # 5' UTR introns
-    for intron in UTR5p_introns:
-        features.append(make_feature(CODING_COMPONENTS[1], *intron))
-    # internal 5' UTR
-    for exon in UTR5p_exons[1:-1]:
-        features.append(make_feature(CODING_COMPONENTS[2], *exon))
-    # terminal 5' UTR
-    if len(UTR5p_exons) > 0:
-        features.append(make_feature(CODING_COMPONENTS[3], *UTR5p_exons[-1]))
-    # first CDS
-    features.append(make_feature(CODING_COMPONENTS[4], *first_cds))
-    # last CDS
-    features.append(make_feature(CODING_COMPONENTS[5], *last_cds))
-    # initial 3' UTR
-    if len(UTR3p_exons) > 0:
-        features.append(make_feature(CODING_COMPONENTS[6], *UTR3p_exons[0]))
-    # internal 3' UTR
-    for exon in UTR3p_exons[1:-1]:
-        features.append(make_feature(CODING_COMPONENTS[7], *exon))
-    # 3' UTR introns
-    for intron in UTR3p_introns:
-        features.append(make_feature(CODING_COMPONENTS[8], *intron))
-    # terminal 3' UTR
-    if len(UTR3p_exons) > 0:
-        features.append(make_feature(CODING_COMPONENTS[9], *UTR3p_exons[-1]))
-
-    return features
-
-def get_transcript_length(entries):
-    """Returns the length of the transcript.
-
-    Assumes entries are all for the same transcript
-
-    :param entries: each entry is (chrom, start, end, strand, component, source)
-                    and all entries should correspond to the same gene_id
-    :type entries: list of 6-tuples
-    :rtype: integer or None
-
-    """
-    min_start = None
-    max_end = None
-    for entry in entries:
-        (chrom, start, end, strand, component, source) = entry
-        if component == EXON_COMPONENT:
-            if min_start is None or start < min_start:
-                min_start = start
-            if max_end is None or end > max_end:
-                max_end = end
-
-    if min_start is None or max_end is None:
-        return None
-    else:
-        return max_end - min_start
-
-def get_longest_transcript(transcript_dict):
-    """Return the longest transcript in the dict.
-
-    :type transcript_dict: transcript_id -> entries
-    :returns: tuple of (transcript_id, entries) for the longest transcript
-              or None if there were no transcripts.
-    """
-    max_length = 0
-    longest = None
-    for id, entries in transcript_dict.iteritems():
-        length = get_transcript_length(entries)
-        if length > max_length:
-            max_length = length
-            longest = (id, entries)
-    return longest
-
-def load_gtf_data(gtf_filename, min_exons=MIN_EXONS, min_cdss=MIN_CDSS):
-    """Load the gtf file in terms of idealized gene features.
-
-    Parses the given feature file and replaces feature names from:
-      CDS
-      exon
-      (other features ignored)
-    with feature components from:
-      GENE_COMPONENTS
-
-    Field 8 of the feature file must be a list of semi-colon delimited
-    properties and gene_id must be the first one of them.
-
-    All features must be stranded.
-
-    If an exon is a coding exon, there must also be a CDS line
-    establishing the region of that exon that is translated. Assumes each CDS
-    region is completely contained within a single exon.
-
-    A gene is a coding gene iff there is at least one CDS feature in it.
-
-    Genes that do not fit this idealized model (because they only have one
-    exon or do not contain a start codon) are skipped.
-    """
-    # Start with establishing a dict:
-    #   gene_id -> dict(transcript_id -> (chrom, start, end, strand, component))
-    #   start is 0-indexed, end is non-inclusive (BED)
-    gene_dict = defaultdict(partial(defaultdict, list))
-    gene_id_col = 0
-    transcript_id_col = 1
-    with maybe_gzip_open(gtf_filename) as ifp:
-        for line in ifp:
-            # Ignore comment lines
-            if line.startswith("#"): continue
-
-            # Parse tokens from GTF line
-            try:
-                tokens = line.strip().split("\t")
-                chrom = tokens[0]
-                source = tokens[1]
-            except ValueError:
-                die("Error parsing chrom (field 1) or source (field 2)"
-                    " from GTF line: %s" % line)
-            try:
-                start = int(tokens[3]) - 1
-                end = int(tokens[4])
-            except ValueError:
-                die("Error parsing start (field 4) or end (field 5)"
-                    " from GTF line: %s" % line)
-            strand = tokens[6]
-            if strand != "+" and strand != "-":
-                die("Expected +/- strand, but found: %s in GTF line:"
-                    " %s" % (strand, line))
-            component = tokens[2]
-
-            properties = tokens[8].split("; ")
-            if not properties[gene_id_col].startswith("gene_id"):
-                # Try to find the gene_id column
-                gene_id_col = None
-                for col_offset, prop in enumerate(properties):
-                    if prop.startswith("gene_id"):
-                        gene_id_col = col_offset
-
-                if gene_id_col is None:
-                    die("Could not find the gene_id column in GTF line: %s" %
-                        line)
-            gene_id = properties[gene_id_col].split()[1].strip('"')
-
-            if not properties[transcript_id_col].startswith("transcript_id"):
-                # Try to find the transcript_id column
-                transcript_id_col = None
-                for col_offset, prop in enumerate(properties):
-                    if prop.startswith("transcript_id"):
-                        transcript_id_col = col_offset
-
-                if transcript_id_col is None:
-                    die("Could not find the transcript_id column in"
-                        " GTF line: %s" % line)
-            transcript_id = properties[transcript_id_col].split()[1].strip('"')
-
-            # Add feature to dict
-            entry = (chrom, start, end, strand, component, source)
-            gene_dict[gene_id][transcript_id].append(entry)
-
-    # Eventually create feature dict: chrom -> list(features)
-    data = defaultdict(list)
-    for gene_id, transcript_dict in gene_dict.iteritems():
-
-        # Select only longest transcript
-        transcript_id, transcript = get_longest_transcript(transcript_dict)
-#        print "%s: %s" % (transcript_id, transcript)
-        gene_model = interpret_features_as_gene(transcript,
-                                                min_exons=min_exons,
-                                                min_cdss=min_cdss)
-
-        if gene_model is not None:
-            # Add features to a normal, chrom-based feature dict
-            for gene_part in gene_model:
-#                print str(gene_part)
-                chrom, start, end, strand, component, source = gene_part
-                feature = dict(start=start, end=end, strand=strand,
-                               name=component, source=source)
-                data[chrom].append(feature)
-
-#        raw_input()
-
-    # Sort features by ascending start
-    for chrom_features in data.itervalues():
-        chrom_features.sort(key=itemgetter("start"))
-
-    return data
-
-
-## Accepts data from dict: chr -> dict {"start", "end", "strand", "name"})
+## Accepts data from dict: chr -> dict {"start", "end", "strand"})
 ##   zero-based start and end (exclusive) indices
 ## If components is:
 ##   [] or None, aggregation will be just over the flanking regions
@@ -590,19 +526,13 @@ def load_gtf_data(gtf_filename, min_exons=MIN_EXONS, min_cdss=MIN_CDSS):
 ## Returns:
 ##   groups: a list of the groups aggregated over
 ##   counts: dict(label_key -> dict(feature -> dict(component -> histogram)))
-def calc_aggregation(segmentation, mode, features, groups, components=[],
-                     component_bins=None, quick=False, by_groups=False,
+def calc_aggregation(segmentation, features, mode, groups, components,
+                     component_bins, quick=False, by_groups=False,
                      verbose=True):
-    assert len(groups) > 0
-
-    if component_bins is None:
-        component_bins = get_component_bins(components=components)
-    else:
-        for component in components:
-            assert component in component_bins
-
     if not by_groups:
         assert len(groups) == 1
+    else:
+        assert len(groups) > 0
 
     labels = segmentation.labels
 
@@ -611,11 +541,7 @@ def calc_aggregation(segmentation, mode, features, groups, components=[],
         log("\tComponents and bins:")
         for component in components:
             log("\t\t", end="")
-            # Try to substitute number of bins in first
-            try:
-                log(component % component_bins[component])
-            except TypeError:
-                log("%s: %d" % (component, component_bins[component]))
+            log("%s; %d bins" % (component, component_bins[component]))
 
     # dict:
     #   key: feature_group
@@ -632,47 +558,64 @@ def calc_aggregation(segmentation, mode, features, groups, components=[],
     for chrom, segments in segmentation.chromosomes.iteritems():
         log("\t%s" % chrom, verbose)
 
-        # XXX: Segments and features are in sorted order. TAKE ADVANTAGE
+        chrom_features = features.chromosomes[chrom]
+        if len(chrom_features) == 0:
+            continue
 
         # Get bounds on segmentation for chr (since segments are sorted)
-        segmentation_start = segments['start'].min()
-        segmentation_end = segments['end'].max()
+        segmentation_start = segments['start'][0]
+        segmentation_end = segments['end'][-1]
 
-        # Map entire chromosome into a list of labels
-        # XXXopt: THIS LINE TAKES 3.2 GB OF MEMORY!!!!
-        segment_map = map_segments(segments, labels, segmentation_end)
+        # Map entire chromosome's segments into an array of label_keys
+        # XXXopt: THIS LINE TAKES UP TO 3.2 GB OF MEMORY!!!!
+        segment_map, sentinal = map_segment_label(
+            segments, (segmentation_start, segmentation_end))
 
-        chrom_features = features[chrom]
         # For each feature, tally segments in window
         for feature in chrom_features:
+            # XXXopt: Process every feature, since we don't know how wide the
+            # aggregation window is.
             feature_counted = False
-            if feature["end"] < segmentation_start or \
-                    feature["start"] > segmentation_end:
-                continue  # Feature outside segmentation
-
-            if by_groups:
-                group = get_feature_group(feature, mode)
+            if by_groups and mode != GENE_MODE:
+                group = features.labels[feature['key']]
             else:
                 group = groups[0]
 
             group_counts = counts[group]
 
             # Spread internal bins throughout feature
-            component_windows = calc_feature_windows(feature, mode, components,
-                                                     component_bins)
+            component_windows = calc_feature_windows(feature, features.labels,
+                                                     mode, component_bins)
+
             # Scan window, tallying segments observed
-            for component, window in component_windows.iteritems():
+            for component, window in component_windows:
+
                 component_counts = group_counts[component]
-                for bin, bp in enumerate(window):
-                    try:
-                        label_key = segment_map[bp]
-                    except IndexError:
-                        continue  # Window outside segmentation. Ignore
-                    if label_key in labels:
-                        component_counts[bin, label_key] += 1
-                        if not feature_counted:
-                            counted_features += 1
-                            feature_counted = True
+                #log("component: %r" % component)
+                #log("component_counts.shape: %r" % str(component_counts.shape))
+
+                map_indices = window - segmentation_start
+                count_indices = arange(0, len(window))
+
+                # Lookup all label_keys within segmentation at once
+                keep = ((window >= segmentation_start) &
+                        (window < segmentation_end))
+                label_keys = segment_map[map_indices[keep]]
+                if len(label_keys) == 0: continue
+                count_indices = count_indices[keep]
+
+                # Find indices where label_keys are set
+                keep = (label_keys != sentinal).nonzero()[0]
+                label_keys = label_keys[keep]
+                if len(label_keys) == 0: continue
+                count_indices = count_indices[keep]
+
+                #raw_input()
+                component_counts[count_indices, label_keys] += 1
+                if len(keep) > 0 and not feature_counted:
+                    counted_features += 1
+                    feature_counted = True
+
         if quick: break
 
     return (counts, counted_features)
@@ -685,7 +628,7 @@ def make_row(labels, row_data):
     return values
 
 ## Saves the data to a tab file
-def save_tab(segmentation, labels, counts, components, component_bins,
+def save_tab(segmentation, features, counts, components, component_bins,
              counted_features, dirpath, mode, verbose=True,
              clobber=False, namebase=NAMEBASE):
     metadata = {"num_features": counted_features}
@@ -693,7 +636,7 @@ def save_tab(segmentation, labels, counts, components, component_bins,
     if mode == GENE_MODE:
         metadata["spacers"] = len(EXON_COMPONENTS)
 
-    label_keys, labels = get_ordered_labels(labels)
+    label_keys, labels = get_ordered_labels(segmentation.labels)
     for label_key in label_keys:
         label = labels[label_key]
         assert label not in STATIC_FIELDNAMES
@@ -709,11 +652,42 @@ def save_tab(segmentation, labels, counts, components, component_bins,
         for group in counts:
             for component in components:
                 hist = counts[group][component]
-                # Try to substitute component bins into component names
-                try:
-                    component_name = component % component_bins[component]
-                except TypeError:
-                    component_name = component
+                # Try to substitute average lengths into component names
+                avg_len = None
+                if component in FLANK_COMPONENTS:
+                    avg_len = component_bins[component]
+                else:
+                    sum = 0
+                    count = 0
+                    for chrom_features in features.chromosomes.itervalues():
+                        if component == REGION_COMPONENT:
+                            if len(counts) == 1:  # Only one group
+                                sum += (chrom_features['end'] -
+                                        chrom_features['start']).sum()
+                                count += len(chrom_features)
+                            else:  # Group listed in key column
+                                label_key = features.label_key(group)
+                                keep = chrom_features['key'] == label_key
+                                sum += (chrom_features['end'][keep] -
+                                        chrom_features['start'][keep]).sum()
+                                count += keep.sum()
+                        elif component in GENE_COMPONENTS:
+                            # Component listed in key column
+                            label_key = features.label_key(component)
+                            keep = chrom_features['key'] == label_key
+                            sum += (chrom_features['end'][keep] -
+                                    chrom_features['start'][keep]).sum()
+                            count += keep.sum()
+
+                    if sum > 0:
+                        avg_len = sum / count
+
+                component_name = component
+                if avg_len is not None:
+                    try:
+                        component_name = component % avg_len
+                    except TypeError:
+                        pass
 
                 if component == FLANK_5P:
                     offsets = range(-len(hist), 0)
@@ -741,7 +715,7 @@ def save_plot(dirpath, mode, namebase=NAMEBASE, clobber=False, verbose=True,
 
     # Plot data in tab file
     if mode == GENE_MODE:
-        r_plot("save.gene.aggregations", dirpath, NAMEBASE_TRANSCRIPTION,
+        r_plot("save.gene.aggregations", dirpath, NAMEBASE_SPLICING,
                NAMEBASE_TRANSLATION, tabfilename, mnemonic_file=mnemonic_file,
                normalize=normalize, clobber=clobber, verbose=verbose)
     else:
@@ -759,8 +733,8 @@ def save_html(dirpath, featurefilename, mode, clobber=False, normalize=False):
 
     if mode == GENE_MODE:
         templatefile = "aggregation_gene_div.tmpl"
-        extra_namebases = {"scrip": NAMEBASE_TRANSCRIPTION,
-                           "lat": NAMEBASE_TRANSLATION}
+        extra_namebases = {"splice": NAMEBASE_SPLICING,
+                           "trans": NAMEBASE_TRANSLATION}
     else:
         templatefile = "aggregation_div.tmpl"
         extra_namebases = {}
@@ -770,84 +744,92 @@ def save_html(dirpath, featurefilename, mode, clobber=False, normalize=False):
                   title=title, yaxis=yaxis, extra_namebases=extra_namebases)
 
 def print_array(arr, tag="", type="%d"):
-    fstring = "%%s: \t%s, %s, ..., %s, ..., %s, %s" % tuple([type]*5)
-    log(fstring % (tag,
-                   arr[0],
-                   arr[1],
-                   arr[int(arr.shape[0] / 2)],
-                   arr[-2],
-                   arr[-1]))
+    if len(arr) > 2:
+        fstring = "%%s: \t%s, %s, ..., %s, ..., %s, %s" % tuple([type]*5)
+        log(fstring % (tag,
+                       arr[0],
+                       arr[1],
+                       arr[int(arr.shape[0] / 2)],
+                       arr[-2],
+                       arr[-1]))
+    else:
+        log(str(arr))
+
+def get_components_and_bins(mode, flank_bases=FLANK_BASES,
+                            region_bins=REGION_BINS,
+                            intron_bins=INTRON_BINS,
+                            exon_bins=EXON_BINS):
+    """Get components and number of data points per component"""
+    if mode == GENE_MODE:
+        components = GENE_COMPONENTS
+    elif mode == REGION_MODE:
+        components = REGION_COMPONENTS
+    else:
+        assert mode == POINT_MODE
+        components = POINT_COMPONENTS
+
+    component_bins = {}
+    for component in components:
+        if component in FLANK_COMPONENTS:
+            bins = flank_bases
+        elif component in GENE_COMPONENTS:
+            if "intron" in component:
+                bins = intron_bins
+            elif "exon" in component or \
+                    "UTR" in component or \
+                    "CDS" in component:
+                # All UTR components that don't contain "intron" are exons
+                bins = exon_bins
+            else:
+                bins = region_bins
+        else:
+            bins = region_bins
+
+        assert component not in component_bins  # Keep unique
+        component_bins[component] = bins
+
+    return components, component_bins
 
 ## Package entry point
 def validate(bedfilename, featurefilename, dirpath,
-             flank_bins=FLANK_BINS, region_bins=REGION_BINS,
+             flank_bases=FLANK_BASES, region_bins=REGION_BINS,
              intron_bins=INTRON_BINS, exon_bins=EXON_BINS,
              by_groups=False, mode=DEFAULT_MODE, clobber=False,
              quick=False, replot=False, noplot=False, normalize=False,
-             min_exons=MIN_EXONS, min_cdss=MIN_CDSS,
              mnemonic_file=None, verbose=True):
 
     if not replot:
         setup_directory(dirpath)
         segmentation = Segmentation(bedfilename, verbose=verbose)
 
-        assert segmentation is not None
-
-        log("Using file %s" % featurefilename, verbose)
-
         if mode == GENE_MODE:
-            features = load_gtf_data(featurefilename,
-                                     min_exons=min_exons,
-                                     min_cdss=min_cdss)
+            features = GeneAnnotations(featurefilename, verbose=verbose)
+            num_features = features.num_genes()
+            groups = ["genes"]
         else:
-            features = load_gff_data(featurefilename)
-        assert features is not None
-
-        groups = ["features"]
-        # Parse components from features
-        if mode == GENE_MODE:
-            components = GENE_COMPONENTS
-        elif mode == REGION_MODE:
-            components = REGION_COMPONENTS
+            features = Annotations(featurefilename, verbose=verbose)
+            num_features = features.num_segments()
             if by_groups:
-                groups = feature_field_values(features, "name")
-        elif mode == POINT_MODE:
-            components = POINT_COMPONENTS
-            if by_groups:
-                groups = feature_field_values(features, "name")
+                groups = features.labels.values()
+            else:
+                groups = ["features"]
 
-        labels = segmentation.labels
+        log("Aggregating over %d features" % num_features, verbose)
 
-        num_features = 0
-        for chrom_features in features.itervalues():
-            num_features += len(chrom_features)
+        components, component_bins = \
+            get_components_and_bins(mode,
+                                    flank_bases=flank_bases,
+                                    region_bins=region_bins,
+                                    intron_bins=intron_bins,
+                                    exon_bins=exon_bins)
 
-        log("\tAggregating over %d features" % num_features, verbose)
-
-        component_bins = get_component_bins(components,
-                                            flank_bins=flank_bins,
-                                            region_bins=region_bins,
-                                            intron_bins=intron_bins,
-                                            exon_bins=exon_bins)
-
-        res = calc_aggregation(segmentation, mode=mode, features=features,
+        res = calc_aggregation(segmentation, features, mode=mode,
                                groups=groups, components=components,
                                component_bins=component_bins, quick=quick,
                                by_groups=by_groups, verbose=verbose)
         counts, counted_features = res
-        for group in groups:
-            for component in components:
-                # Allow component bin substitution
-                try:
-                    component_name = component % component_bins[component]
-                except TypeError:
-                    component_name = component
-                component_counts = counts[group][component].sum(axis=1)
-                if verbose:
-                    print_array(component_counts, tag="%s:%s count" %
-                                (group, component_name))
 
-        save_tab(segmentation, labels, counts, components, component_bins,
+        save_tab(segmentation, features, counts, components, component_bins,
                  counted_features, dirpath, mode, clobber=clobber,
                  verbose=verbose)
 
@@ -861,13 +843,11 @@ def validate(bedfilename, featurefilename, dirpath,
 def parse_options(args):
     from optparse import OptionParser, OptionGroup
 
-    usage = "%prog [OPTIONS] BEDFILE FEATUREFILE"
-    description = ("Plot the enrichment of the BEDFILE groups relative to"
-                   " the position of features in FEATUREFILE."
-                   " BEDFILE is a BED4+ segmentation, where the name column"
-                   " corresponds to the segment group. FEATUREFILE should"
-                   " be in GFF or GTF format and can be grouped by the"
-                   " feature column by supplying --groups.")
+    usage = "%prog [OPTIONS] SEGMENTATION ANNOTATIONS"
+    description = ("Plot the enrichment of the SEGMENTATION labels relative"
+                   " to the position of features in ANNOTATIONS."
+                   " Features can be grouped by the"
+                   " 'name'/'feature' column by supplying --groups.")
     version = "%%prog %s" % __version__
     parser = OptionParser(usage=usage, version=version,
                           description=description)
@@ -904,15 +884,15 @@ def parse_options(args):
     group.add_option("--groups", action="store_true",
                      dest="by_groups", default=False,
                      help="Separate data into different groups based upon"
-                     " FEATUREFILE's feature field"
+                     " ANNOTATIONS's 'name'/'feature' field"
                      " if --mode=region or --mode=point. Does"
                      " nothing if --mode=gene.")
     group.add_option("--normalize", action="store_true",
                      dest="normalize", default=False,
-                     help="Plot the relative frequency of BEDFILE group,"
+                     help="Plot the relative frequency of SEGMENTATION labels,"
                      " normalized by the number of segments in that group"
                      " instead of the raw counts"
-                     " (normalize over BEDFILE groups)")
+                     " (normalize over SEGMENTATION labels)")
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Main aggregation options")
@@ -920,7 +900,7 @@ def parse_options(args):
                      dest="mode", type="choice", default=DEFAULT_MODE,
                      help="one of: "+str(MODES)+". [default: %default]")
     group.add_option("-f", "--flank-bases", metavar="N",
-                     dest="flankbins", type="int", default=FLANK_BINS,
+                     dest="flankbases", type="int", default=FLANK_BASES,
                      help="Aggregate this many base pairs off each"
                      " end of feature or gene [default: %default]")
     group.add_option("-r", "--region-samples", type="int", metavar="N",
@@ -942,14 +922,6 @@ def parse_options(args):
                      help="Aggregate over each exon"
                      " by taking this many evenly-spaced samples"
                      " [default: %default]")
-#     group.add_option("--min-exons", type="int",
-#                      dest="min_exons", default=MIN_EXONS,
-#                      help="Only consider genes with at least this many exons"
-#                      " [default: %default]")
-#     group.add_option("--min-coding-exons", type="int",
-#                      dest="min_cdss", default=MIN_CDSS,
-#                      help="Only consider genes with at least this many coding"
-#                      " exon [default: %default]")
     parser.add_option_group(group)
 
     (options, args) = parser.parse_args(args)
@@ -964,7 +936,7 @@ def main(args=sys.argv[1:]):
     (options, args) = parse_options(args)
     bedfilename = args[0]
     featurefilename = args[1]
-    kwargs = {"flank_bins": options.flankbins,
+    kwargs = {"flank_bases": options.flankbases,
               "region_bins": options.regionbins,
               "intron_bins": options.intronbins,
               "exon_bins": options.exonbins,
@@ -976,8 +948,6 @@ def main(args=sys.argv[1:]):
               "by_groups": options.by_groups,
               "normalize": options.normalize,
               "mode": options.mode,
-#               "min_exons": options.min_exons,
-#               "min_cdss": options.min_cdss,
               "mnemonic_file": options.mnemonic_file}
     validate(bedfilename, featurefilename, options.outdir, **kwargs)
 

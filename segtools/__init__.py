@@ -13,14 +13,14 @@ import re
 import sys
 
 from collections import defaultdict
-from numpy import array
+from functools import partial
+from numpy import array, int64, uint32
 
 PICKLED_EXT = "pkl"
 
 DTYPE_SEGMENT_START = int64
 DTYPE_SEGMENT_END = int64
 DTYPE_SEGMENT_KEY = uint32
-DTYPE_SOURCE_KEY = uint16
 DTYPE_STRAND = '|S1'
 
 class Annotations(object):
@@ -101,30 +101,37 @@ class Annotations(object):
 
         if format == "bed":
             reader = read_bed
-        elif format == "gff" or format == "gtf":
+        elif format == "gff":
             reader = read_gff
+        elif format == "gtf":
+            reader = partial(read_gff, gtf=True)
         else:
             raise self.FormatError("Cannot iterate segments in file format:"
                                    " %s" % format)
 
         with maybe_gzip_open(filename) as infile:
             for datum in reader(infile):
-                fields = {}
+                row = {}
                 d = datum.__dict__
                 if format == "bed":
-                    fields["chrom"] = d["chrom"]
-                    fields["start"] = d["chromStart"]
-                    fields["end"] = d["chromEnd"]
-                    fields["label"] = d.get("name", "")
-                    fields["strand"] = d.get("strand", ".")
+                    row['chrom'] = d['chrom']
+                    row['start'] = d['chromStart']
+                    row['end'] = d['chromEnd']
+                    row['name'] = d.get('name', "")
+                    row['strand'] = d.get('strand', ".")
                 elif format == "gff" or format == "gtf":
-                    fields["chrom"] = d["seqname"]
-                    fields["start"] = d["start"]
-                    fields["end"] = d["end"]
-                    fields["label"] = d.get("feature", "")
-                    fields["strand"] = d.get("strand", ".")
+                    row['chrom'] = d['seqname']
+                    row['start'] = d['start']
+                    row['end'] = d['end']
+                    row['name'] = d.get('feature', "")
+                    row['strand'] = d.get('strand', ".")
 
-                yield fields
+                if format == "gtf":
+                    attrs = datum.attributes
+                    row['gene_id'] = attrs['gene_id']
+                    row['transcript_id'] = attrs['transcript_id']
+
+                yield row
 
     def _from_pickle(self, filename, verbose=True):
         import cPickle
@@ -157,11 +164,11 @@ class Annotations(object):
         n_label_bases = {}
         stranded = None
         for row in self._iter_rows(filename, verbose=verbose):
-            chrom = row["chrom"]
-            start = row["start"]
-            end = row["end"]
-            label = row["label"]
-            strand = row["strand"]
+            chrom = row['chrom']
+            start = row['start']
+            end = row['end']
+            label = row['name']
+            strand = row['strand']
 
             assert end >= start
 
@@ -205,7 +212,7 @@ class Annotations(object):
                  ('end', DTYPE_SEGMENT_END),
                  ('key', DTYPE_SEGMENT_KEY)]
         if stranded:
-            dtype.append(tuple('strand', DTYPE_STRAND))
+            dtype.append(('strand', DTYPE_STRAND))
 
         chromosomes = dict((chrom, array(segments, dtype=dtype))
                            for chrom, segments in data.iteritems())
@@ -226,9 +233,7 @@ class Annotations(object):
         self.chromosomes = chromosomes
         self._labels = labels
         self._n_label_segments = n_label_segments
-        self._n_segments = sum(n_label_segments.values())
         self._n_label_bases = n_label_bases
-        self._n_bases = sum(n_label_bases.values())
         self._inv_labels = label_dict
 
     def pickle(self, verbose=True, clobber=False):
@@ -250,13 +255,13 @@ class Annotations(object):
         return self._n_label_segments[str(label)]
 
     def num_segments(self):
-        return self._n_segments
+        return sum(self._n_label_segments.values())
 
     def num_label_bases(self, label):
         return self._n_label_bases[str(label)]
 
     def num_bases(self):
-        return self._n_bases
+        return sum(self._n_label_bases.values())
 
     def label_key(self, label):
         return self._inv_labels[str(label)]

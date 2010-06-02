@@ -4,8 +4,6 @@ from __future__ import division, with_statement
 __version__ = "$Revision$"
 
 """
-label_transition.py:
-
 Provides command-line and package entry points for analyzing the observed
 segmentation label transitions in the given BED-formatted segmentation.
 
@@ -26,7 +24,7 @@ XXX: Graphiz currently assumes integer labels in sorted order in file
 
 # A package-unique, descriptive module name used for filenames, etc
 # Must be the same as the folder containing this script
-MODULE = "label_transition"
+MODULE = "transition"
 
 
 import os
