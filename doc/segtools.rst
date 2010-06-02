@@ -194,26 +194,6 @@ might expect by chance. This is especially true if the segments in
 one label are significantly longer than those in another label.
 In these cases, the :option:`--normalize` flag should be used.
 
-**Significance**:
-  Whether the y-axis is normalized or not, the significance of the
-  overlap at a region is shown in the plot. If :option:`--groups` is not
-  specified or there is only one group, then significance is shown by
-  shading the regions that are significant. Otherwise, the significance
-  of the various groups are shown using colored "rugs" at the bottom of 
-  the plot. The probability of observing :math:`n` overlapping segments
-  of a given label at a given position is modeled with a binomial
-  distribution: :math:`p = binom(n, N, f_{rand})`, where :math:`N` is the
-  total number of overlapping segments at that position and
-  :math:`f_{rand}` is the same as in :option:`--normalize`.
-  The p-value is then the probability of observing an overlap count
-  as extreme or more extreme than :math:`n` (either enrichment or
-  depletion). This corresponds to a two-tailed binomial test.
-
-  .. Didn't use note directive because of latex math image backgrounds.
-
-  *Note:* If :math:`n > 100` and :math:`f_{rand}*N < 10`, a Poisson
-  approximation is used.
-
 
 **Selected options**:
 
@@ -296,6 +276,31 @@ In these cases, the :option:`--normalize` flag should be used.
    features, such as TSSs split by expression level or cell type.
 
 
+.. cmdoption:: --significance
+
+  This option includes the significance of the
+  overlap at a region in the plot. If :option:`--groups` is not
+  specified or there is only one group, then significance is shown by
+  shading the regions that are significant. Otherwise, the significance
+  of the various groups are shown using colored "rugs" at the bottom of 
+  the plot. The probability of observing :math:`n` overlapping segments
+  of a given label at a given position is modeled with a binomial
+  distribution: :math:`p = binom(n, N, f_{rand})`, where :math:`N` is the
+  total number of overlapping segments at that position and
+  :math:`f_{rand}` is the same as in :option:`--normalize`.
+  The p-value is then the probability of observing an overlap count
+  as extreme or more extreme than :math:`n` (either enrichment or
+  depletion). This corresponds to a two-tailed binomial test. These
+  pvalues are then transformed to qvalues using Storey et al.'s QVALUE
+  R package, which should be installed if you use this option. At the
+  moment, it doesn't appear that this significance measure is stringent
+  enough, so use extreme caution when interpreting the results of this
+  option.
+
+  .. Didn't use note directive because of latex math image backgrounds.
+
+  *Note:* If :math:`n > 100` and :math:`f_{rand}*N < 10`, a Poisson
+  approximation is used.
 
 
 

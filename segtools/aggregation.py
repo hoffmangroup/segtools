@@ -649,40 +649,41 @@ def save_tab(segmentation, features, counts, components, component_bins,
                                       for label_key in label_keys]
     with tab_saver(dirpath, namebase, fieldnames=fieldnames, metadata=metadata,
                    clobber=clobber, verbose=verbose) as saver:
+        # Compute the average length for features in each component,
+        #   merging across groups.
+        avg_component_lengths = {}
+        for component in components:
+            avg_len = None
+            if component in FLANK_COMPONENTS:
+                avg_len = component_bins[component]
+            else:
+                sum = 0
+                count = 0
+                for chrom_features in features.chromosomes.itervalues():
+                    if component == REGION_COMPONENT:
+                        # Merge groups
+                        sum += (chrom_features['end'] -
+                                chrom_features['start']).sum()
+                        count += len(chrom_features)
+                    elif component in GENE_COMPONENTS:
+                        # Separate by component (key column)
+                        label_key = features.label_key(component)
+                        keep = chrom_features['key'] == label_key
+                        sum += (chrom_features['end'][keep] -
+                                chrom_features['start'][keep]).sum()
+                        count += keep.sum()
+
+                if sum > 0:
+                    avg_len = sum / count
+
+            avg_component_lengths[component] = avg_len
+
         for group in counts:
             for component in components:
                 hist = counts[group][component]
                 # Try to substitute average lengths into component names
-                avg_len = None
-                if component in FLANK_COMPONENTS:
-                    avg_len = component_bins[component]
-                else:
-                    sum = 0
-                    count = 0
-                    for chrom_features in features.chromosomes.itervalues():
-                        if component == REGION_COMPONENT:
-                            if len(counts) == 1:  # Only one group
-                                sum += (chrom_features['end'] -
-                                        chrom_features['start']).sum()
-                                count += len(chrom_features)
-                            else:  # Group listed in key column
-                                label_key = features.label_key(group)
-                                keep = chrom_features['key'] == label_key
-                                sum += (chrom_features['end'][keep] -
-                                        chrom_features['start'][keep]).sum()
-                                count += keep.sum()
-                        elif component in GENE_COMPONENTS:
-                            # Component listed in key column
-                            label_key = features.label_key(component)
-                            keep = chrom_features['key'] == label_key
-                            sum += (chrom_features['end'][keep] -
-                                    chrom_features['start'][keep]).sum()
-                            count += keep.sum()
-
-                    if sum > 0:
-                        avg_len = sum / count
-
                 component_name = component
+                avg_len = avg_component_lengths[component]
                 if avg_len is not None:
                     try:
                         component_name = component % avg_len
@@ -703,7 +704,7 @@ def save_tab(segmentation, features, counts, components, component_bins,
 
 ## Plots aggregation data from tab file
 def save_plot(dirpath, mode, namebase=NAMEBASE, clobber=False, verbose=True,
-              mnemonic_file=None, normalize=False):
+              mnemonic_file=None, normalize=False, significance=False):
     start_R()
 
     tabfilename = make_tabfilename(dirpath, namebase)
@@ -717,11 +718,12 @@ def save_plot(dirpath, mode, namebase=NAMEBASE, clobber=False, verbose=True,
     if mode == GENE_MODE:
         r_plot("save.gene.aggregations", dirpath, NAMEBASE_SPLICING,
                NAMEBASE_TRANSLATION, tabfilename, mnemonic_file=mnemonic_file,
-               normalize=normalize, clobber=clobber, verbose=verbose)
+               normalize=normalize, clobber=clobber, verbose=verbose,
+               significance=significance)
     else:
         r_plot("save.aggregation", dirpath, namebase, tabfilename,
                mnemonic_file=mnemonic_file, normalize=normalize,
-               clobber=clobber, verbose=verbose)
+               clobber=clobber, verbose=verbose, significance=significance)
 
 def save_html(dirpath, featurefilename, mode, clobber=False, normalize=False):
     featurebasename = os.path.basename(featurefilename)
@@ -796,7 +798,7 @@ def validate(bedfilename, featurefilename, dirpath,
              intron_bins=INTRON_BINS, exon_bins=EXON_BINS,
              by_groups=False, mode=DEFAULT_MODE, clobber=False,
              quick=False, replot=False, noplot=False, normalize=False,
-             mnemonic_file=None, verbose=True):
+             significance=False, mnemonic_file=None, verbose=True):
 
     if not replot:
         setup_directory(dirpath)
@@ -835,7 +837,8 @@ def validate(bedfilename, featurefilename, dirpath,
 
     if not noplot:
         save_plot(dirpath, mode, clobber=clobber, verbose=verbose,
-                  mnemonic_file=mnemonic_file, normalize=normalize)
+                  mnemonic_file=mnemonic_file, normalize=normalize,
+                  significance=significance)
 
     save_html(dirpath, featurefilename, mode=mode,
               clobber=clobber, normalize=normalize)
@@ -893,6 +896,15 @@ def parse_options(args):
                      " normalized by the number of segments in that group"
                      " instead of the raw counts"
                      " (normalize over SEGMENTATION labels)")
+    group.add_option("--significance", action="store_true",
+                     dest="significance", default=False,
+                     help="Include the significance of the aggregation"
+                     " at each base in the plot. Warning: significance"
+                     " is approximated using a binomial distribution"
+                     " adjusted to a q-value threshold. Uses the QVALUE"
+                     " package which must be installed. This method does"
+                     " not always yield reasonable results, so use with"
+                     " extreme caution.")
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Main aggregation options")
@@ -948,6 +960,7 @@ def main(args=sys.argv[1:]):
               "by_groups": options.by_groups,
               "normalize": options.normalize,
               "mode": options.mode,
+              "significance": options.significance,
               "mnemonic_file": options.mnemonic_file}
     validate(bedfilename, featurefilename, options.outdir, **kwargs)
 

@@ -41,7 +41,8 @@ read.aggregation <- function(filename, mnemonics = NULL, ...,
 ## Generates pretty scales for the data.
 ## layout is a 2-element vector: c(num_rows, num_cols) for the xyplot
 ## num_panels is the number of panels/packets in the trellis
-panel.scales <- function(data, layout, num_panels, x.axis = FALSE) {
+panel.scales <- function(data, layout, num_panels, x.axis = FALSE,
+                         significance = FALSE) {
   components <- levels(data$component)
   num_components <- length(components)
 
@@ -79,11 +80,11 @@ panel.scales <- function(data, layout, num_panels, x.axis = FALSE) {
     }
 
   range.y <- range(data$overlap, na.rm=TRUE)
-  
+
   ## Extend range for rug
   ngroups <- nlevels(data$group)
   rug.height <-
-    if (ngroups > 1)
+    if (significance && ngroups > 1)
       diff(range.y) / (1 - get.rug.start(ngroups + 2)) - diff(range.y)
     else
       0
@@ -266,7 +267,7 @@ get.rug.start <- function(group.number, rug.height = 0.03, rug.spacing = 0.015,
   rug.offset + (rug.spacing + rug.height) * (group.number - 1)
 }
 
-panel.aggregation <- function(x, y, signif, ngroups, groups = NULL,
+panel.aggregation <- function(x, y, ngroups, signif = NULL, groups = NULL,
                               subscripts = NULL, font = NULL, col = NULL,
                               col.line = NULL, pch = NULL,
                               group.number = NULL, rug.height = 0.03, ...) {
@@ -274,26 +275,29 @@ panel.aggregation <- function(x, y, signif, ngroups, groups = NULL,
   ## font and fontface
   panel.refline(h = 0)
 
-  signif <- as.logical(signif)[subscripts]
-  signif[!is.finite(signif)] <- FALSE
-  
   x <- as.numeric(x)
   y <- as.numeric(y)
-  if (any(signif)) {
-    ## Only shade region for first.
-    if (ngroups == 1) {
-      fill.col <- "black"
-      y.sig <- y
-      y.sig[!signif] <- 0
-      panel.polygon(cbind(c(min(x), x, max(x)), c(0, y.sig, 0)),
-                    col = fill.col)
-    } else {
-      #x.sig <- x[signif]
-      #y.sig <- y[signif]
-      #panel.points(x.sig, y.sig, col = fill.col, pch = "*")
-      rug.start <- get.rug.start(group.number, rug.height = rug.height, ...)
-      panel.significance(x, rug.start, rug.height, signif,
-                         col = col.line, ...)
+
+  if (!is.null(signif)) {
+    signif <- as.logical(signif)[subscripts]
+    signif[!is.finite(signif)] <- FALSE
+  
+    if (any(signif)) {
+      ## Only shade region for first.
+      if (ngroups == 1) {
+        fill.col <- "black"
+        y.sig <- y
+        y.sig[!signif] <- 0
+        panel.polygon(cbind(c(min(x), x, max(x)), c(0, y.sig, 0)),
+                      col = fill.col)
+      } else {
+        ##x.sig <- x[signif]
+        ##y.sig <- y[signif]
+        ##panel.points(x.sig, y.sig, col = fill.col, pch = "*")
+        rug.start <- get.rug.start(group.number, rug.height = rug.height, ...)
+        panel.significance(x, rug.start, rug.height, signif = signif,
+                           col = col.line, ...)
+      }
     }
   }
 ##  panel.xyplot(x, y, groups = groups, subscripts = subscripts, ...)
@@ -333,6 +337,7 @@ xyplot.aggregation <- function(agg.data = NULL,
     metadata = agg.data$metadata,
     spacers = metadata$spacers,
     normalize = TRUE,
+    significance = FALSE,
     x.axis = FALSE,  # Show x axis
     fdr.level = 0.05,
     text.cex = 1,
@@ -353,17 +358,23 @@ xyplot.aggregation <- function(agg.data = NULL,
                   log[2], bgroup("(", over(f[plain(obs)] + 1,
                                           f[plain(rand)] + 1), ")")))
            else "Count",
-    sub = substitute(
-            expression(paste(FORMAT, " regions are significant with ",
-                             italic(q) <= FDR)),
-            list(FORMAT = if (ngroups > 1) "Rug" else "Black",
-                 FDR = fdr.level)),
+    sub = if (significance) {
+            substitute(
+              expression(paste(FORMAT, " regions are significant with ",
+                               italic(q) <= FDR)),
+              list(FORMAT = if (ngroups > 1) "Rug" else "Black",
+                   FDR = fdr.level))
+          } else {
+            NULL
+          },
     ...)
 {
   label.sizes <- get.label.sizes(data, metadata)
   ## Normalize and/or calculate significance if metadata exists
   data <- process.counts(data, label.sizes, normalize = normalize)
-  data$signif <- calculate.signif(data, fdr.level)
+  if (significance) {
+    data$signif <- calculate.signif(data, fdr.level)
+  }
   
   names(data) <- gsub("^count$", "overlap", names(data))
   data$overlap[!is.finite(data$overlap)] <- 0
@@ -400,7 +411,8 @@ xyplot.aggregation <- function(agg.data = NULL,
   between <- list(x = c(spaces.x, spacing.x), 
                   y = spacing.y)
 
-  scales <- panel.scales(data, layout, num_panels, x.axis = x.axis)
+  scales <- panel.scales(data, layout, num_panels, x.axis = x.axis,
+                         significance = significance)
   axis.panel <- rep(c(0, 1), c(num_cols - 1, 1))
 
   ## Make top strips longer
