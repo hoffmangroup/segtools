@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+from __future__ import with_statement
+
 import inspect
 import sys
 import unittest
@@ -36,17 +39,18 @@ class OverlapTester(unittest.TestCase):
         self.features = []
         self._open_files = []
         for type, data in [self.subject, self.query]:
-            new_file = NamedTemporaryFile()
-            self._open_files.append(new_file)
-            features = None
             if type == "bed":
+                new_file = NamedTemporaryFile(suffix=".bed")
                 new_file.write(data2bed(data))
             elif type == "gff":
+                new_file = NamedTemporaryFile(suffix=".gff")
                 new_file.write(data2gff(data))
             elif type == "gtf":
+                new_file = NamedTemporaryFile(suffix=".gtf")
                 new_file.write(data2gff(data))
 
             new_file.flush()
+            self._open_files.append(new_file)
             features = Annotations(new_file.name, verbose=False)
 
             if features:
@@ -302,4 +306,4 @@ def suite():
     return unittest.TestSuite(tests)
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.TextTestRunner(verbosity=2).run(suite())

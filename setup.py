@@ -45,7 +45,7 @@ segtools-nucleotide-frequency = segtools.nucleotide_frequency:main
 segtools-overlap = segtools.overlap:main
 segtools-preprocess = segtools.preprocess:main
 segtools-signal-distribution = segtools.signal_distribution:main
-segtools-transition = segtools.label_transition:main
+segtools-transition = segtools.transition:main
 """
 #segtools = segtools.validate_all:main
 

@@ -1,9 +1,13 @@
+#!/usr/bin/env python
+from __future__ import with_statement
+
 import inspect
 import sys
 import unittest
 
 from tempfile import NamedTemporaryFile
 
+from segtools import Segmentation
 from segtools.bed_compare import edit_distance
 
 def beddata2bed(lines):
@@ -21,8 +25,8 @@ class BedGenerator(unittest.TestCase):
         self.init()
 
         # Create fake bed files
-        self._open_bedfiles = [NamedTemporaryFile(),
-                               NamedTemporaryFile()]
+        self._open_bedfiles = [NamedTemporaryFile(suffix=".bed"),
+                               NamedTemporaryFile(suffix=".bed")]
         for file, data in zip(self._open_bedfiles, self.beddata):
             file.write(beddata2bed(data))
         for file in self._open_bedfiles:
@@ -35,7 +39,7 @@ class BedGenerator(unittest.TestCase):
 
 class EditDistanceTester(BedGenerator):
     def test(self):
-        stats = edit_distance(*self.bedfiles)
+        stats = edit_distance(self.bedfiles[0], self.bedfiles[1], verbose=False)
         self.assertValuesEqual(stats, self.answer)
 
     def assertValuesEqual(self, observed, expected):
@@ -70,7 +74,8 @@ class TestNotSegmentation(EditDistanceTester):
                         [(1, 20, 35, 6)]]
 
     def test(self):
-        self.assertRaises(SyntaxError, edit_distance, *self.bedfiles)
+        self.assertRaises(Segmentation.SegmentOverlapError, edit_distance,
+                          self.bedfiles[0], self.bedfiles[1], verbose=False)
 
 def suite():
     classes = []
@@ -83,4 +88,4 @@ def suite():
     return unittest.TestSuite(tests)
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.TextTestRunner(verbosity=2).run(suite())

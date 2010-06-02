@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+from __future__ import with_statement
+
 import inspect
 import os
 import sys
@@ -126,26 +129,16 @@ class TestSimple(MainTester):
                                        (1, 11, 12, 1)])]
         self.answer = [[1], [0], [4]]
 
-class TestOverlapping(MainTester):
-    def init(self):
-        self.segments = [(1, 60, 100, 0),
-                         (1, 90, 100, 0)]
-        self.features_list = [("gff", [(1, 1, 10, 1),
-                                       (1, 2, 3, 2),
-                                       (1, 3, 50, 4),
-                                       (1, 120, 125, 1)])]
-        self.answer = [[11], [21]]
-
 class TestStrandCorrect(MainTester):
     def init(self):
         self.kwargs["correct_strands"] = [0]
-        self.segments = [(1, 60, 100, 0),
-                         (1, 90, 100, 0)]
+        self.segments = [(1, 60, 90, 0),
+                         (1, 130, 140, 0)]
         self.features_list = [("gtf", [(1, 1, 10, 1, "+"),
                                        (1, 2, 3, 2, "-"),
                                        (1, 3, 50, 4, "+"),
                                        (1, 120, 125, 1, "-")])]
-        self.answer = [[-11], [-21]]
+        self.answer = [[-11], [6]]
 
 def suite():
     classes = []
@@ -158,4 +151,4 @@ def suite():
     return unittest.TestSuite(tests)
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.TextTestRunner(verbosity=2).run(suite())
