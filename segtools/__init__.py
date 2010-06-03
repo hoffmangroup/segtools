@@ -298,8 +298,14 @@ class Segmentation(Annotations):
     class SegmentOverlapError(ValueError):
         pass
 
-    def __init__(self, filename, verbose=True):
-        super(self.__class__, self).__init__(filename, verbose=verbose)
+    def _from_file(self, filename, verbose=True):
+        """Wrap file loading to ensure no segments overlap
+
+        This is preferred to wrapping __init__ because we don't need to check
+        overlapping and don't want to load metadata if the Segmentation is
+        being loaded from a pickle file instead of a BED/GFF file.
+        """
+        super(self.__class__, self)._from_file(filename, verbose=verbose)
 
         log("  Checking for overlapping segments...", verbose, end="")
         for chrom, segments in self.chromosomes.iteritems():
