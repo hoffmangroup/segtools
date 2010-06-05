@@ -396,7 +396,7 @@ dev.print.images <- function(basename, dirname,
     filename.slide <-
       save.image(basename, "slide.png", dirname, device.png, 
                  width = width.slide, height = height.slide, 
-                 units = "px", as.slide = pdf.as.slide,
+                 units = "px", as.slide = TRUE,
                  ..., clobber = clobber)
   }
 
@@ -404,7 +404,7 @@ dev.print.images <- function(basename, dirname,
     filename.pdf <-
       save.image(basename, "pdf", dirname, device.pdf,
                  width = width.pdf, height = height.pdf,
-                 useDingbats = FALSE, as.slide = TRUE, ...,
+                 useDingbats = FALSE, as.slide = pdf.as.slide, ...,
                  clobber = clobber)
   }
 

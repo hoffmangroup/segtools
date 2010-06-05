@@ -355,8 +355,8 @@ xyplot.aggregation <- function(agg.data = NULL,
     xlab = NULL,
     ylab = if (normalize)
               expression(paste("Enrichment: ",
-                  log[2], bgroup("(", over(f[plain(obs)] + 1,
-                                          f[plain(rand)] + 1), ")")))
+                  log[2], group("[", (f[plain(obs)] + 1)/(f[plain(rand)] + 1),
+                                 "]")))
            else "Count",
     sub = if (significance) {
             substitute(
