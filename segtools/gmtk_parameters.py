@@ -23,7 +23,7 @@ from numpy import array
 from . import log
 from .common import die, r_call, r_source, setup_directory
 from .html import save_html_div
-from .label_transition import save_plot, save_graph
+from .transition import save_plot, save_graph
 from .mnemonics import create_mnemonic_file
 from .signal_distribution import save_stats_plot
 
