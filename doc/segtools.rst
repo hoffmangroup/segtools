@@ -11,25 +11,21 @@ Segtools |version| documentation
 
 .. currentmodule:: segtools
 
-..  Buske OJ, Hoffman MM, Noble WS, "Exploratory analysis of genomic
-..  segmentations with Segtools." In preparation.
-
 Segtools is a Python package designed to put genomic segmentations back
 in the context of the genome! Using R for graphics, Segtools provides a
 number of modules to analyze a segmentation in various ways and help
-you interpret its biological relevance. These modules have command-line
-and Python interfaces, but the command-line interfaces are most thoroughly
-documented.
+you interpret its biological relevance.
 
-.. warning::
-   For this release (|release|), the documentation is *still* very
-   incomplete. This will be remedied as soon as possible. In the mean
-   time, please don't hesitate to contact the author (above) with
-   *ANY* questions you might have concerning the installation, use,
-   and interpretation of results of the Segtools package. We think
-   this tool is very useful for a wide array of applications, but the user
-   interface and documentation are a little rough at the moment. Thank
-   you for your patience as we try to refine this package.
+For a broad overview, please see the manuscript:
+
+  Buske OJ, Hoffman MM, Noble WS, "Exploratory analysis of genomic
+  segmentations with Segtools." In preparation.
+
+Orion <stasis at uw dot edu> can send you the latest copy of the manuscript.
+Please cite the manuscript if you use Segtools.
+
+.. note:: For questions, comments, or troubleshooting, please refer to
+          the support_ section.
 
 
 Installation
@@ -44,8 +40,9 @@ as downloading and running this script! For instance::
 .. note:: 
    The following are prerequisites:
           
-   - Python 2.5.1+
+   - Python 2.5.1-2.7
    - Zlib
+
 
 Basics
 ======
@@ -56,12 +53,13 @@ similar, and those that have different labels are somehow different.
 Segtools helps you identify the similarities and differences between these
 labels to help you understand your segmentation at a higher level.
 
+
 Input
 =====
-Segmentations should be in `BED4+ format`_, with one 
-segment per line and the ``name`` field used to specify the segment label. 
-For best results, the number of unique segment labels should be between
-2 and around 40.
+Segmentations should be in `BED4+ format`_ or `GFF format`, with one 
+line for each segment and the ``name`` field used to specify the segment
+label.  For best results, the number of unique segment labels should
+be between 2 and around 40.
 
 If you want to change the order in which labels appear or the
 text displayed in plots, a `mnemonic file`_ can be created.
@@ -72,68 +70,106 @@ revised and new images created with relative ease.
 
 Most Segtools commands look for patterns between segment labels in a
 segmentation and some known annotation. For such commands, the annotations
-should usually specified in `GFF format` (although some commands accept
-BED files as well and some require GTF_ or Genomedata_ formats).
+are often specified in `BED format`_ or `GFF format`_ (although some commands
+require GTF_ or Genomedata_ formats).
 
-.. Workflow
-.. ========
-.. Coming soon.
+
+Example workflow
+================
+
+Coming soon.
+
 
 Usage
 =====
 
-All Segtools commands require, at the very least, a segmentation in 
-`BED format`_. Some commands also require additional files, such as 
-genomic feature files to compare with the segmentation. It is easiest
-to run Segtools through its command line interface, but the same
-functionality can be achieved through its Python interface
-(though this is not yet documented).
+Segtools commands can be run through their
+:ref:`Python <python-interface>`
+or :ref:`command-line <command-line-interface>` interfaces.
+
+
+.. _`python-interface`:
+
+Python interface
+----------------
+
+Segtools commands can be run directly from Python by importing the
+corresponding module and running its ``main()`` method with the same
+arguments you would specify on the command line. For instance, you could
+run `segtools-length-distribution -opt ARG` from Python with the following:
+
+>>> from segtools import length_distribution
+>>> length_distribution.main(["-opt", "ARG"])
+
+The full table of commands and corresponding modules:
+
+======================  ====================
+Command (segtools-...)       Module
+======================  ====================
+aggregation             aggregation
+compare                 compare
+feature-distance        feature_distance
+flatten                 flatten
+gmtk-parameters         gmtk_parameters
+html-report             html
+length-distribution     length_distribution
+nucleotide-frequency    nucleotide_frequency
+overlap                 overlap
+preprocess              preprocess
+signal-distribution     signal_distribution
+transition              transition
+======================  ====================
+
+
+.. _`command-line-interface`:
 
 Command-line interface
 ----------------------
 
 Core commands:
 
-- :ref:`segtools-aggregation <segtools-feature-aggregation>`: 
+- :ref:`segtools-aggregation`: 
   Analyzes the relative 
   occurrence of each segment label around the provided genomic features.
-- :ref:`segtools-label-transition <segtools-label-transition>`: 
+- :ref:`segtools-transition`: 
   Analyzes the transitions 
   between segment labels and the structure of their interaction.
-- :ref:`segtools-length-distribution <segtools-length-distribution>`: 
+- :ref:`segtools-length-distribution`: 
   Analyzes the distribution 
   of segment lengths and their coverage of the genome for each segment label.
-- :ref:`segtools-signal-distribution <segtools-signal-distribution>`:
+- :ref:`segtools-signal-distribution`:
   Analyzes the distribution 
   of genomic signal tracks for each segment label.
-- :ref:`segtools-nucleotide-frequency <segtools-nucleotide-frequency>`: 
+- :ref:`segtools-nucleotide-frequency`: 
   Analyzes the frequencies 
   of nucleotides and dinucleotides in segments of each label.
-- :ref:`segtools-overlap <segtools-overlap>`: 
+- :ref:`segtools-overlap`: 
   Analyzes the frequency with which 
   each segment label overlaps features of various types.
-- :ref:`segtools-html-report <segtools-html-report>`: 
+- :ref:`segtools-html-report`: 
   Combines the output of the 
   other commands and generates an html report for easier viewing.
 
 Utility commands:
 
-- :ref:`segtools-bed-compare <segtools-bed-compare>`: 
+- :ref:`segtools-compare`: 
   Measure base-wise edit distance 
   between two segmentations.
-- :ref:`segtools-feature-distance <segtools-feature-distance>`: 
+- :ref:`segtools-feature-distance`: 
   Reports the distance from 
   each segment to the nearest feature in each of a list of feature files.
-- :ref:`segtools-flatten <segtools-flatten-bed>`: 
+- :ref:`segtools-flatten`: 
   General tool for flattening 
   overlapping segments, but flattens them into segments defined 
   by the set of segment labels that overlap the region. 
+- :ref:`segtools-preprocess`:
+  Preprocess segmentation and annotation files into a binary format
+  that can be quickly re-read in future calls to Segtools commands.
 
 Other commands:
 
-- :ref:`segtools-gmtk-parameters <segtools-gmtk-parameters>`: 
+- :ref:`segtools-gmtk-parameters`: 
   Analyzes GMTK_ emission parameters and state transitions.
-
 
 All the above commands respond to ``-h`` and ``--help``, and this will
 display the most up-to-date usage information and options.
@@ -141,28 +177,106 @@ display the most up-to-date usage information and options.
 Where relevant, commands accept `mnemonic files <mnemonic file>`_
 through the ``--mnemonic-file`` option.
 
-Each command generates:
+Each core command generates:
 
-     - tab-delimited (``tab``) data files
-     - image files (in ``png`` and ``pdf`` format and in 
-       normal, thumbnail, and slide layouts), and 
-     - partial HTML (``div``) files.
+- tab-delimited (``tab``) data files
+- image files (in ``png`` and ``pdf`` format and in 
+  normal, thumbnail, and slide layouts), and 
+- partial HTML (``div``) files.
 
-.. Technical description
-.. ---------------------
+
+Common options
+--------------
+
+The following options are frequently or always supported by
+Segtools commands:
+
+.. cmdoption:: --clobber
+
+   Overwrite existing output files if there is a conflict.
+
+.. cmdoption:: --help, -h
+
+   Display up-to-date usage information and options for the command.
+
+.. cmdoption:: --noplot
+
+   Perform computation and output tab files but do not generating plots.
+
+.. cmdoption:: --mnemonic-file <file>, -m <file>
+
+   Specify a mnemonic file to control the label display and ordering.
+   See `mnemonic file details <mnemonic file>`_. 
+
+.. cmdoption:: --outdir <dir>, -o <dir>
+
+   Specify the directory where output files should be placed (will be
+   be generated if it does not exist).
+
+.. cmdoption:: --quick
+
+   Output results after running command on only one chromosome (which
+   chromosome is unspecified). This can be useful for testing.
+
+.. cmdoption:: --quiet, -q
+
+   Don't print diagnostic messages and status updates.
+
+.. cmdoption:: --replot
+
+   Load tab file data generated from a previous run of this program
+   and recreate plots instead of recomputing tab file data. Tab files
+   are expected to be in the default or specified output directory
+   (with --outdir).
+
+.. cmdoption:: --version
+
+   Print the current program version.
 
 
 Commands
 ========
 
+.. ####################### COMPARE #######################
 
-.. _segtools-bed-compare:
+.. _segtools-compare:
 
-segtools-bed-compare
+segtools-compare
+----------------
+
+.. program:: segtools-compare
+
+This command compares two segmentations by a specified metric. Currently,
+the only supported metric is :option:`--edit-distance`.
+
+**Selected options**:
+
+.. cmdoption:: --edit-distance, -d
+
+   Prints (to stout) the base-wise edit distance between two segmentations.
+   This is the number of bases that are assigned different labels in the two
+   segmentations.
+
+
+
+
+.. ####################### PREPROCESS #######################
+
+.. _segtools-preprocess:
+
+segtools-preprocess
 --------------------
 
-.. program:: segtools-bed-compare
+.. program:: segtools-preprocess
 
+This command takes a segmentation or annotation file (INFILE) and generates
+a binary, preprocessed file (INFILE.pkl) that can be quickly loaded in
+subsequent calls to Segtools commands. This is especially useful if you want
+to run many Segtools commands on one segmentation. If you don't preprocess
+the segmentation, each Segtools command parses the segmentation file
+independently. If the segmentation is large, this can add an hour
+or more to the runtime of each Segtools command. Preprocessing cuts
+this load time to just a few seconds! See ``--help`` for more details.
 
 
 
@@ -229,7 +343,7 @@ In these cases, the :option:`--normalize` flag should be used.
    ``gene``:
    This is a special mode for aggregating with respect to an idealized
    gene model. Rather than specifying a normal GFF file, the annotation file
-   must be in `GTF format`_ and have features with names: ``exon``, ``CDS`,`
+   must be in `GTF format`_ and have features with names: ``exon``, ``CDS``,
    as provided by exporting data from the `UCSC Table Browser`_ in 
    `GTF format`_. This mode is similar to ``region``, but with many regions
    that correspond to idealized transcriptional and translational models of
@@ -278,29 +392,29 @@ In these cases, the :option:`--normalize` flag should be used.
 
 .. cmdoption:: --significance
 
-  This option includes the significance of the
-  overlap at a region in the plot. If :option:`--groups` is not
-  specified or there is only one group, then significance is shown by
-  shading the regions that are significant. Otherwise, the significance
-  of the various groups are shown using colored "rugs" at the bottom of 
-  the plot. The probability of observing :math:`n` overlapping segments
-  of a given label at a given position is modeled with a binomial
-  distribution: :math:`p = binom(n, N, f_{rand})`, where :math:`N` is the
-  total number of overlapping segments at that position and
-  :math:`f_{rand}` is the same as in :option:`--normalize`.
-  The p-value is then the probability of observing an overlap count
-  as extreme or more extreme than :math:`n` (either enrichment or
-  depletion). This corresponds to a two-tailed binomial test. These
-  pvalues are then transformed to qvalues using Storey et al.'s QVALUE
-  R package, which should be installed if you use this option. At the
-  moment, it doesn't appear that this significance measure is stringent
-  enough, so use extreme caution when interpreting the results of this
-  option.
+   This option includes the significance of the
+   overlap at a region in the plot. If :option:`--groups` is not
+   specified or there is only one group, then significance is shown by
+   shading the regions that are significant. Otherwise, the significance
+   of the various groups are shown using colored "rugs" at the bottom of 
+   the plot. The probability of observing :math:`n` overlapping segments
+   of a given label at a given position is modeled with a binomial
+   distribution: :math:`p = binom(n, N, f_{rand})`, where :math:`N` is the
+   total number of overlapping segments at that position and
+   :math:`f_{rand}` is the same as in :option:`--normalize`.
+   The p-value is then the probability of observing an overlap count
+   as extreme or more extreme than :math:`n` (either enrichment or
+   depletion). This corresponds to a two-tailed binomial test. These
+   pvalues are then transformed to qvalues using Storey et al.'s QVALUE
+   R package, which should be installed if you use this option. At the
+   moment, it doesn't appear that this significance measure is stringent
+   enough, so use extreme caution when interpreting the results of this
+   option.
 
-  .. Didn't use note directive because of latex math image backgrounds.
+   .. Didn't use note directive because of latex math image backgrounds.
 
-  *Note:* If :math:`n > 100` and :math:`f_{rand}*N < 10`, a Poisson
-  approximation is used.
+   *Note:* If :math:`n > 100` and :math:`f_{rand}*N < 10`, a Poisson
+   approximation is used.
 
 
 
@@ -313,8 +427,20 @@ segtools-feature-distance
 
 .. program:: segtools-feature-distance
 
+This command takes a segmentation and one or more annotation files and
+prints the distance from each segment to the nearest annotation in each
+file. Results are printed in tab-delimited format on stdout::
 
+  chrom<TAB>start<TAB>end<TAB>label<TAB>...
 
+where ``...`` is a tab-delimited list of distances, one per annotation file.
+
+This command can be used in conjunction with other command-line UNIX utilities
+to easily sort and filter segments by their distance from important genomics
+features. For example, given a segmentation from genomic insulator sites,
+you could use this command to find the 100 insulators farthest from any
+transcription start site. The command can also be used to filter segments
+that overlap annotation sets by filtering for distances of 0.
 
 
 .. ####################### FLATTEN BED #######################
@@ -326,6 +452,26 @@ segtools-flatten
 
 .. program:: segtools-flatten
 
+This command takes multiple segmentations and combinatorially flattens them
+into one. Thus, there is a segment boundary in the new segmentation
+for every segment boundary in any of the input segmentations. The label for
+each new segment corresponds to the combination of labels for segments that
+overlap this segment. 
+
+For example, given two files of regions of high transcription factor binding, 
+one with peak calls and one with a lower threshold, you could create a single
+segmentation from the two files with::
+
+  segtools-flatten peaks.gff regions.bed.gz
+
+
+The new segmentation would have one segment label for bases that are covered
+by regions.bed.gz but not peaks.gff, one for bases covered by both files, and
+one for bases covered by only peaks.gff (if there are any).
+The command prints the new segmentation in BED format to stout, by default,
+but ``--mnemonic-file`` and ``--outfile`` can be specified
+to create a segmentation file with a corresponding mnemonic file that
+can be used in further Segtools analyses.
 
 
 
@@ -338,6 +484,12 @@ segtools-gmtk-parameters
 
 .. program:: segtools-gmtk-parameters
 
+This command analyzes the dynamic Bayesian network emission parameters
+generated by GMTK_. This is most useful with segmentations generated using
+the Segway_ framework, created by Michael Hoffman. This command just calls
+the relevant parts of other commands, generating transition plots,
+a transition graph, and a heatmap of the mean and standard deviation values
+for each label and track. See ``--help`` for more information.
 
 
 
@@ -348,28 +500,43 @@ segtools-gmtk-parameters
 segtools-html-report
 --------------------
 
-This command is intended to be run after other Segtools commands. It searches
-the local (or provided) directory for ``div`` files produced by the
-other Segtools commands and compiles the data into an HTML report for 
-review.
-
 .. program:: segtools-html-report
 
+This command is intended to be run after other Segtools commands. It searches
+the local directory (or provided with ``--results-dir``) for ``div``
+files produced by the other Segtools commands and compiles the data into an 
+HTML report for review.
 
-The ``BEDFILE`` argument and ``--mnemonic-file`` option 
+The ``SEGMENTATION`` argument and ``--mnemonic-file`` option 
 should be the same as used to run the other Segtools commands.
 
 
 
 .. ####################### LABEL TRANSITION #######################
 
-.. _segtools-label-transition:
+.. _segtools-transition:
 
-segtools-label-transition
+segtools-transition
 -------------------------
 
-.. program:: segtools-label-transition
+.. program:: segtools-transition
 
+This command takes a segmentation and looks at the transitions between
+segment labels. In other words, if a segment with label A is directly
+adjacent to a segment with label B, this is counted as one A->B transition.
+This command is thus most useful for segmentations that are a partition of
+large regions or the whole genome. If your segmentation is just a set of
+peak calls or regions of interest, it is unlikely that
+there are many pairs of directly adjacent segments, and the results will
+be meaningless.
+
+As output, this command generates a heatmap of transition frequencies as
+well as a graph interpretation of this heatmap. In many cases, there will be
+at least one transition between every pair of segment labels, making
+the transition graph fully connect. This can make it hard to interpret,
+so the transition frequencies can be thresholded by value
+(``--prob-threshold``) or quantile (``--quantile-threshold``) 
+in drawing the graph.
 
 
 
@@ -382,6 +549,26 @@ segtools-length-distribution
 
 .. program:: segtools-length-distribution
 
+This command summarizes the distribution of segment lengths, by label.
+It generates a violin plot (a box plot, but instead of a box, it is a
+smoothed density curve), a simple bar chart that describes the overall
+label composition of the segmentation, and a table with useful information
+such as the number of segments of each label, the mean and median segment
+lengths, and the number of bases covered by each label.
+
+.. note::
+   This command requires only a segmentation as a parameter and performs
+   minimal computation. As such, it is a useful test to make sure Segtools
+   works on your system.
+
+.. warning::
+   Since the violin plot is based upon a density distribution, the lengths
+   of all the segments in the segmentation is saved in a tab file to allow
+   this plot to be regenerated solely from R. Unfortunately, for large
+   segmentations, this tab file can get very large (hundreds of megabytes).
+   We hope to revise this by saving instead a histogram-like summary of the
+   segment lengths instead of a separate length for each segment.
+
 
 
 .. ####################### NUCLEOTIDE FREQUENCY #######################
@@ -393,7 +580,14 @@ segtools-nucleotide-frequency
 
 .. program:: segtools-nucleotide-frequency
 
+This command generates a heatmap of the normalized dinucleotide frequencies
+found across segments of each label, as well as table of such nucleotide and
+dinucleotide frequencies. CpG content is likely the most interesting output,
+but nucleotide frequencies can be informative as well.
 
+As input, it takes a segmentation and a Genomedata_
+archive for the genome the segmentation covers. The Genomedata archive is used
+solely for the nucleotide sequence. 
 
 
 
@@ -406,6 +600,33 @@ segtools-overlap
 
 .. program:: segtools-overlap
 
+This command measures the base-wise or segment-wise overlap between segments
+in a segmentation and other annotations. Segments are classified by
+their label and annotations can be classified with a group, so the basic
+output is a confusion matrix with each cell representing the amount of overlap
+between segments in one label with annotations in one group. Further, the
+ability of each segment label to predict each annotation group is measured
+and summarized in a precision-recall plot.
+
+**Selected options**:
+
+.. cmdoption:: --by <mode>, -b <mode>
+
+   This specifies whether the overlap analysis will be base-wise
+   (``<mode> = "bases"``) or segment-wise (``<mode> = "segments"``). 
+
+.. cmdoption:: --min-overlap <n>
+
+   This specifies the minimum number of bases that a segment and an annotation
+   must overlap for that overlap to be counted. This number can be positive or
+   negative, with ``<n> = 1`` indicating that the segment and annotation must
+   overlap by at least one base, a ``<n> = 0`` indicating that they can be
+   directly adjacent, and ``<n> = -1`` indicating that there can be one base
+   separation for them to still count as overlapping.
+
+.. warning::
+   The precision-recall plot is accurate for base-wise overlap, but is a rough
+   approximation for segment-wise overlap. Use such results with caution.
 
 
 
@@ -418,9 +639,59 @@ segtools-signal-distribution
 
 .. program:: segtools-signal-distribution
 
+This command takes a segmentation and a Genomedata_ archive and summarizes
+the distribution of values for each Genomedata track that fall within
+segments of each label. Essentially, it generates a histogram for each
+label-track pair, where the values being measured are the values for that 
+track found in segments of that label. Currently, Segtools no longer
+generates this matrix of histograms, but instead generates a heatmap
+of mean and standard deviation values.
+
+.. warning::
+   Mean and standard deviation values are approximated from a histogram
+   (binned) representation of the data. The effect should be minimal, but
+   it is important to keep this in mind as a potential source of error.
 
 
+**Parallelization**:
 
+Depending upon the segmentation and the Genomedata archive, this command can
+take a very long time to run. To help speed it up, you can parallelize the
+command by chromosome. To do this, you would first submit a job for each
+chromosome that doesn't plot anything. Then, you merge the results and generate
+the final output. Here is sample pseudocode::
+
+  indirs = []
+  for <chrom> in <chroms>
+    outdir = sub_<chrom>
+    submit_job --name=<run_id> segtools-signal-distribution --noplot --chrom=<chrom> --outdir=<outdir>
+    indirs.add("--indir=" + <outdir>)
+
+  submit_job --hold_on=<run_id> segtools-signal-distribution --indirs=<indirs>
+
+
+**Selected options**:
+
+.. cmdoption:: --chrom <chrom>, -c <chrom>
+
+   This restricts the analysis to the single chromosome specified
+   and is useful in parallelizing this command. ``<chrom>`` must
+   exactly match a chromosome in the Genomedata archive
+   (``genome[<chrom>]`` must be valid).
+
+.. cmdoption:: --create-mnemonics
+
+   This uses the hierarchically-clustered heatmap of mean values to generate
+   mnemonics for the segmentation labels. The mnemonic labels are of the
+   form: ``X.Y``, where ``X`` is the group number and ``Y`` is the
+   index in that group.
+
+.. cmdoption:: --indir <dir>, -i <dir>
+
+   This loads data from the output directory of a previous run of this
+   command. This option can be specified multiple times, making it
+   useful for parallelizing this command since multiple results can
+   be merged together to generate the final output.
 
 
 .. _`mnemonic file`:
@@ -435,7 +706,7 @@ columns and must contain start with the following header
 (the description column is optional)::
 
   old{TAB}new[{TAB}description]
-  
+
 **Renaming**:
 
 Each line of the mnemonic file specifies a mapping from the "old"
@@ -474,6 +745,27 @@ using the command's ``--replot`` option (all other options and
 arguments should still be specified to ensure correctness).
 
 
+.. _support:
+
+Support
+=======
+
+To stay informed of **new releases**, subscribe to the moderated 
+``segtools-announce`` mailing list (mail volume very low):
+
+  https://mailman1.u.washington.edu/mailman/listinfo/segtools-announce
+
+If you want to **report a bug or request a feature**, please do so using
+our issue tracker:
+
+  http://code.google.com/p/segtools/issues
+
+For other Segtools support, or to provide feedback, please
+contact the authors directly. We are interested in all comments
+regarding the package and the ease of use of installation and
+documentation.
+
+
 .. _`BED4+ format`:
 .. _`BED format`: http://genome.ucsc.edu/FAQ/FAQformat#format1
 .. _script: http://noble.gs.washington.edu/proj/segtools/install.py
@@ -484,9 +776,11 @@ arguments should still be specified to ensure correctness).
 .. _`GTF format`: http://genome.ucsc.edu/FAQ/FAQformat.html#format4
 .. _GMTK: http://ssli.ee.washington.edu/~bilmes/gmtk/
 .. _Genomedata: http://noble.gs.washington.edu/proj/genomedata/
+.. _Segway: http://noble.gs.washington.edu/proj/segway/
 .. _`UCSC Table Browser`: http://genome.ucsc.edu/cgi-bin/hgTables?command=start
 
- LocalWords:  Segtools Buske uw edu currentmodule segtools WS segmentations py
- LocalWords:  wget Zlib replot GFF GTF Genomedata Workflow TSSs tss gff binom
- LocalWords:  cmdoption TESs bp ChIP exon CDS UCSC exons introns UTR CDSs dfrac
- LocalWords:  intron BEDFILE command's
+.. LocalWords:  Segtools Buske uw edu currentmodule segtools WS segmentations py
+.. LocalWords:  wget Zlib replot GFF GTF Genomedata Workflow TSSs tss gff binom
+.. LocalWords:  cmdoption TESs bp ChIP exon CDS UCSC exons introns UTR CDSs dfrac
+.. LocalWords:  intron BEDFILE command's
+
