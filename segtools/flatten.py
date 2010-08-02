@@ -1,9 +1,9 @@
 #!/bin/env python
 
 """
-Combine segments from all BEDFILE files, labeling with unique labels for
-each combination of overlapping that occurs. BEDFILEs must be in BED3+
-format and can be gzip'd. Outputs a bed file on
+Combine segments from all SEGMENTATION files, labeling with unique labels for
+each combination of overlapping that occurs.
+Outputs a bed file on
 stdout (-o to change), and generates a file in the current directory
 that describes the generated labels (use -m to change).
 """
@@ -183,7 +183,7 @@ def flatten_segments(segments):
 def merge_segments(segmentations):
     """Merges together segments from different segmentations
 
-    segmentations: a dict mapping bed file names to Segmentation objects.
+    segmentations: a dict mapping file names to Segmentation objects.
     """
 
     files = sorted(segmentations.keys())  # Constant file order
@@ -251,13 +251,13 @@ def print_readme(labels, filename=DEFAULT_HELPFILE):
         for key, label in labels.iteritems():
             ofp.write("%s\n" % "\t".join([str(key), str(key), label]))
 
-def flatten_bed(bedfiles, outfile=None, helpfile=DEFAULT_HELPFILE,
-                verbose=True):
+def flatten(files, outfile=None, helpfile=DEFAULT_HELPFILE,
+            verbose=True):
     segmentations = {}
-    for bedfile in bedfiles:
-        assert os.path.isfile(bedfile)
-        nice_filename = os.path.basename(bedfile)
-        segmentations[nice_filename] = Segmentation(bedfile, verbose=verbose)
+    for file in files:
+        assert os.path.isfile(file)
+        nice_filename = os.path.basename(file)
+        segmentations[nice_filename] = Segmentation(file, verbose=verbose)
 
     labels, segments = merge_segments(segmentations)
     print_bed(segments, filename=outfile)
@@ -266,7 +266,7 @@ def flatten_bed(bedfiles, outfile=None, helpfile=DEFAULT_HELPFILE,
 def parse_args(args):
     from optparse import OptionParser
 
-    usage = "%prog [OPTIONS] BEDFILE..."
+    usage = "%prog [OPTIONS] SEGMENTATION..."
     parser = OptionParser(usage=usage, version=__version__,
                           description=__doc__.strip())
 
@@ -300,7 +300,7 @@ def main(args=sys.argv[1:]):
     kwargs = {"helpfile": options.helpfile,
               "verbose": options.verbose,
               "outfile": options.outfile}
-    flatten_bed(args, **kwargs)
+    flatten(args, **kwargs)
 
 if __name__ == "__main__":
     sys.exit(main())

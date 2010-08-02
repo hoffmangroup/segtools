@@ -5,7 +5,7 @@
 LONG_DESCRIPTION
 """
 
-__version__ = "1.0.1"
+__version__ = "1.1.0"
 
 # Copyright 2008-2009 Michael M. Hoffman <mmh1@uw.edu>
 
@@ -27,8 +27,6 @@ long_description = "\n".join(doclines[2:])
 url = "http://noble.gs.washington.edu/proj/%s/" % name.lower()
 download_url = "%s%s-%s.tar.gz" % (url, name, __version__)
 
-dependency_links = ["http://pypi.python.org/packages/source/p/path.py/path-2.2.zip"]
-
 classifiers = ["Natural Language :: English",
                "Programming Language :: Python"]
 
@@ -49,7 +47,8 @@ segtools-transition = segtools.transition:main
 """
 #segtools = segtools.validate_all:main
 
-install_requires = ["genomedata", "numpy", "path", "rpy2", "textinput", "tables>=2.1"]
+install_requires = ["genomedata", "numpy", "rpy2", "textinput",
+                    "tables>=2.1,<2.2a0"]
 
 if __name__ == "__main__":
     setup(name=name,
@@ -63,7 +62,6 @@ if __name__ == "__main__":
           download_url=download_url,
           classifiers=classifiers,
           long_description=long_description,
-          dependency_links=dependency_links,
           install_requires=install_requires,
           zip_safe=False,  # For R files to source others, they can't be zip'd
           packages=find_packages("."),

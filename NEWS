@@ -1,6 +1,11 @@
 1.0.1:
-
-
+Renamed many of the Segtools commands for simplicity
+Made BED/GFF files interchangable for most arguments
+Added ability to pre-process segmentations with segtools-preprocess
+Made aggregation significance non-default (since it is not
+  yet mathematically sound).
+Cleaned up command-line interfaces
+Sped up aggregation
 
 1.0.0:
 Added additional functionality to feature-distance

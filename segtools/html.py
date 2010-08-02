@@ -370,7 +370,7 @@ def make_html_report(bedfilename, results_dir, outfile, mnemonicfile=None,
 
 def parse_args(args):
     from optparse import OptionGroup, OptionParser
-    usage = "%prog [OPTIONS] BEDFILE"
+    usage = "%prog [OPTIONS] SEGMENTATION"
     version = "%%prog %s" % __version__
     parser = OptionParser(usage=usage, version=version)
 
@@ -394,13 +394,13 @@ def parse_args(args):
                      default=None, metavar="FILE",
                      help="If specified, this layered BED file will be linked"
                      " into the the HTML document (assumed to be the same"
-                     " data as in BEDFILE)")
+                     " data as in SEGMENTATION)")
     group.add_option("-B", "--big-bed", dest="bigbed",
                      default=None, metavar="FILE",
                      help="If specified, this bigBed file will be linked into"
                      " the the HTML document and a UCSC genome brower link"
                      " will be generated for it (assumed to be the same data"
-                     " as in BEDFILE)")
+                     " as in SEGMENTATION)")
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Output")

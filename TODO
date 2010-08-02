@@ -2,6 +2,7 @@
 Feature aggregation:
 * Update interface to use new load_features array-based structure
 * Improve speed (should be easy)
+* Make significance calculations statically sound
 
 Signal distribution:
 * Improve speed

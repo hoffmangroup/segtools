@@ -32,9 +32,11 @@ assert sys.version_info >= (2, 4)
 
 MIN_HDF5_VERSION = "1.8"
 MIN_NUMPY_VERSION = "1.2"
+PYTABLES_VERSION = ">2.0.4,<2.2a0"
 
-HDF5_URL = "http://www.hdfgroup.org/ftp/HDF5/prev-releases/hdf5-1.8.2/" \
-    "src/hdf5-1.8.2.tar.gz"
+HDF5_URL = "ftp://ftp.hdfgroup.org/HDF5/prev-releases/hdf5-1.8.4-patch1/" \
+    "src/hdf5-1.8.4-patch1.tar.gz"
+PYTABLES_LINKS = ["http://www.pytables.org/download/pytables-2.1.2/"]
 EZ_SETUP_URL = "http://peak.telecommunity.com/dist/ez_setup.py"
 
 # Template for cfg file contents
@@ -66,9 +68,10 @@ make install
 
 import re
 
-MIN_R_VERSION = "2.8"
+MIN_R_VERSION = "2.10.0"
+RPY2_VERSION = ">=2.1.3"
 
-R_URL = "http://cran.fhcrc.org/src/base/R-2/R-2.9.2.tar.gz"
+R_URL = "http://cran.r-project.org/src/base/R-2/R-2.11.1.tar.gz"
 
 # List of R package pre-requisites
 R_PACKAGES = ["latticeExtra", "reshape"]
@@ -465,15 +468,16 @@ class Installer(object):
       start_install(): returns True or False
         if True, installation continues
         if False, installation halts and returns False
-      get_version(): returns True, False, None, or version information
-        if True, program is considered installed
-        if False or None, program is not considered installed
-        else, version information should be supplied as a string or tuple
-      check_version(version): return True or False
+      check_version(): return True or False
         if True
           installation stops and returns True
         else
           installation continues
+        calls get_version() by default
+      get_version(): returns True, False, None, or version information
+        if True, program is considered installed
+        if False or None, program is not considered installed
+        else, version information should be supplied as a string or tuple
       prompt_install(): same as start_install()
         calls get_install_version() by default
       announce_install(): opportunity to print any final message before install
@@ -524,12 +528,13 @@ class Installer(object):
         if filebase.endswith(".tgz"):
             filebase = filebase[:-4]
 
-        filebase_tokens = filebase.split("-")
+        filebase_tokens = filebase.split("-", 1)
         # Try to extract version from filename
+        # Let version contain '-'s, but not progname
         #(Assumes form: <progname>-<version>.<ext>)
         if "-" in filebase:
-            components["version"] = filebase_tokens[-1]
-            components["program"] = "-".join(filebase_tokens[:-1])
+            components["version"] = "-".join(filebase_tokens[1:])
+            components["program"] = filebase_tokens[0]
         else:
             components["program"] = filebase
 
@@ -546,10 +551,12 @@ class Installer(object):
             url_info = self.parse_url()
             return url_info.get("version", None)
 
-    def check_version(self, version):
+    def check_version(self):
         """Checks version and returns True if version is adequate"""
         print >>sys.stderr, ("\nSearching for an installation of %s..."
                              % self.name),
+
+        version = self.get_version()
         if not version:
             print >>sys.stderr, "not found."
             return False
@@ -593,8 +600,7 @@ class Installer(object):
         if not permission:
             return False
 
-        version = self.get_version()
-        if self.check_version(version):
+        if self.check_version():
             return True
 
         permission = self.prompt_install()
@@ -619,23 +625,37 @@ class Installer(object):
 class EasyInstaller(Installer):
     """An installer that uses easy_install
 
-    New attribute:
+    New attributes:
       version_requirment: None or a string that specifies version requirement
         for easy_install. These requirements will be appended to the default
         requirement of '>=min_version'. Thus, '!=1.2' would be a reasonable
         value.
+      pkg_name: Name of package to easy_install. Defaults to self.name.lower().
+      links: List of URLs to also search for package source. Uses
+        easy_install's '-f' option.
 
     """
     install_prompt = "May I install %s (or later) and dependencies?"
     version_requirement = None
+    pkg_name = None  # Replaced by self.name.lower() in __init__
+    links = []
+
+    def __init__(self):
+        if self.pkg_name is None:
+            self.pkg_name = self.name.lower()
 
     def install(self):
         """Easy-installs the program
 
         uses:
           self.name
+          self.pkg_name
           self.get_install_version()
           self.version_requirement
+          self.links
+
+        if self.url is set, easy_install is run on that url instead of the
+          program name and version requirement
 
         """
         # Make sure easy_install (setuptools) is installed
@@ -644,22 +664,29 @@ class EasyInstaller(Installer):
         except ImportError:
             raise InstallationError("Setuptools necessary for easy_install")
 
-        name = self.name.lower()
         version = self.get_install_version()
 
         cmd = ["easy_install"]
-        requirements = []
-        if version:
-            requirements.append(">=%s" % version)
-        if self.version_requirement:
-            requirements.append(self.version_requirement)
 
-        cmd.append("%s%s" % (name, ",".join(requirements)))
+        if self.links:
+            for link in self.links:
+                cmd.append("--find-links=%s" % link)
 
-        if os.path.isdir(name):
+        if self.url is None:
+            requirements = []
+            if version:
+                requirements.append(">=%s" % version)
+            if self.version_requirement:
+                requirements.append(self.version_requirement)
+
+            cmd.append("%s%s" % (self.pkg_name, ",".join(requirements)))
+        else:
+            cmd.append(self.url)
+
+        if os.path.isdir(self.pkg_name):
             print >>sys.stderr, ("\nWarning: installation may fail because"
                                  " there is a subdirectory named %s at your"
-                                 " current path.") % name
+                                 " current path.") % self.pkg_name
 
         print >>sys.stderr, ">> %s" % " ".join(cmd)
         code = call(cmd, stdout=None, stderr=None)
@@ -671,7 +698,7 @@ class EasyInstaller(Installer):
     def get_version(self):
         """Return the package version, assuming normal Python conventions"""
         try:
-            return __import__(self.name.lower()).__version__
+            return __import__(self.pkg_name).__version__
         except (AttributeError, ImportError):
             return None
 
@@ -700,7 +727,7 @@ class EasyInstaller(Installer):
         try:
             try:
                 import pkg_resources
-                ref = pkg_resources.Requirement.parse(self.name.lower())
+                ref = pkg_resources.Requirement.parse(self.pkg_name)
                 return pkg_resources.working_set.find(ref).version
             except (AttributeError, ImportError):
                 return None
@@ -909,6 +936,14 @@ class NumpyInstaller(EasyInstaller):
                 # Make sure variable didn't return, and then replace variable
                 assert "LDFLAGS" not in os.environ
                 os.environ["LDFLAGS"] = env_old
+
+class PytablesInstaller(EasyInstaller):
+    name = "PyTables"
+    pkg_name = "tables"
+    get_version = EasyInstaller.get_egg_version
+    links = PYTABLES_LINKS
+    version_requirement = PYTABLES_VERSION
+
 
 class Tester(object):
     """Skeleton for package tester
@@ -1158,16 +1193,43 @@ class RlibsInstaller(Installer):
         self.packages = packages
         super(self.__class__, self).__init__()
 
+    def is_package_installed(self, package):
+        try:
+            from rpy2.robjects.packages import importr
+            from rpy2.rinterface import RRuntimeError
+        except ImportError:
+            raise InstallationError("rpy2 required to install R libs!")
+
+        try:
+            importr(package)
+        except RRuntimeError:
+            # Import fails if package is not installed
+            return False
+
+        return True
+
     def get_version(self):
-        """Always try to install (XXX check for installed R libs)"""
-        return False
+        print >>sys.stderr, ""  # Skip line for prints
+        for package in self.packages:
+            if self.is_package_installed(package):
+                print >>sys.stderr, "\tFound R package: %s" % package
 
-    def install(self):
-        """Install R libs using CRAN.
+            else:
+                print >>sys.stderr, "\tMissing R package: %s" % package
+                return False
 
+        return True
+
+    def install_package(self, package):
+        """Install R package using CRAN.
+
+        Package only installed if not installed already.
         Temporary unsets DISPLAY to try to not open X-window for ssh-ers.
 
         """
+        if self.is_package_installed(package):
+            return
+
         if "DISPLAY" in os.environ:
             old = os.environ["DISPLAY"]
             del os.environ["DISPLAY"]
@@ -1177,19 +1239,25 @@ class RlibsInstaller(Installer):
             try:
                 from rpy2.robjects import r, numpy2ri
                 # numpy2ri imported for side-effects
-                from numpy import array
-                #XXX: check for installed R libs
-                r["install.packages"](array(self.packages), dep=True)
             except ImportError:
                 raise InstallationError("rpy2 required to install R libs!")
+
+            from numpy import array
+            #XXX: check for installed R libs
+            r["install.packages"](package, dep=array("Depends", "Imports"))
         finally:
             if old is not None:
                 os.environ["DISPLAY"] = old
 
+    def install(self):
+        """Install all R packages, one at a time"""
+        for package in self.packages:
+            self.install_package(package)
+
 class Rpy2Installer(EasyInstaller):
     name = "RPy2"
     get_version = EasyInstaller.get_egg_version
-    version_requirement = ">=2.0,<2.1"
+    version_requirement = RPY2_VERSION
 
 class SegtoolsInstaller(EasyInstaller):
     name = "Segtools"
@@ -1207,6 +1275,7 @@ def main(args=sys.argv[1:]):
                   RInstaller(env),
                   Rpy2Installer(),
                   RlibsInstaller(),
+                  PytablesInstaller(),
                   SegtoolsInstaller()]
 
     for installer in installers:
