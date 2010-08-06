@@ -370,7 +370,7 @@ def main(args=sys.argv[1:]):
               "replot": options.replot,
               "noplot": options.noplot,
               "nograph": options.nograph,
-              "gene_graph": options.gene_graph,
+#              "gene_graph": options.gene_graph,
               "gmtk": options.gmtk,
               "mnemonic_file": options.mnemonic_file}
     validate(*args, **kwargs)
