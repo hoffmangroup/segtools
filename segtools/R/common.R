@@ -284,7 +284,8 @@ theme.slide <- function() {
  res <- theme.dark2()
 
  additions <-
-   list(axis.text = list(cex = 1.3),
+   list(axis.text.x = list(cex = 1.3),
+        axis.text.y = list(cex = 1.3),
         par.main.text = list(cex = 2),
         par.sub.text = list(cex = 2),
         layout.heights = list(axis.top = 1.5, axis.bottom = 1.25),
