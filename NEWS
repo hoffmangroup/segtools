@@ -1,32 +1,36 @@
 1.0.1:
-Renamed many of the Segtools commands for simplicity
-Made BED/GFF files interchangable for most arguments
-Added ability to pre-process segmentations with segtools-preprocess
-Made aggregation significance non-default (since it is not
-  yet mathematically sound).
-Cleaned up command-line interfaces
-Sped up aggregation
+* Renamed many of the Segtools commands for simplicity
+* Made BED/GFF files interchangable for most arguments
+* Added ability to pre-process segmentations with segtools-preprocess
+* Made aggregation significance non-default (since it is not yet mathematically sound).
+* Cleaned up command-line interfaces
+* Sped up aggregation
+* now requires scipy
+* add Q1 and Q3 to length_distribution tab-delimited output
+* installation: move from path.py to forked-path
 
 1.0.0:
-Added additional functionality to feature-distance
-Added flatten-bed module
-Improved g[ft]f handling of comments
-Overlap plot is now in P-R- instead of ROC-space
-Added significance to aggregation plots
-Updated mnemonic file specification
+
+* Added additional functionality to feature-distance
+* Added flatten-bed module
+* Improved g[ft]f handling of comments
+* Overlap plot is now in P-R- instead of ROC-space
+* Added significance to aggregation plots
+* Updated mnemonic file specification
 
 0.1.2:
-Allowed parallelization of signal distribution
-Added overlap heatmaps
-Removed GSC interfacing for overlap significance
+
+* Allowed parallelization of signal distribution
+* Added overlap heatmaps
+* Removed GSC interfacing for overlap significance
 
 0.1.1:
 
-Improved all plots
-Improved GMTK support
-Improved HTML report and added explanations
-Bugs still exist in signal_distribution
-GTMK still not separated
+* Improved all plots
+* Improved GMTK support
+* Improved HTML report and added explanations
+* Bugs still exist in signal_distribution
+* GMTK still not separated
 
 0.1.0:
 
