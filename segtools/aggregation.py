@@ -558,9 +558,13 @@ def calc_aggregation(segmentation, features, mode, groups, components,
     for chrom, segments in segmentation.chromosomes.iteritems():
         log("\t%s" % chrom, verbose)
 
-        chrom_features = features.chromosomes[chrom]
-        if len(chrom_features) == 0:
+        try:
+            chrom_features = features.chromosomes[chrom]
+        except KeyError:
             continue
+        else:
+            if len(chrom_features) == 0:
+                continue
 
         # Get bounds on segmentation for chr (since segments are sorted)
         segmentation_start = segments['start'][0]

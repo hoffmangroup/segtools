@@ -338,26 +338,34 @@ calc.slide.scale <- function(width, height, pivot.dim = 1000) {
   125 * scaler
 }
 
-save.image <- 
-  function(basename, ext, dirname, device, as.slide = FALSE, ...,
-           clobber = FALSE) 
-{
-  filename.ext <- extpaste(basename, ext)
-  filename.fq <- file.path(dirname, filename.ext)
-
-  if (!clobber && file.exists(filename.fq)) {
-    stop(paste("Error:", filename.fq, "already exists!",
-               "Specify --clobber to overwrite."))
-  }
-  
+print.image <- function(filepath, device, as.slide = FALSE, ...) {
   if (as.slide) {
-    device(filename.fq, ...)
+    device(filepath, ...)
     print(as.slide())
     dev.off()
   } else {
-    dev.print(device=device, file=filename.fq, ...)
+    dev.print(device=device, file=filepath, ...)
   }
 
+  filepath
+}
+
+save.image <- function(basename, ext, dirname, device, ..., clobber = FALSE) {
+  filename.ext <- extpaste(basename, ext)
+  filepath <- file.path(dirname, filename.ext)
+
+  if (!clobber && file.exists(filepath)) {
+    cat(paste("Error:", filepath, "already exists.",
+              "Image will not be overwritten.",
+              "Specify --clobber to overwrite."))
+  } else {
+    tryCatch(print.image(filepath, device, ...),
+             error = function(e) {
+               cat(paste("Error creating image: ", filepath,
+                         ". Error message: ", e$message, sep = ""))
+             })
+  }
+  
   filename.ext
 }
 
@@ -420,6 +428,9 @@ dev.print.images <- function(basename, dirname,
 }
 
 save.images <- function(dirpath, basename, image, ..., clobber = FALSE) {
-  plot(image)
+  tryCatch(plot(image),
+           error = function(e) {
+             stop(paste("Error plotting images. Error message:", e$message))
+           })
   dev.print.images(basename, dirpath, ..., clobber = clobber)
 }

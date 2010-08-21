@@ -20,7 +20,7 @@ ${COMMON_CODE_HEADER}
 import re
 
 MIN_R_VERSION = "2.10.0"
-RPY2_VERSION = ">=2.1.3"
+MIN_RPY2_VERSION = "2.1.3"
 
 R_URL = "http://cran.r-project.org/src/base/R-2/R-2.11.1.tar.gz"
 
@@ -104,29 +104,38 @@ class RlibsInstaller(Installer):
     def is_package_installed(self, package):
         try:
             from rpy2.robjects.packages import importr
-            from rpy2.rinterface import RRuntimeError
+            from rpy2.rinterface import (consolePrint, set_writeconsole,
+                                         RRuntimeError)
         except ImportError:
             raise InstallationError("rpy2 required to install R libs!")
 
         try:
-            importr(package)
-        except RRuntimeError:
-            # Import fails if package is not installed
-            return False
+            # Mask R from printing to console
+            def consoleMask(msg):
+                pass  # Do nothing with message (don't print)
+
+            set_writeconsole(consoleMask)
+            try:
+                importr(package)
+            except RRuntimeError:
+                # Import fails if package is not installed
+                return False
+        finally:
+            set_writeconsole(consolePrint)  # Restore R printing
 
         return True
 
     def get_version(self):
         print >>sys.stderr, ""  # Skip line for prints
+        all_found = True
         for package in self.packages:
             if self.is_package_installed(package):
                 print >>sys.stderr, "\tFound R package: %s" % package
-
             else:
                 print >>sys.stderr, "\tMissing R package: %s" % package
-                return False
+                all_found = False
 
-        return True
+        return all_found
 
     def install_package(self, package):
         """Install R package using CRAN.
@@ -145,14 +154,13 @@ class RlibsInstaller(Installer):
             old = None
         try:
             try:
-                from rpy2.robjects import r, numpy2ri
+                from rpy2.robjects import r, numpy2ri, StrVector
                 # numpy2ri imported for side-effects
             except ImportError:
                 raise InstallationError("rpy2 required to install R libs!")
 
-            from numpy import array
-            #XXX: check for installed R libs
-            r["install.packages"](package, dep=array("Depends", "Imports"))
+            r["install.packages"](package,
+                                  dep=StrVector(["Depends", "Imports"]))
         finally:
             if old is not None:
                 os.environ["DISPLAY"] = old
@@ -160,12 +168,13 @@ class RlibsInstaller(Installer):
     def install(self):
         """Install all R packages, one at a time"""
         for package in self.packages:
+            print "Installing package: %s" % package
             self.install_package(package)
 
 class Rpy2Installer(EasyInstaller):
     name = "RPy2"
+    min_version = MIN_RPY2_VERSION
     get_version = EasyInstaller.get_egg_version
-    version_requirement = RPY2_VERSION
 
 class SegtoolsInstaller(EasyInstaller):
     name = "Segtools"
