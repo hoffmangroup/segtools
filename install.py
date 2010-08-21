@@ -1219,15 +1219,15 @@ class RlibsInstaller(Installer):
 
     def get_version(self):
         print >>sys.stderr, ""  # Skip line for prints
+        all_found = True
         for package in self.packages:
             if self.is_package_installed(package):
                 print >>sys.stderr, "\tFound R package: %s" % package
-
             else:
                 print >>sys.stderr, "\tMissing R package: %s" % package
-                return False
+                all_found = False
 
-        return True
+        return all_found
 
     def install_package(self, package):
         """Install R package using CRAN.
