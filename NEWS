@@ -1,4 +1,4 @@
-1.0.1:
+1.1.0:
 * Renamed many of the Segtools commands for simplicity
 * Made BED/GFF files interchangable for most arguments
 * Added ability to pre-process segmentations with segtools-preprocess
