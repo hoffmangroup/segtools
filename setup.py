@@ -5,9 +5,9 @@
 LONG_DESCRIPTION
 """
 
-__version__ = "1.1.1"
+__version__ = "1.1.0"
 
-# Copyright 2008-2010 Michael M. Hoffman <mmh1@uw.edu>
+# Copyright 2008-2009 Michael M. Hoffman <mmh1@uw.edu>
 
 import sys
 
@@ -47,8 +47,8 @@ segtools-transition = segtools.transition:main
 """
 #segtools = segtools.validate_all:main
 
-install_requires = ["genomedata", "numpy", "scipy", "forked-path", "rpy2",
-                    "textinput", "tables>=2.1,<2.2a0"]
+install_requires = ["genomedata", "numpy", "rpy2", "textinput",
+                    "tables>=2.1,<2.2a0"]
 
 if __name__ == "__main__":
     setup(name=name,

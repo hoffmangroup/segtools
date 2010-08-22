@@ -13,21 +13,19 @@ MODULE="length_distribution"
 
 __version__ = "$Revision$"
 
-from collections import defaultdict
 import os
 import sys
 
+from collections import defaultdict
 from numpy import concatenate, median
-from scipy.stats import scoreatpercentile
 
 from . import Segmentation
-from .common import (die, get_ordered_labels, LABEL_ALL, make_tabfilename,
-                     r_plot, r_source, setup_directory, tab_saver)
+from .common import die, get_ordered_labels, LABEL_ALL, make_tabfilename, r_plot, r_source, setup_directory, tab_saver
 
 from .html import save_html_div
 
-FIELDNAMES_SUMMARY = ["label", "num.segs", "mean.len", "stdev.len",
-                      "Q1.len", "median.len", "Q3.len", "num.bp", "frac.bp"]
+FIELDNAMES_SUMMARY = ["label", "num.segs", "mean.len", "median.len",
+                     "stdev.len", "num.bp", "frac.bp"]
 FIELDNAMES = ["label", "length"]
 NAMEBASE = "%s" % MODULE
 NAMEBASE_SIZES = "segment_sizes"
@@ -38,8 +36,6 @@ HTML_TITLE = "Length distribution"
 PNG_WIDTH = 600
 PNG_HEIGHT_BASE = 100  # Axes and label
 PNG_HEIGHT_PER_LABEL = 45
-
-SIZE_FMT = "%.3f"
 
 def start_R():
     r_source("common.R")
@@ -78,13 +74,11 @@ def segmentation_lengths(segmentation):
 def make_size_row(label, lengths, num_bp, total_bp):
     return {"label": label,
             "num.segs": len(lengths),
-            "mean.len": SIZE_FMT % lengths.mean(),
-            "stdev.len": SIZE_FMT % lengths.std(),
-            "Q1.len": SIZE_FMT % scoreatpercentile(lengths, 25),
-            "median.len": SIZE_FMT % median(lengths),
-            "Q3.len": SIZE_FMT % scoreatpercentile(lengths, 75),
+            "mean.len": "%.3f" % lengths.mean(),
+            "median.len": "%.3f" % median(lengths),
+            "stdev.len": "%.3f" % lengths.std(),
             "num.bp": num_bp,
-            "frac.bp": SIZE_FMT % (num_bp / total_bp)}
+            "frac.bp": "%.3f" % (num_bp / total_bp)}
 
 ## Saves the length summary data to a tab file, using mnemonics if specified
 def save_size_tab(lengths, labels, num_bp, dirpath, verbose=True,
@@ -104,7 +98,8 @@ def save_size_tab(lengths, labels, num_bp, dirpath, verbose=True,
             label = labels[label_key]
             label_lengths = lengths[label_key]
             num_bp_label = num_bp[label_key]
-            row = make_size_row(label, label_lengths, num_bp_label, total_bp)
+            row = make_size_row(label, label_lengths,
+                                   num_bp_label, total_bp)
             saver.writerow(row)
 
 def make_row(label, length):

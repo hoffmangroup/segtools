@@ -9,9 +9,6 @@
 * Made aggregation significance non-default (since it is not yet mathematically sound).
 * Cleaned up command-line interfaces
 * Sped up aggregation
-* now requires scipy
-* add Q1 and Q3 to length_distribution tab-delimited output
-* installation: move from path.py to forked-path
 
 1.0.0:
 
