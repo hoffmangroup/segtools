@@ -310,47 +310,25 @@ extpaste <- function(...) {
   paste(..., sep=".")
 }
 
-as.slide <- function() {
- update(trellis.last.object(),
+as.slide <- function(image) {
+ update(image,
         lattice.options = lattice.optionlist.slide,
         par.settings = theme.slide())
 }
 
-calc.slide.res <- function(width, height, 
-                           screen.width = 1600, 
-                           screen.height = 1200,
-                           screen.res = 72) {
-  ratios <- c(screen.width / width, screen.height / height) / 1.5
-  if (max(ratios) < screen.res) {
-    max(ratios)
-  } else {
-    100
-  }
-}
-
-calc.slide.scale <- function(width, height, pivot.dim = 1000) {
-  ratios <- c(width / pivot.dim, height / pivot.dim)
-  if (any(ratios > 1)) {
-    scaler <- 1 + ratios[which(ratios > 1)[1]] / 5
-  } else {
-    scaler <- 1
-  }
-  125 * scaler
-}
-
-print.image <- function(filepath, device, as.slide = FALSE, ...) {
+print.image <- function(image, filepath, device, as.slide = FALSE, ...) {
+  device(filepath, ...)
   if (as.slide) {
-    device(filepath, ...)
-    print(as.slide())
-    dev.off()
+    plot(as.slide(image))
   } else {
-    dev.print(device=device, file=filepath, ...)
+    plot(image)
   }
+  dev.off()
 
   filepath
 }
 
-save.image <- function(basename, ext, dirname, device, ..., clobber = FALSE) {
+save.image <- function(image, basename, ext, dirname, device, ..., clobber = FALSE) {
   filename.ext <- extpaste(basename, ext)
   filepath <- file.path(dirname, filename.ext)
 
@@ -359,23 +337,22 @@ save.image <- function(basename, ext, dirname, device, ..., clobber = FALSE) {
               "Image will not be overwritten.",
               "Specify --clobber to overwrite."))
   } else {
-    tryCatch(print.image(filepath, device, ...),
+    tryCatch(print.image(image, filepath, device, ...),
              error = function(e) {
                cat(paste("Error creating image: ", filepath,
-                         ". Error message: ", e$message, sep = ""))
+                         ". Error message: ", e$message, "\n", sep = ""))
              })
   }
   
   filename.ext
 }
 
-dev.print.images <- function(basename, dirname,
+dev.print.images <- function(basename, dirname, image,
                              width = 800, height = 800,
                              width.slide = 1280, height.slide = 1024,
                              width.pdf = 11, height.pdf = 8.5,
                              device.png = png,
                              device.pdf = pdf, 
-                             downsample = FALSE,
                              make.png = TRUE,
                              make.slide = TRUE,
                              make.pdf = TRUE,
@@ -386,24 +363,14 @@ dev.print.images <- function(basename, dirname,
   # No need for PNG plot since it is done python-side
   if (make.png) {
     filename.raster <-
-      save.image(basename, "png", dirname, device.png, 
+      save.image(image, basename, "png", dirname, device.png, 
                  width = width, height = height, units = "px",
                  ..., clobber = clobber)
   }
 
-  if (downsample && make.slide) {
-    # Useful for tweaking text size on large plots without replotting
-    slide.scale <- calc.slide.scale(width, height)
-    width.slide <- width/slide.scale + height/width
-    height.slide <- height/slide.scale + width/height
-    res.slide <- calc.slide.res(width = width.slide, height = height.slide)
+  if (make.slide) {
     filename.slide <-
-      save.image(basename, "slide.png", dirname, device.png, 
-                 width = width.slide, height = height.slide, 
-                 units = "in", res = res.slide, ..., clobber = clobber)
-  } else if (make.slide) {
-    filename.slide <-
-      save.image(basename, "slide.png", dirname, device.png, 
+      save.image(image, basename, "slide.png", dirname, device.png, 
                  width = width.slide, height = height.slide, 
                  units = "px", as.slide = TRUE,
                  ..., clobber = clobber)
@@ -411,7 +378,7 @@ dev.print.images <- function(basename, dirname,
 
   if (make.pdf) {
     filename.pdf <-
-      save.image(basename, "pdf", dirname, device.pdf,
+      save.image(image, basename, "pdf", dirname, device.pdf,
                  width = width.pdf, height = height.pdf,
                  useDingbats = FALSE, as.slide = pdf.as.slide, ...,
                  clobber = clobber)
@@ -421,16 +388,12 @@ dev.print.images <- function(basename, dirname,
     # Suppress warnings about minimum font size
     filename.thumb <-
       suppressWarnings(
-        save.image(basename, "thumb.png", dirname, device.png, 
+        save.image(image, basename, "thumb.png", dirname, device.png, 
                    width = 10, height = 10, 
                    units = "in", res = 10, ..., clobber = clobber))
   }
 }
 
 save.images <- function(dirpath, basename, image, ..., clobber = FALSE) {
-  tryCatch(plot(image),
-           error = function(e) {
-             stop(paste("Error plotting images. Error message:", e$message))
-           })
-  dev.print.images(basename, dirpath, ..., clobber = clobber)
+  dev.print.images(basename, dirpath, image, ..., clobber = clobber)
 }

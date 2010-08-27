@@ -19,7 +19,7 @@ you interpret its biological relevance.
 For a broad overview, please see the manuscript:
 
   Buske OJ, Hoffman MM, Noble WS, "Exploratory analysis of genomic
-  segmentations with Segtools." In preparation.
+  segmentations with Segtools." Submitted.
 
 Orion <stasis at uw dot edu> can send you the latest copy of the manuscript.
 Please cite the manuscript if you use Segtools.
@@ -128,47 +128,47 @@ Command-line interface
 
 Core commands:
 
-- :ref:`segtools-aggregation`: 
+- :ref:`segtools-aggregation <segtools-aggregation>`: 
   Analyzes the relative 
   occurrence of each segment label around the provided genomic features.
-- :ref:`segtools-transition`: 
+- :ref:`segtools-transition <segtools-transition>`: 
   Analyzes the transitions 
   between segment labels and the structure of their interaction.
-- :ref:`segtools-length-distribution`: 
+- :ref:`segtools-length-distribution <segtools-length-distribution>`: 
   Analyzes the distribution 
   of segment lengths and their coverage of the genome for each segment label.
-- :ref:`segtools-signal-distribution`:
+- :ref:`segtools-signal-distribution <segtools-signal-distribution>`:
   Analyzes the distribution 
   of genomic signal tracks for each segment label.
-- :ref:`segtools-nucleotide-frequency`: 
+- :ref:`segtools-nucleotide-frequency <segtools-nucleotide-frequency>`: 
   Analyzes the frequencies 
   of nucleotides and dinucleotides in segments of each label.
-- :ref:`segtools-overlap`: 
+- :ref:`segtools-overlap <segtools-overlap>`: 
   Analyzes the frequency with which 
   each segment label overlaps features of various types.
-- :ref:`segtools-html-report`: 
+- :ref:`segtools-html-report <segtools-html-report>`: 
   Combines the output of the 
   other commands and generates an html report for easier viewing.
 
 Utility commands:
 
-- :ref:`segtools-compare`: 
+- :ref:`segtools-compare <segtools-compare>`: 
   Measure base-wise edit distance 
   between two segmentations.
-- :ref:`segtools-feature-distance`: 
+- :ref:`segtools-feature-distance <segtools-feature-distance>`: 
   Reports the distance from 
   each segment to the nearest feature in each of a list of feature files.
-- :ref:`segtools-flatten`: 
+- :ref:`segtools-flatten <segtools-flatten>`: 
   General tool for flattening 
   overlapping segments, but flattens them into segments defined 
   by the set of segment labels that overlap the region. 
-- :ref:`segtools-preprocess`:
+- :ref:`segtools-preprocess <segtools-preprocess>`:
   Preprocess segmentation and annotation files into a binary format
   that can be quickly re-read in future calls to Segtools commands.
 
 Other commands:
 
-- :ref:`segtools-gmtk-parameters`: 
+- :ref:`segtools-gmtk-parameters <segtools-gmtk-parameters>`: 
   Analyzes GMTK_ emission parameters and state transitions.
 
 All the above commands respond to ``-h`` and ``--help``, and this will
@@ -246,6 +246,8 @@ segtools-compare
 
 .. program:: segtools-compare
 
+**segtools-compare [OPTIONS] SEGMENTATION SEGMENTATION**
+
 This command compares two segmentations by a specified metric. Currently,
 the only supported metric is :option:`--edit-distance`.
 
@@ -265,9 +267,11 @@ the only supported metric is :option:`--edit-distance`.
 .. _segtools-preprocess:
 
 segtools-preprocess
---------------------
+-------------------
 
 .. program:: segtools-preprocess
+
+**segtools-preprocess [OPTIONS] INFILE**
 
 This command takes a segmentation or annotation file (INFILE) and generates
 a binary, preprocessed file (INFILE.pkl) that can be quickly loaded in
@@ -285,9 +289,11 @@ this load time to just a few seconds! See ``--help`` for more details.
 .. _segtools-aggregation:
 
 segtools-aggregation
-----------------------------
+--------------------
 
 .. program:: segtools-aggregation
+
+**segtools-aggregation [OPTIONS] SEGMENTATION ANNOTATIONS**
 
 This command looks at the aggregate occurrence of segment labels around
 and within annotated features. A typical example of this would be to
@@ -427,6 +433,8 @@ segtools-feature-distance
 
 .. program:: segtools-feature-distance
 
+**segtools-feature-distance [OPTIONS] SEGMENTATION ANNOTATIONS...**
+
 This command takes a segmentation and one or more annotation files and
 prints the distance from each segment to the nearest annotation in each
 file. Results are printed in tab-delimited format on stdout::
@@ -448,9 +456,11 @@ that overlap annotation sets by filtering for distances of 0.
 .. _segtools-flatten:
 
 segtools-flatten
---------------------
+----------------
 
 .. program:: segtools-flatten
+
+**segtools-flatten [OPTIONS] SEGMENTATION...**
 
 This command takes multiple segmentations and combinatorially flattens them
 into one. Thus, there is a segment boundary in the new segmentation
@@ -484,6 +494,8 @@ segtools-gmtk-parameters
 
 .. program:: segtools-gmtk-parameters
 
+**segtools-gmtk-parameters [OPTIONS] PARAMSFILE**
+
 This command analyzes the dynamic Bayesian network emission parameters
 generated by GMTK_. This is most useful with segmentations generated using
 the Segway_ framework, created by Michael Hoffman. This command just calls
@@ -502,6 +514,8 @@ segtools-html-report
 
 .. program:: segtools-html-report
 
+**segtools-html-report [OPTIONS] SEGMENTATION**
+
 This command is intended to be run after other Segtools commands. It searches
 the local directory (or provided with ``--results-dir``) for ``div``
 files produced by the other Segtools commands and compiles the data into an 
@@ -517,9 +531,11 @@ should be the same as used to run the other Segtools commands.
 .. _segtools-transition:
 
 segtools-transition
--------------------------
+-------------------
 
 .. program:: segtools-transition
+
+**segtools-transition [OPTIONS] SEGMENTATION**
 
 This command takes a segmentation and looks at the transitions between
 segment labels. In other words, if a segment with label A is directly
@@ -548,6 +564,8 @@ segtools-length-distribution
 ----------------------------
 
 .. program:: segtools-length-distribution
+
+**segtools-length-distribution [OPTIONS] SEGMENTATION**
 
 This command summarizes the distribution of segment lengths, by label.
 It generates a violin plot (a box plot, but instead of a box, it is a
@@ -580,6 +598,8 @@ segtools-nucleotide-frequency
 
 .. program:: segtools-nucleotide-frequency
 
+**segtools-nucleotide-frequency [OPTIONS] SEGMENTATION GENOMEDATAFILE**
+
 This command generates a heatmap of the normalized dinucleotide frequencies
 found across segments of each label, as well as table of such nucleotide and
 dinucleotide frequencies. CpG content is likely the most interesting output,
@@ -599,6 +619,8 @@ segtools-overlap
 ----------------
 
 .. program:: segtools-overlap
+
+**segtools-overlap [OPTIONS] SEGMENTATION ANNOTATIONS**
 
 This command measures the base-wise or segment-wise overlap between segments
 in a segmentation and other annotations. Segments are classified by
@@ -638,6 +660,8 @@ segtools-signal-distribution
 ----------------------------
 
 .. program:: segtools-signal-distribution
+
+**segtools-signal-distribution [OPTIONS] SEGMENTATION GENOMEDATAFILE**
 
 This command takes a segmentation and a Genomedata_ archive and summarizes
 the distribution of values for each Genomedata track that fall within

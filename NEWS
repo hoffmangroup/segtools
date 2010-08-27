@@ -1,12 +1,11 @@
 1.1.1:
-
-
-
-1.1.1:
-
-
+* Plotting: No longer plots to screen. This makes plotting cleaner, less
+  error-prone, but slightly slower.
+* Documentation: Updated to include command syntax
 
 1.1.0:
+* Filled in large holes in documentation
+* Improved robustness of installation script
 * Renamed many of the Segtools commands for simplicity
 * Made BED/GFF files interchangable for most arguments
 * Added ability to pre-process segmentations with segtools-preprocess

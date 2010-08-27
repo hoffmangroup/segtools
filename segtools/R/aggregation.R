@@ -444,13 +444,15 @@ save.aggregation <- function(dirpath, namebase, tabfilename,
                              mnemonic_file = NULL,
                              clobber = FALSE,
                              panel.size = 200,  # px
+                             margin.size = 200,  #px
                              comment.char = "#",
                              ...) {
   mnemonics <- read.mnemonics(mnemonic_file)
   data <- read.aggregation(tabfilename, mnemonics = mnemonics,
                            comment.char = comment.char)
   
-  image.size <- panel.size * ceiling(sqrt(nlevels(data$data$label) / 2))
+  image.size <- margin.size +
+    panel.size * ceiling(sqrt(nlevels(data$data$label) / 2))
   save.images(dirpath, namebase,
               xyplot.aggregation(data, ...),
               width = image.size,
@@ -462,13 +464,15 @@ save.gene.aggregations <- function(dirpath, namebase1, namebase2, tabfilename,
                                    mnemonic_file = NULL,
                                    clobber = FALSE,
                                    panel.size = 200,  # px
+                                   margin.size = 200,  #px
                                    comment.char = "#",
                                    ...) {
   mnemonics <- read.mnemonics(mnemonic_file)
   data <- read.aggregation(tabfilename, mnemonics = mnemonics,
                            comment.char = comment.char)
   
-  image.size <- panel.size * ceiling(sqrt(nlevels(data$data$label) / 2))
+  image.size <- margin.size +
+    panel.size * ceiling(sqrt(nlevels(data$data$label) / 2))
   ngroup1 <- as.integer(data$metadata[["spacers"]])
   if (ngroup1 <= 0 || ngroup1 >= nlevels(data$data$component))
     stop("Invalid metadata for gene aggregation plots")

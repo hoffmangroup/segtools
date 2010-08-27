@@ -1,13 +1,17 @@
 #!/usr/bin/env python
 
-"""segtools: Tools for exploratory analysis of genomic segmentations
+"""Segtools: Tools for exploratory analysis of genomic segmentations
 
-LONG_DESCRIPTION
+Segtools is a Python package designed to put genomic segmentations back
+in the context of the genome! Using R for graphics, Segtools provides a
+number of modules to analyze a segmentation in various ways and help you
+interpret its biological relevance.
 """
 
 __version__ = "1.1.1"
 
 # Copyright 2008-2009 Michael M. Hoffman <mmh1@uw.edu>
+# Copyright 2009-2010 Orion J. Buske <stasis@uw.edu>
 
 import sys
 
