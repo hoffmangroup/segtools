@@ -1,6 +1,7 @@
 1.1.2:
 
-
+* eliminate exclamation marks
+* new autogen stuff from Sphinx to allow man page generation
 
 1.1.1:
 * Plotting: No longer plots to screen. This makes plotting cleaner, less

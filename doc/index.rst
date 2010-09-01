@@ -1,5 +1,5 @@
 .. Segtools documentation master file, created by
-   sphinx-quickstart on Thu Oct  1 15:38:39 2009.
+   sphinx-quickstart on Fri Aug 20 20:22:34 2010.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
@@ -12,7 +12,6 @@ Contents:
    :maxdepth: 2
 
    segtools
-
 
 Indices and tables
 ==================

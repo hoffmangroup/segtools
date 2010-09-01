@@ -6,7 +6,7 @@ read.length <- function(filename, mnemonics = NULL, ...) {
   res <- read.delim(filename, ...)
 
   res$label <- relevel.mnemonics(factor(res$label), mnemonics)
-  
+
   # Reverse rows for plot
   res$label <- factor(res$label, levels = rev(levels(res$label)))
 

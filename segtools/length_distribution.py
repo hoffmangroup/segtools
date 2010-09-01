@@ -155,7 +155,7 @@ def save_html(dirpath, clobber=False, mnemonicfile=None):
     extra_namebases = {"sizes": NAMEBASE_SIZES}
     save_html_div(TEMPLATE_FILENAME, dirpath, namebase=NAMEBASE,
                   extra_namebases=extra_namebases, mnemonicfile=mnemonicfile,
-                  tables={"":NAMEBASE_SIZES}, module=MODULE,
+                  tables={"": NAMEBASE_SIZES}, module=MODULE,
                   clobber=clobber, title=HTML_TITLE)
 
 ## Package entry point

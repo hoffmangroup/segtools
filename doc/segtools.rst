@@ -4,10 +4,10 @@ Segtools |version| documentation
 :Homepage: http://noble.gs.washington.edu/proj/segtools
 :Author: Orion Buske <stasis at uw dot edu>
 :Organization: University of Washington
-:Address: Department of Genome Sciences, PO Box 355065, 
+:Address: Department of Genome Sciences, PO Box 355065,
           Seattle, WA 98195-5065, United States of America
-:Copyright: 2009, Orion Buske
-:Last updated: |today| 
+:Copyright: 2009-2010, Orion Buske; 2010 Michael M. Hoffman
+:Last updated: |today|
 
 .. currentmodule:: segtools
 
@@ -30,16 +30,16 @@ Please cite the manuscript if you use Segtools.
 
 Installation
 ============
-A simple, interactive script_ has been created to install Segtools 
+A simple, interactive script_ has been created to install Segtools
 (and most dependencies) on any Linux platform. Installation is as simple
 as downloading and running this script! For instance::
-   
+
    wget http://noble.gs.washington.edu/proj/segtools/install.py
    python install.py
 
-.. note:: 
-   The following are prerequisites:
-          
+.. note::
+   The following prerequisites must be installed first:
+
    - Python 2.5.1-2.7
    - Zlib
 
@@ -774,20 +774,25 @@ arguments should still be specified to ensure correctness).
 Support
 =======
 
-To stay informed of **new releases**, subscribe to the moderated 
-``segtools-announce`` mailing list (mail volume very low):
+For support of Segtools, please write to the <segway-users@uw.edu> mailing
+list, rather than writing the authors directly. Using the mailing list
+will get your question answered more quickly. It also allows us to
+pool knowledge and reduce getting the same inquiries over and over.
+You can subscribe here:
 
-  https://mailman1.u.washington.edu/mailman/listinfo/segtools-announce
+  https://mailman1.u.washington.edu/mailman/listinfo/segway-users
 
-If you want to **report a bug or request a feature**, please do so using
-our issue tracker:
+Specifically, if you want to **report a bug or request a feature**,
+please do so using our issue tracker:
 
   http://code.google.com/p/segtools/issues
 
-For other Segtools support, or to provide feedback, please
-contact the authors directly. We are interested in all comments
-regarding the package and the ease of use of installation and
-documentation.
+If you do not want to read discussions about other people's use of
+Segway, but would like to hear about new releases and other important
+information, please subscribe to <segway-announce@uw.edu> by visiting
+this web page:
+
+  https://mailman1.u.washington.edu/mailman/listinfo/segtools-announce
 
 
 .. _`BED4+ format`:

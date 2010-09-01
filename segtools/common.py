@@ -275,8 +275,8 @@ def make_id(modulename, dirpath):
 
 def check_clobber(filename, clobber):
     if (not clobber) and os.path.isfile(filename):
-        raise IOError("Output file: %s already exists!"
-                      " Use --clobber to overwrite!" % filename)
+        raise IOError("Output file: %s already exists."
+                      " Use --clobber to overwrite." % filename)
 
 def gzip_open(*args, **kwargs):
     return closing(_gzip_open(*args, **kwargs))
@@ -533,7 +533,7 @@ def setup_directory(dirname):
         # Require write and execute permissions on existing dir
         if not os.access(dirname, os.W_OK | os.X_OK):
             die("Error: Output directory does not have appropriate"
-                " permissions!")
+                " permissions.")
 
 ## Given labels and mnemonics, returns an ordered list of label_keys
 ##   and a new labels dict mapping label_keys to label strings
