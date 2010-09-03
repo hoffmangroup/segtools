@@ -56,10 +56,11 @@ labels to help you understand your segmentation at a higher level.
 
 Input
 =====
-Segmentations should be in `BED4+ format`_ or `GFF format`, with one 
+Segmentations should be in `BED format`_ or `GFF format`, with one 
 line for each segment and the ``name`` field used to specify the segment
-label.  For best results, the number of unique segment labels should
-be between 2 and around 40.
+label. For best results, the number of unique segment labels should
+be between 2 and around 40. For segmentations, Segtools uses fields ``1-4``
+of a BED file or fields ``1,3-5``  of a GFF file.
 
 If you want to change the order in which labels appear or the
 text displayed in plots, a `mnemonic file`_ can be created.
