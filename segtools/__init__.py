@@ -286,6 +286,7 @@ class Segmentation(Annotations):
     """Representation of a segmentation
 
     Segments must be non-overlapping.
+    Strand information is not included.
 
     Defines additional attributes:
       tracks: a list of track names that were used to obtain the segmentation
@@ -297,6 +298,13 @@ class Segmentation(Annotations):
 
     class SegmentOverlapError(ValueError):
         pass
+
+    def _iter_rows(self, filename, verbose=True):
+        """Override default row reading to ignore strand for Segmentations"""
+        for row in super(self.__class__, self)._iter_rows(filename,
+                                                          verbose=verbose):
+            row['strand'] = '.';
+            yield row;
 
     def _from_file(self, filename, verbose=True):
         """Wrap file loading to ensure no segments overlap
