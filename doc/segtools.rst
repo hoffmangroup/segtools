@@ -85,41 +85,9 @@ Usage
 =====
 
 Segtools commands can be run through their
-:ref:`Python <python-interface>`
-or :ref:`command-line <command-line-interface>` interfaces.
-
-
-.. _`python-interface`:
-
-Python interface
-----------------
-
-Segtools commands can be run directly from Python by importing the
-corresponding module and running its ``main()`` method with the same
-arguments you would specify on the command line. For instance, you could
-run `segtools-length-distribution -opt ARG` from Python with the following:
-
->>> from segtools import length_distribution
->>> length_distribution.main(["-opt", "ARG"])
-
-The full table of commands and corresponding modules:
-
-======================  ====================
-Command (segtools-...)       Module
-======================  ====================
-aggregation             aggregation
-compare                 compare
-feature-distance        feature_distance
-flatten                 flatten
-gmtk-parameters         gmtk_parameters
-html-report             html
-length-distribution     length_distribution
-nucleotide-frequency    nucleotide_frequency
-overlap                 overlap
-preprocess              preprocess
-signal-distribution     signal_distribution
-transition              transition
-======================  ====================
+:ref:`command-line <command-line-interface>`
+or :ref:`Python <python-interface>`
+interfaces.
 
 
 .. _`command-line-interface`:
@@ -187,7 +155,7 @@ Each core command generates:
 
 
 Common options
---------------
+~~~~~~~~~~~~~~
 
 The following options are frequently or always supported by
 Segtools commands:
@@ -233,6 +201,39 @@ Segtools commands:
 .. cmdoption:: --version
 
    Print the current program version.
+
+
+.. _`python-interface`:
+
+Python interface
+----------------
+
+Segtools commands can be run directly from Python by importing the
+corresponding module and running its ``main()`` method with the same
+arguments you would specify on the command line. For instance, you could
+run `segtools-length-distribution -opt ARG` from Python with the following:
+
+>>> from segtools import length_distribution
+>>> length_distribution.main(["-opt", "ARG"])
+
+The full table of commands and corresponding modules:
+
+======================  ====================
+Command (segtools-...)       Module
+======================  ====================
+aggregation             aggregation
+compare                 compare
+feature-distance        feature_distance
+flatten                 flatten
+gmtk-parameters         gmtk_parameters
+html-report             html
+length-distribution     length_distribution
+nucleotide-frequency    nucleotide_frequency
+overlap                 overlap
+preprocess              preprocess
+signal-distribution     signal_distribution
+transition              transition
+======================  ====================
 
 
 Commands

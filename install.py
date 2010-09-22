@@ -242,7 +242,7 @@ be printed to the terminal)?""" % (shell, file)
     def save_var(self, variable, value):
         """Write the given variable and value to the shell rc file"""
         if self.is_var(variable, value):
-            print >>sys.stderr, "\nYour %s is already %s!" % (variable, value)
+            print >>sys.stderr, "\nYour %s is already %s." % (variable, value)
         else:
             self.write_var(variable, value)
             self.set_var(variable, value)
@@ -250,7 +250,7 @@ be printed to the terminal)?""" % (shell, file)
     def save_to_var(self, variable, value):
         """Prepend the value to the variable in the shell rc file"""
         if self.in_var(variable, value):
-            print >>sys.stderr, "\nYour %s already includes %s!" % \
+            print >>sys.stderr, "\nYour %s already includes %s." % \
                 (variable, value)
         else:
             full_value = "%s:$%s" % (value, variable)
@@ -325,8 +325,8 @@ class Environment(object):
 
     def refresh_packages(self):
         """Refresh list of packages/eggs that can be imported"""
-        print >>sys.stderr, "Updating list of packages/eggs in %s" % \
-            self.python_home
+        #print >>sys.stderr, "Updating list of packages/eggs in %s" % \
+        #    self.python_home
         addsitedir(fix_path(self.python_home))
 
     def has_lsf(self):
@@ -419,16 +419,20 @@ class Environment(object):
         """Prompt user whether or not to create a cfg file"""
         cfg_path = fix_path(cfg_file)
         if os.path.isfile(cfg_path):
-            print >>sys.stderr, ("\nFound your %s! (hopefully the configuration"
-                                 " matches)" % cfg_file)
+            query = """
+Distutils configuration file (%s) already exists.
+If it wasn't created by a previous run of this installation
+script, it might cause unexpected problems.
+May I overwrite it?""" % cfg_file
         else:
             query = """
 May I create %s?
 It will be used by distutils to install new Python modules
 into this directory (and subdirectories) automatically.""" % cfg_file
-            permission = prompt_yes_no(query)
-            if permission:
-                self._write_pydistutils_cfg(cfg_path)
+
+        permission = prompt_yes_no(query)
+        if permission:
+            self._write_pydistutils_cfg(cfg_path)
 
     def _write_pydistutils_cfg(self, cfg_path):
         """Write a pydistutils.cfg file based upon homes set up"""
@@ -561,14 +565,18 @@ class Installer(object):
             print >>sys.stderr, "not found."
             return False
         else:
-            print >>sys.stderr, "found."
+            if version is True:
+                print >>sys.stderr, "found."
+            else:
+                print >>sys.stderr, "found version: %s." % version
+
             if version is True or self.min_version is None:
                 # "True" testing necessary to distinguish from tuple or string
                 return True
             elif str2version(self.min_version) > str2version(version):
-                print >>sys.stderr, ("Found version: %s. Version %s or above"
-                                     " required.") % (version,
-                                                      self.min_version)
+                print >>sys.stderr, (" Version %s or above required." %
+                                     (version, self.min_version))
+                return False
             else:
                 return True
 
@@ -596,28 +604,36 @@ class Installer(object):
         else returns False
 
         """
-        permission = self.start_install()
-        if not permission:
-            return False
-
-        if self.check_version():
-            return True
-
-        permission = self.prompt_install()
-        if not permission:
-            return False
-
-        self.announce_install()
-
-        success = True
         try:
+            permission = self.start_install()
+            if not permission:
+                return False
+
+            if self.check_version():
+                return True
+
+            permission = self.prompt_install()
+            if not permission:
+                return False
+
+            self.announce_install()
+
+            success = True
             self.install(*args, **kwargs)
         except Exception, e:
             success = False
             if str(e):  # print any error message
                 print >>sys.stderr, "===== ERROR: %s =====" % e
 
-        self.cleanup(success)
+        # Try/except around cleanup separately so that if the installation
+        # crashes, the error is caught and cleanup is still run.
+        # Then, in case cleanup crashes, we need to catch errors around it.
+        try:
+            self.cleanup(success)
+        except Exception, e:
+            if str(e):  # print any error message
+                print >>sys.stderr, "Cleaning up..."
+                print >>sys.stderr, "===== ERROR: %s =====" % e
 
         return success
 
@@ -883,7 +899,7 @@ class Hdf5Installer(ScriptInstaller):
             cmd = Popen(["h5repack", "-V"], stdout=PIPE, stderr=PIPE)
             res = cmd.stdout.readlines()[0].strip()
             if "Version" in res:
-                # HDF5 Found!
+                # HDF5 Found
                 return res.split("Version ")[1]
             else:
                 return None
@@ -963,7 +979,7 @@ class Tester(object):
             except Exception, e:
                 print >>sys.stderr, "Error: %r" % e
                 print >>sys.stderr, ("There seems to be an error with the"
-                                     " installation of %s!" % self.name)
+                                     " installation of %s." % self.name)
                 raise InstallationError()
 
 class PytablesTester(Tester):
@@ -987,7 +1003,7 @@ class TestSuite(object):
                     tester.prompt_test()
                 except InstallationError:
                     die("""
-===== Test failed! =====
+===== Test failed =====
 Your installation may be incomplete and might not work.""")
 
             else:
@@ -1146,18 +1162,25 @@ class RInstaller(ScriptInstaller):
     def get_version(self):
         """Returns R version as a string or None if not found or installed."""
         try:
-            cmd = Popen(["R", "--version"], stdout=PIPE, stderr=PIPE)
+            cmd = Popen(["which", "R"], stdout=PIPE, stderr=PIPE)
+            resp = cmd.stdout.readlines()[0].strip()
+            if resp:
+                r_cmd = resp
+            else:
+                r_cmd = "R"
+
+            cmd = Popen([r_cmd, "--version"], stdout=PIPE, stderr=PIPE)
             resp = cmd.stdout.readlines()[0].strip()
             matched = re.search("R version ([.0-9a-zA-Z]*) .*", resp)
             if matched:
-                # R Version found! Check compilation configuration
-                cmd = Popen(["R", "CMD", "config", "--cppflags"],
+                # R Version found. Check compilation configuration
+                cmd = Popen([r_cmd, "CMD", "config", "--cppflags"],
                             stdout=PIPE, stderr=PIPE)
                 resp = cmd.stdout.readlines()[0].strip()
                 if resp == "R was not built as a library":
                     print >>sys.stderr, ("""\
 You already have R installed as a program, but in order to work with
-segtools, it must be installed as a library."""),
+Segtools, it must be installed as a library."""),
                     return None
                 else:
                     return matched.group(1)
@@ -1199,7 +1222,8 @@ class RlibsInstaller(Installer):
             from rpy2.rinterface import (consolePrint, set_writeconsole,
                                          RRuntimeError)
         except ImportError:
-            raise InstallationError("rpy2 required to install R libs!")
+            raise InstallationError("RPy2 required to install R libs"
+                                    " (or tell if they are installed)")
 
         try:
             # Mask R from printing to console
@@ -1249,7 +1273,7 @@ class RlibsInstaller(Installer):
                 from rpy2.robjects import r, numpy2ri, StrVector
                 # numpy2ri imported for side-effects
             except ImportError:
-                raise InstallationError("rpy2 required to install R libs!")
+                raise InstallationError("RPy2 required to install R libs")
 
             r["install.packages"](package,
                                   dep=StrVector(["Depends", "Imports"]))

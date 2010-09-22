@@ -54,18 +54,25 @@ class RInstaller(ScriptInstaller):
     def get_version(self):
         """Returns R version as a string or None if not found or installed."""
         try:
-            cmd = Popen(["R", "--version"], stdout=PIPE, stderr=PIPE)
+            cmd = Popen(["which", "R"], stdout=PIPE, stderr=PIPE)
+            resp = cmd.stdout.readlines()[0].strip()
+            if resp:
+                r_cmd = resp
+            else:
+                r_cmd = "R"
+
+            cmd = Popen([r_cmd, "--version"], stdout=PIPE, stderr=PIPE)
             resp = cmd.stdout.readlines()[0].strip()
             matched = re.search("R version ([.0-9a-zA-Z]*) .*", resp)
             if matched:
-                # R Version found! Check compilation configuration
-                cmd = Popen(["R", "CMD", "config", "--cppflags"],
+                # R Version found. Check compilation configuration
+                cmd = Popen([r_cmd, "CMD", "config", "--cppflags"],
                             stdout=PIPE, stderr=PIPE)
                 resp = cmd.stdout.readlines()[0].strip()
                 if resp == "R was not built as a library":
                     print >>sys.stderr, ("""\
 You already have R installed as a program, but in order to work with
-segtools, it must be installed as a library."""),
+Segtools, it must be installed as a library."""),
                     return None
                 else:
                     return matched.group(1)
@@ -107,7 +114,8 @@ class RlibsInstaller(Installer):
             from rpy2.rinterface import (consolePrint, set_writeconsole,
                                          RRuntimeError)
         except ImportError:
-            raise InstallationError("rpy2 required to install R libs!")
+            raise InstallationError("RPy2 required to install R libs"
+                                    " (or tell if they are installed)")
 
         try:
             # Mask R from printing to console
@@ -157,7 +165,7 @@ class RlibsInstaller(Installer):
                 from rpy2.robjects import r, numpy2ri, StrVector
                 # numpy2ri imported for side-effects
             except ImportError:
-                raise InstallationError("rpy2 required to install R libs!")
+                raise InstallationError("RPy2 required to install R libs")
 
             r["install.packages"](package,
                                   dep=StrVector(["Depends", "Imports"]))
