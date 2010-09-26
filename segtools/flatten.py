@@ -181,7 +181,7 @@ def flatten_segments(segments):
     return new_segments
 
 def merge_segments(segmentations):
-    """Merges together segments from different segmentations
+    """Merge together segments from different segmentations
 
     segmentations: a dict mapping file names to Segmentation objects.
     """
@@ -226,6 +226,43 @@ def merge_segments(segmentations):
 
     return flat_labels, new_segments
 
+def filter_segments(labels, segments, filter=None):
+    # Do nothing if no filtering
+    if filter is None or filter == 0:
+        return segments
+
+    if (not isinstance(filter, float) or filter < 0 or filter > 1):
+        raise ValueError("Invalid value of filter: %s" % str(filter))
+
+    # Find span of labels and whole segmentation
+    print >>sys.stderr, "Calculating span of labels and segmentation...",
+    n_seg = 0
+    n_keys = dict([(key, 0) for key in labels.iterkeys()])
+    for segment in segments:
+        key = segment[3]
+        length = segment[2] - segment[1]
+        n_keys[key] += length
+        n_seg += length
+    print >>sys.stderr, "done"
+
+    # Find segment labels that need to be filtered
+    filtered_labels = dict(labels)  # Copy of original labels
+    thresh = n_seg * filter
+    for key, n_key in n_keys.iteritems():
+        if n_key < thresh:
+            del filtered_labels[key]
+
+    # Remove segments not in filtered segment labels
+    print >>sys.stderr, "Filtering segment labels below threshold...",
+    filtered_segments = []
+    for segment in segments:
+        key = segment[3]
+        if key in filtered_labels:
+            filtered_segments.append(segment)
+    print >>sys.stderr, "done"
+
+    return filtered_labels, filtered_segments
+
 def print_bed(segments, filename=None):
     """Print segments in BED format to file (or stdout if None)"""
     if filename is None:
@@ -252,7 +289,7 @@ def print_readme(labels, filename=DEFAULT_HELPFILE):
             ofp.write("%s\n" % "\t".join([str(key), str(key), label]))
 
 def flatten(files, outfile=None, helpfile=DEFAULT_HELPFILE,
-            verbose=True):
+            filter=None, verbose=True):
     segmentations = {}
     for file in files:
         assert os.path.isfile(file)
@@ -260,6 +297,7 @@ def flatten(files, outfile=None, helpfile=DEFAULT_HELPFILE,
         segmentations[nice_filename] = Segmentation(file, verbose=verbose)
 
     labels, segments = merge_segments(segmentations)
+    labels, segments = filter_segments(labels, segments, filter=filter)
     print_bed(segments, filename=outfile)
     print_readme(labels, filename=helpfile)
 
@@ -282,6 +320,15 @@ def parse_args(args):
                       default=None, metavar="FILE",
                       help="Save flattened bed file to FILE instead of"
                       " printing to stdout (default)")
+    parser.add_option("-f", "--filter", dest="filter",
+                      default=None, type="float", metavar="F",
+                      help="Don't output new segment labels (and corresponding"
+                      " segments) that span less than F*N bases, where"
+                      " N is the number of bases covered by the new"
+                      " segmentation. This can be used to remove"
+                      " extremely uncommon labels (e.g. F = 0.01)"
+                      " that are the more likely to be spurious."
+                      " Filtering is off by default.")
 
     options, args = parser.parse_args(args)
 
@@ -299,6 +346,7 @@ def main(args=sys.argv[1:]):
 
     kwargs = {"helpfile": options.helpfile,
               "verbose": options.verbose,
+              "filter": options.filter,
               "outfile": options.outfile}
     flatten(args, **kwargs)
 

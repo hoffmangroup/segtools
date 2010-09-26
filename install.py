@@ -207,6 +207,13 @@ class ShellManager(object):
                                  " to the terminal")
         else:
             prompt = """
+This install script will guide you through installing a number of programs.
+All these programs are installed and configured in such a way that
+administrative privileges are not necessary. It will also try to identify
+existing installations of these programs, but it cannot always find them.
+In such cases, the simplest solution might be to just let this script
+install another version of these programs.
+
 In the course of this installation, a number of environment variables
 must be permanently set so the installed programs will work. Your shell
 was found to be: %s (from the value of $SHELL), so these settings
@@ -224,7 +231,6 @@ be printed to the terminal)?""" % (shell, file)
         self._env_format = env_format
         self._out = None  # Output file not yet open
         self.file_open = False
-
 
     def write_var(self, variable, value):
         """Write the given variable and value to the shell rc file"""
@@ -629,10 +635,10 @@ class Installer(object):
         # crashes, the error is caught and cleanup is still run.
         # Then, in case cleanup crashes, we need to catch errors around it.
         try:
+            print >>sys.stderr, "Cleaning up."
             self.cleanup(success)
         except Exception, e:
             if str(e):  # print any error message
-                print >>sys.stderr, "Cleaning up..."
                 print >>sys.stderr, "===== ERROR: %s =====" % e
 
         return success
