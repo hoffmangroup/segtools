@@ -4,8 +4,9 @@
 * new autogen stuff from Sphinx to allow man page generation
 * Bug fix: segtools-flatten now works when some files specify strand information
   and others don't.
-* Installer: now searches for R a little harder, program versions are printed
+* install-script: now searches for R a little harder, program versions are printed
   when found, and more errors are caught.
+* segtools-flatten: added --filter option
 
 1.1.1:
 * Plotting: No longer plots to screen. This makes plotting cleaner, less
