@@ -19,7 +19,7 @@ you interpret its biological relevance.
 For a broad overview, please see the manuscript:
 
   Buske OJ, Hoffman MM, Noble WS, "Exploratory analysis of genomic
-  segmentations with Segtools." Submitted.
+  segmentations with Segtools." Under revision.
 
 Orion <stasis at uw dot edu> can send you the latest copy of the manuscript.
 Please cite the manuscript if you use Segtools.
@@ -75,14 +75,16 @@ are often specified in `BED format`_ or `GFF format`_ (although some commands
 require GTF_ or Genomedata_ formats).
 
 
-Example workflow
-================
-
-Coming soon.
-
-
 Usage
 =====
+
+The basic workflow for using key Segtools commands is shown below.
+Segmentations can also be created from other segmentations, annotations, or
+peak-calls using :ref:`segtools-flatten <segtools-flatten>`.
+
+.. image:: flowchart.png
+   :align: center
+   :alt: Flowchart of basic Segtools command workflow
 
 Segtools commands can be run through their
 :ref:`command-line <command-line-interface>`
