@@ -581,7 +581,7 @@ class Installer(object):
                 return True
             elif str2version(self.min_version) > str2version(version):
                 print >>sys.stderr, (" Version %s or above required." %
-                                     (version, self.min_version))
+                                     self.min_version)
                 return False
             else:
                 return True
@@ -631,15 +631,9 @@ class Installer(object):
             if str(e):  # print any error message
                 print >>sys.stderr, "===== ERROR: %s =====" % e
 
-        # Try/except around cleanup separately so that if the installation
-        # crashes, the error is caught and cleanup is still run.
-        # Then, in case cleanup crashes, we need to catch errors around it.
-        try:
-            print >>sys.stderr, "Cleaning up."
-            self.cleanup(success)
-        except Exception, e:
-            if str(e):  # print any error message
-                print >>sys.stderr, "===== ERROR: %s =====" % e
+        # Allow cleanup to crash or call sys.exit
+        print >>sys.stderr, "Cleaning up."
+        self.cleanup(success)
 
         return success
 
