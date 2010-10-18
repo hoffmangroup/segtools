@@ -180,7 +180,7 @@ def calc_overlap(subseg, qryseg, quick=False, clobber=False, mode=MODE_DEFAULT,
                     # Add a source if there is one
                     try:
                         values.append(qryseg.sources[segment['source_key']])
-                    except AttributeError, IndexError:
+                    except (AttributeError, IndexError):
                         pass
                     # Add any other data in the segment
                     try:

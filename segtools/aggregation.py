@@ -23,10 +23,11 @@ from collections import defaultdict
 from functools import partial
 from numpy import arange, array, linspace, round
 
-from . import Annotations, log, Segmentation, \
-    DTYPE_SEGMENT_START, DTYPE_SEGMENT_END, DTYPE_SEGMENT_KEY, DTYPE_STRAND
-from .common import die, fill_array, get_ordered_labels, make_tabfilename, map_segment_label, r_plot, r_source, setup_directory, tab_saver
-
+from . import (Annotations, log, Segmentation, DTYPE_SEGMENT_START,
+               DTYPE_SEGMENT_END, DTYPE_SEGMENT_KEY, DTYPE_STRAND)
+from .common import (die, fill_array, get_ordered_labels, make_tabfilename,
+                     map_segment_label, r_plot, r_source, setup_directory,
+                     tab_saver)
 from .html import save_html_div
 
 NAMEBASE = "%s" % MODULE
@@ -37,6 +38,7 @@ STATIC_FIELDNAMES = ["group", "component", "offset"]
 
 HTML_TITLE_BASE = "Feature aggregation"
 
+# REGION_MODE means do quantile bins
 POINT_MODE = "point"
 REGION_MODE = "region"
 GENE_MODE = "gene"
@@ -401,25 +403,24 @@ class GeneAnnotations(Annotations):
         """
 
         def get_transcript_length(rows):
-            assert len(rows) > 0
-            start = rows[0]['start']
-            end = rows[0]['end']
-            for row in rows[1:]:
-                start = min(start, row['start'])
-                end = max(end, row['end'])
+            start = min(row['start'] for row in rows)
+            end = max(row['end'] for row in rows)
 
             return end - start
 
+        # XXX: this could probably be simplified vastly using max()
+        # and a generator expression; the semantics would change
+        # slightly in case of ties; you would get the transcript with
+        # the highest ID instead of the first one of that length.
+        # check to see if this is OK
         max_length = 0
-        longest = None
+        res = None
         for id, rows in transcript_dict.iteritems():
-            start = None
-            end = None
             length = get_transcript_length(rows)
             if length > max_length:
                 max_length = length
-                longest = (id, rows)
-        return longest
+                res = (id, rows)
+        return res
 
 
 def start_R():
@@ -431,19 +432,23 @@ def print_bed_from_gene_component(features, component="terminal exon"):
         for chrom, chrom_features in features.iteritems():
             for feature in chrom_features:
                 if feature["name"].startswith(component):
-                    print >> ofp, "%s\t%s\t%s\t%s" % (chrom,
-                                                      feature["start"],
-                                                      feature["end"],
-                                                      feature["name"])
+                    print >>ofp, "%s\t%s\t%s\t%s" % (chrom,
+                                                     feature["start"],
+                                                     feature["end"],
+                                                     feature["name"])
 
 def calc_feature_windows(feature, labels, mode, component_bins):
-    """Return a list of tuples: (component, window (array of base indices))"""
+    """Return a list of tuples: (component, window)
+
+    component: str (usually from *_COMPONENT/*_COMPONENTS constants)
+    window: numpy.ndarray(dtype=int) of base indices
+    """
     name = labels[feature['key']]
     start = feature['start']
     end = feature['end']
     try:
         strand = feature['strand']
-    except IndexError, KeyError:
+    except (IndexError, KeyError):
         assert mode != GENE_MODE
         strand = "."
 
@@ -498,19 +503,19 @@ def calc_feature_windows(feature, labels, mode, component_bins):
         bins_5p = arange(start - num_5p_bins, start, dtype="int")
         bins_3p = arange(end, end + num_3p_bins, dtype="int")
 
-    windows = []
+    res = []
     if len(bins_5p) > 0:
-        windows.append((FLANK_5P, bins_5p))
+        res.append((FLANK_5P, bins_5p))
     if len(internal_bins) > 0:
-        windows.append((component, internal_bins))
+        res.append((component, internal_bins))
     if len(bins_3p) > 0:
-        windows.append((FLANK_3P, bins_3p))
+        res.append((FLANK_3P, bins_3p))
 
     #for key, val in locals().iteritems():
     #    print >>sys.stderr, "%s : %s" % (key, val)
     #sys.exit(1)
 
-    return windows
+    return res
 
 
 ## Accepts data from dict: chr -> dict {"start", "end", "strand"})
@@ -571,7 +576,7 @@ def calc_aggregation(segmentation, features, mode, groups, components,
         segmentation_end = segments['end'][-1]
 
         # Map entire chromosome's segments into an array of label_keys
-        # XXXopt: THIS LINE TAKES UP TO 3.2 GB OF MEMORY!!!!
+        # XXXopt: this line takes up to 3.2 GB of memory
         segment_map, sentinal = map_segment_label(
             segments, (segmentation_start, segmentation_end))
 
@@ -914,7 +919,7 @@ def parse_options(args):
     group = OptionGroup(parser, "Main aggregation options")
     group.add_option("--mode", choices=MODES,
                      dest="mode", type="choice", default=DEFAULT_MODE,
-                     help="one of: "+str(MODES)+". [default: %default]")
+                     help="one of: %s. [default: %default]" % MODES)
     group.add_option("-f", "--flank-bases", metavar="N",
                      dest="flankbases", type="int", default=FLANK_BASES,
                      help="Aggregate this many base pairs off each"

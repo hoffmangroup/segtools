@@ -344,7 +344,8 @@ class Segmentation(Annotations):
 
         return (segtool, tracks)
 
-
+# XXX: should be replaced by use of logging module
+# will allow percent-substitution only when verbose is on
 def log(message, verbose=True, end="\n", file=sys.stderr):
     """Wrapper for logging messages to stderr
 
