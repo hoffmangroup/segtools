@@ -21,7 +21,7 @@ import sys
 
 from collections import defaultdict
 from functools import partial
-from numpy import arange, array, linspace, round
+from numpy import arange, array, empty, linspace, round
 
 from . import (Annotations, log, Segmentation, DTYPE_SEGMENT_START,
                DTYPE_SEGMENT_END, DTYPE_SEGMENT_KEY, DTYPE_STRAND)
@@ -38,7 +38,7 @@ STATIC_FIELDNAMES = ["group", "component", "offset"]
 
 HTML_TITLE_BASE = "Feature aggregation"
 
-# REGION_MODE means do quantile bins
+# REGION_MODE, GENE_MODE mean do quantile bins
 POINT_MODE = "point"
 REGION_MODE = "region"
 GENE_MODE = "gene"
@@ -438,7 +438,10 @@ def print_bed_from_gene_component(features, component="terminal exon"):
                                                      feature["name"])
 
 def calc_feature_windows(feature, labels, mode, component_bins):
-    """Return a list of tuples: (component, window)
+    """Calculate where the bin windows for this feature begin; Spread
+    internal bins throughout feature
+
+    Return a list of tuples: (component, window)
 
     component: str (usually from *_COMPONENT/*_COMPONENTS constants)
     window: numpy.ndarray(dtype=int) of base indices
@@ -458,6 +461,8 @@ def calc_feature_windows(feature, labels, mode, component_bins):
     # Include flanks by default
     num_5p_bins = component_bins[FLANK_5P]
     num_3p_bins = component_bins[FLANK_3P]
+
+    # remove flanks if gene mode and not on one end or other
     if mode == GENE_MODE:
         assert name in component_bins
         component = name
@@ -468,7 +473,6 @@ def calc_feature_windows(feature, labels, mode, component_bins):
         if component != TERMINAL_EXON:
             # Not terminal exon, so no 3' flank
             num_3p_bins = 0
-
     elif mode == REGION_MODE:
         component = REGION_COMPONENT
     else:
@@ -477,24 +481,28 @@ def calc_feature_windows(feature, labels, mode, component_bins):
         num_internal_bins = 0
 
     if component is not None:
-        try:
-            num_internal_bins = component_bins[component]
-        except KeyError:
-            num_internal_bins = 0
+        # default value of 0
+        num_internal_bins = component_bins.get(component, 0)
 
     if num_internal_bins > length:
+        # don't calculate internal bins in this case
         #print >> sys.stderr, "Warning: %d %s bins > %d bases" % \
         #    (num_internal_bins, component, length)
         num_internal_bins = 0
 
     if num_internal_bins > 0:
-        # Calculate internal bin locations (end included in linspace)
-        internal_bins = round(linspace(start, end - 1,
-                                       num_internal_bins)).astype("int")
+        # Calculate internal bin locations
+        # linspace: Return evenly spaced numbers over a specified interval.
+        # includes end, so subtract 1
+        space = linspace(start, end - 1, num_internal_bins)
+        internal_bins = empty(space.shape, dtype="int")
+        round(space, out=internal_bins)
     else:
+        # XXX: should be ndarray instead? probably doesn't matter
         internal_bins = []
 
     # Calculate flanking base locations
+    # XXX: what happens when the flanking regions are off the chromosome?
     if strand == "-":
         bins_5p = arange(end, end + num_5p_bins, dtype="int")[::-1]
         internal_bins = internal_bins[::-1]  # reverse
@@ -548,11 +556,12 @@ def calc_aggregation(segmentation, features, mode, groups, components,
             log("\t\t", end="")
             log("%s; %d bins" % (component, component_bins[component]))
 
+    # counts is an accumulator
     # dict:
     #   key: feature_group
     #   value: dict:
     #      key: component_name
-    #      value: numpy.array histogram [bin, label_key]
+    #      value: numpy.ndarray histogram [bin, label_key]
     counts = dict([(group,
                     dict([(component, fill_array(0, (bins, len(labels))))
                           for component, bins in component_bins.iteritems()]))
@@ -577,7 +586,7 @@ def calc_aggregation(segmentation, features, mode, groups, components,
 
         # Map entire chromosome's segments into an array of label_keys
         # XXXopt: this line takes up to 3.2 GB of memory
-        segment_map, sentinal = map_segment_label(
+        segment_map, sentinel = map_segment_label(
             segments, (segmentation_start, segmentation_end))
 
         # For each feature, tally segments in window
@@ -591,14 +600,16 @@ def calc_aggregation(segmentation, features, mode, groups, components,
                 group = groups[0]
 
             group_counts = counts[group]
+            # dict:
+            #      key: component_name
+            #      value: numpy.ndarray histogram [bin, label_key]
 
-            # Spread internal bins throughout feature
+            # Spread internal bins throughout feature if not POINT_MODE
             component_windows = calc_feature_windows(feature, features.labels,
                                                      mode, component_bins)
 
             # Scan window, tallying segments observed
             for component, window in component_windows:
-
                 component_counts = group_counts[component]
                 #log("component: %r" % component)
                 #log("component_counts.shape: %r" % str(component_counts.shape))
@@ -610,11 +621,12 @@ def calc_aggregation(segmentation, features, mode, groups, components,
                 keep = ((window >= segmentation_start) &
                         (window < segmentation_end))
                 label_keys = segment_map[map_indices[keep]]
-                if len(label_keys) == 0: continue
+                if len(label_keys) == 0:
+                    continue
                 count_indices = count_indices[keep]
 
                 # Find indices where label_keys are set
-                keep = (label_keys != sentinal).nonzero()[0]
+                keep = (label_keys != sentinel).nonzero()[0]
                 label_keys = label_keys[keep]
                 if len(label_keys) == 0: continue
                 count_indices = count_indices[keep]

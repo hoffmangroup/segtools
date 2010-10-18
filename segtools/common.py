@@ -410,7 +410,7 @@ def map_segment_label(segments, range):
 
     Returns a tuple of:
       numpy.array of the segment key at every base
-      sentinal value assigned to non-overlapped bases
+      sentinel value assigned to non-overlapped bases
 
     The given range must either be a tuple of (start, end), or
       have 'start' and 'end' attributes, and the returned array
@@ -429,12 +429,12 @@ def map_segment_label(segments, range):
     map_size = map_end - map_start
     assert map_size >= 0
 
-    # Choose sentinal value as maximum value supported by datatype
+    # Choose sentinel value as maximum value supported by datatype
     segments_dtype = segments['key'].dtype
-    sentinal = iinfo(segments_dtype).max
-    assert sentinal != segments['key'].max()  # not already used
+    sentinel = iinfo(segments_dtype).max
+    assert sentinel != segments['key'].max()  # not already used
 
-    res = fill_array(sentinal, (map_size,), segments_dtype)
+    res = fill_array(sentinel, (map_size,), segments_dtype)
     if map_size == 0:
         return res
 
@@ -448,7 +448,7 @@ def map_segment_label(segments, range):
             end_i = min(end - map_start, map_size)
             res[start_i:end_i] = key
 
-    return res, sentinal
+    return res, sentinel
 
 ## Yields segment and the continuous corresponding to it, for each segment
 ##   in the chromosome inside of a supercontig
