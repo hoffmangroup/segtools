@@ -446,7 +446,7 @@ def calc_bin_starts(start, end, num_bins):
     # endpoint=False
     bin_starts_unrounded = linspace(start, end, num_bins, False)
 
-    res = empty(bin_starts_unrounded .shape, dtype="int")
+    res = empty(bin_starts_unrounded.shape, dtype="int")
     round(bin_starts_unrounded, out=res)
     return res
 
