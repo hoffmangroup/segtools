@@ -413,8 +413,10 @@ levelplot.track.stats <-
            scale.cex = 1.0,
            xlab = list("Segment label", cex = axis.cex),
            ylab = list("Signal track", cex = axis.cex),
-           hclust.label = TRUE,
-           hclust.track = TRUE,
+           track_order = list(),
+           label_order = list(),
+           hclust.label = length(label_order) == 0,
+           hclust.track = length(track_order) == 0,
            clust.func = hclust,
            aspect = "fill",
            sd.shape = "line",
@@ -483,11 +485,17 @@ levelplot.track.stats <-
   if (hclust.track) {
     dd.row <- as.dendrogram(clust.func(dist(means)))
     row.ord <- order.dendrogram(dd.row)
+  } else if (length(track_order) > 0) {
+    row.ord <- match(track_order, rownames(means))
+    stopifnot(row.ord > 0, length(row.ord) == nrow(means))
   }
   if (hclust.label) {
     dist.func <- if (hierarchical) hierarchical.dist else dist
     dd.col <- as.dendrogram(clust.func(dist.func(t(means))))
     col.ord <- order.dendrogram(dd.col)
+  } else if (length(label_order) > 0) {
+    col.ord <- match(label_order, colnames(means))
+    stopifnot(col.ord > 0, length(col.ord) == ncol(means))
   }
   par(oma = c(1, 1, 1, 1))  # Add a margin
 

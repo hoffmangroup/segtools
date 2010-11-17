@@ -108,8 +108,7 @@ class SignalHistogram(object):
         # For every trackname, there's a function that generates histograms
         track_hist_funcs = dict((trackname,
                                  partial(histogram,
-                                         bins=xrange(min_bin, max_bin + 1),
-                                         new=True))
+                                         bins=xrange(min_bin, max_bin + 1)))
                                 for trackname, (min_bin, max_bin) in
                                 track_ranges.iteritems())
         # Trackname is one the track names, track_range is (min,max)
@@ -204,8 +203,7 @@ class SignalHistogram(object):
         # For every trackname, there's a function that generates histograms
         track_hist_funcs = dict((trackname,
                                  partial(histogram,
-                                         bins=xrange(min_bin, max_bin + 1),
-                                         new=True))
+                                         bins=xrange(min_bin, max_bin + 1)))
                                 for trackname, (min_bin, max_bin) in
                                 track_ranges.iteritems())
         # Trackname is one the track names, track_range is (min,max)
@@ -611,7 +609,8 @@ def load_track_ranges(genome, segmentation=None):
 
 def save_stats_plot(dirpath, namebase=NAMEBASE_STATS, filename=None,
                     clobber=False, mnemonic_file=None, translation_file=None,
-                    allow_regex=False, gmtk=False, verbose=True):
+                    allow_regex=False, gmtk=False, verbose=True,
+                    label_order=[], track_order=[]):
     """
     if filename is specified, it overrides dirpath/namebase.tab as
     the data file for plotting.
@@ -631,7 +630,8 @@ def save_stats_plot(dirpath, namebase=NAMEBASE_STATS, filename=None,
            mnemonic_file=mnemonic_file,
            translation_file=translation_file,
            as_regex=allow_regex, gmtk=gmtk,
-           clobber=clobber, verbose=verbose)
+           clobber=clobber, verbose=verbose,
+           label_order=label_order, track_order=track_order)
 
 def save_html(dirpath, genomedatadir, nseg_dps=None,
               ecdf=False, clobber=False):
@@ -650,13 +650,30 @@ def save_html(dirpath, genomedatadir, nseg_dps=None,
                   module=MODULE, title=title, segdatapoints=nseg_dps,
                   extra_namebases=extra_namebases)
 
+def read_order_file(filename):
+    if filename is None:
+        return []
+    elif os.path.isfile(filename):
+        order = []
+        with open(filename) as ifp:
+            for line in ifp:
+                line = line.strip()
+                if line:
+                    order.append(line)
+
+        return order
+    else:
+        raise IOError("Could not find order file: %s" % filename)
+
+
 ## Package entry point
 def validate(bedfilename, genomedatadir, dirpath,
              clobber=False, calc_ranges=False, inputdirs=None,
              quick=False, replot=False, noplot=False, verbose=True,
              nbins=NBINS, value_range=(None, None),
              ecdf=False, mnemonic_file=None,
-             create_mnemonics=False, chroms=None):
+             create_mnemonics=False, chroms=None,
+             label_order_file=None, track_order_file=None):
 
     if not replot:
         setup_directory(dirpath)
@@ -704,8 +721,17 @@ def validate(bedfilename, genomedatadir, dirpath,
                                                  verbose=verbose)
 
     if not noplot:
+        if label_order_file is not None:
+            log("Reading label ordering from: %s" % label_order_file)
+        label_order = read_order_file(label_order_file)
+
+        if track_order_file is not None:
+            log("Reading track ordering from: %s" % track_order_file)
+        track_order = read_order_file(track_order_file)
+
         save_stats_plot(dirpath, namebase=NAMEBASE_STATS, clobber=clobber,
-                        mnemonic_file=mnemonic_file, verbose=verbose)
+                        mnemonic_file=mnemonic_file, verbose=verbose,
+                        label_order=label_order, track_order=track_order)
 
     if histogram:
         try:
@@ -784,6 +810,19 @@ def parse_options(args):
                      default=None, metavar="FILE",
                      help="If specified, labels will be shown using"
                      " mnemonics found in FILE")
+    group.add_option("--order-tracks", dest="track_order_file",
+                     default=None, metavar="FILE",
+                     help="If specified, tracks will be displayed"
+                     " in the order in FILE. FILE must be a permutation"
+                     " of all the printed tracks, one per line, exact"
+                     " matches only.")
+    group.add_option("--order-labels", dest="label_order_file",
+                     default=None, metavar="FILE",
+                     help="If specified, label will be displayed"
+                     " in the order in FILE. FILE must be a permutation"
+                     " of all the labels (after substituting with mnemonics,"
+                     " if specified), one per line, exact"
+                     " matches only.")
     group.add_option("-i", "--indir", dest="inputdirs",
                      default=None, action="append", metavar="DIR",
                      help="Load data from this directory"
@@ -826,7 +865,9 @@ def main(args=sys.argv[1:]):
               "inputdirs": options.inputdirs,
               "mnemonic_file": options.mnemonic_file,
               "create_mnemonics": options.create_mnemonics,
-              "chroms": options.chroms}
+              "chroms": options.chroms,
+              "label_order_file": options.label_order_file,
+              "track_order_file": options.track_order_file}
 
     validate(bedfilename, genomedatadir, options.outdir, **kwargs)
 
