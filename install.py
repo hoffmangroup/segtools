@@ -1208,6 +1208,18 @@ Segtools, it must be installed as a library."""),
             if old is not None:
                 os.environ["R_PROFILE_USER"] = old
 
+    def cleanup(self, success):
+        if success:
+            print >>sys.stderr, ("\nRPy2 uses R_HOME to locate R")
+            r_home = self.env.arch_home
+            self.env.shell.save_var("R_HOME", r_home)
+            lib_path = os.path.join(r_home, "lib")
+            self.env.shell.save_to_var("LD_LIBRARY_PATH", lib_path)
+        else:
+            die("Error installing R")
+
+        super(self.__class__, self).cleanup(success)
+
 class RlibsInstaller(Installer):
     name = "R libraries"
     install_prompt = "\nMay I download and install the necessary %s?"
@@ -1272,8 +1284,8 @@ class RlibsInstaller(Installer):
             try:
                 from rpy2.robjects import r, numpy2ri, StrVector
                 # numpy2ri imported for side-effects
-            except ImportError:
-                raise InstallationError("RPy2 required to install R libs")
+            except ImportError, e:
+                raise InstallationError("Could not import RPy2 (%s)" % e)
 
             r["install.packages"](package,
                                   dep=StrVector(["Depends", "Imports"]))
