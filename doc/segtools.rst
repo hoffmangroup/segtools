@@ -58,7 +58,12 @@ Input
 =====
 Segmentations should be in `BED format`_ or `GFF format`, with one 
 line for each segment and the ``name`` field used to specify the segment
-label. For best results, the number of unique segment labels should
+label. Segments must be **non-overlapping**, and can span all, part, or
+multiple parts of a genome. Genomic regions not spanned by any segment
+are ignored, so it can sometimes be useful to have a "background" label
+with segments that span all regions not covered by another segmentation.
+This can be automated with :ref:`segtools-flatten <segtools-flatten>`.
+For best results, the number of unique segment labels should
 be between 2 and around 40. For segmentations, Segtools uses fields ``1-4``
 of a BED file or fields ``1,3-5``  of a GFF file.
 
@@ -520,9 +525,10 @@ segtools-html-report
 
 **segtools-html-report [OPTIONS] SEGMENTATION**
 
-This command is intended to be run after other Segtools commands. It searches
-the local directory (or provided with ``--results-dir``) for ``div``
-files produced by the other Segtools commands and compiles the data into an 
+This command is intended to be run after other Segtools commands. Starting
+in the current working directory (or directory provided with
+``--results-dir``), it finds files produced by the other Segtools
+commands (files matching ``*/*.div``) and compiles the results into an 
 HTML report for review.
 
 The ``SEGMENTATION`` argument and ``--mnemonic-file`` option 

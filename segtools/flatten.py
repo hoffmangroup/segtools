@@ -229,7 +229,7 @@ def merge_segments(segmentations):
 def filter_segments(labels, segments, filter=None):
     # Do nothing if no filtering
     if filter is None or filter == 0:
-        return segments
+        return labels, segments
 
     if (not isinstance(filter, float) or filter < 0 or filter > 1):
         raise ValueError("Invalid value of filter: %s" % str(filter))

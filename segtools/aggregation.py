@@ -936,7 +936,8 @@ def parse_options(args):
     group = OptionGroup(parser, "Main aggregation options")
     group.add_option("--mode", choices=MODES,
                      dest="mode", type="choice", default=DEFAULT_MODE,
-                     help="one of: %s. [default: %default]" % MODES)
+                     help="one of: %s. [default: %%default]" % \
+                     ", ".join(MODES))
     group.add_option("-f", "--flank-bases", metavar="N",
                      dest="flankbases", type="int", default=FLANK_BASES,
                      help="Aggregate this many base pairs off each"

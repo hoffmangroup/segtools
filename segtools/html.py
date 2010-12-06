@@ -230,16 +230,20 @@ def form_mnemonic_div(mnemonicfile, results_dir, clobber=False, verbose=True):
     """Copy mnemonic file to results_dir and create the HTML div with a link"""
     filebase = os.path.basename(mnemonicfile)
     link_file = os.path.join(results_dir, filebase)
-    check_clobber(link_file, clobber)
 
-    try:
-        copy(mnemonicfile, link_file)
-    except (IOError, os.error):
-        log("Error: could not copy %s to %s. Linking"
-            " the the former." % (mnemonicfile, link_file))
-        link_file = mnemonicfile  # Link to the existing file
+    if os.path.samefile(mnemonicfile, link_file):
+        log("Mnemonic file already in place: %s" % mnemonicfile)
     else:
-        log("Copied %s to %s" % (mnemonicfile, link_file), verbose)
+        check_clobber(link_file, clobber)
+
+        try:
+            copy(mnemonicfile, link_file)
+        except (IOError, os.error):
+            log("Error: could not copy %s to %s. Linking"
+                " the the former." % (mnemonicfile, link_file))
+            link_file = mnemonicfile  # Link to the existing file
+        else:
+            log("Copied %s to %s" % (mnemonicfile, link_file), verbose)
 
     fields = {}
     fields["tabfilename"] = link_file
@@ -319,6 +323,8 @@ def find_divs(rootdir=os.getcwd(), verbose=True):
     """Look one level deep in directory, adding any .div files found.
     """
     divs = []
+    log("Searching directories under %s for files ending in .div..." % \
+        rootdir)
     for foldername in sorted(os.listdir(rootdir)):
         folderpath = os.path.join(rootdir, foldername)
         if os.path.isdir(folderpath):
@@ -328,6 +334,10 @@ def find_divs(rootdir=os.getcwd(), verbose=True):
                     filepath = os.path.join(folderpath, filename)
                     divs.append(filepath)
                     log("Found div: %s" % filename, verbose)
+
+    if not divs:
+        log("Found no files matching %s/*/*.div" % rootdir)
+
     return divs
 
 def make_html_report(bedfilename, results_dir, outfile, mnemonicfile=None,
@@ -337,8 +347,7 @@ def make_html_report(bedfilename, results_dir, outfile, mnemonicfile=None,
 
     divs = find_divs(results_dir, verbose=verbose)
     if len(divs) == 0:
-        die("Unable to find any module .div files."
-            " Make sure to run this from the parent directory of the"
+        die("Make sure to run this from the parent directory of the"
             " module output directories or specify the --results-dir option")
 
     body = []
