@@ -68,7 +68,7 @@ be between 2 and around 40. For segmentations, Segtools uses fields ``1-4``
 of a BED file or fields ``1,3-5``  of a GFF file.
 
 If you want to change the order in which labels appear or the
-text displayed in plots, a `mnemonic file`_ can be created.
+text displayed in plots, a :ref:`mnemonic file` can be created.
 Segtools commands can the be re-run with the ``--replot`` flag and
 the ``--mnemonic-file=<FILE>`` option to regenerate the plots without
 redoing the computation. Similarly, mnemonic files can be swapped or
@@ -150,7 +150,7 @@ Other commands:
 All the above commands respond to ``-h`` and ``--help``, and this will
 display the most up-to-date usage information and options.
 
-Where relevant, commands accept `mnemonic files <mnemonic file>`_
+Where relevant, commands accept :ref:`mnemonic files <mnemonic file>`
 through the ``--mnemonic-file`` option.
 
 Each core command generates:
@@ -182,7 +182,7 @@ Segtools commands:
 .. cmdoption:: --mnemonic-file <file>, -m <file>
 
    Specify a mnemonic file to control the label display and ordering.
-   See `mnemonic file details <mnemonic file>`_. 
+   See :ref:`mnemonic file details <mnemonic file>`. 
 
 .. cmdoption:: --outdir <dir>, -o <dir>
 
@@ -489,7 +489,7 @@ by regions.bed.gz but not peaks.gff, one for bases covered by both files, and
 one for bases covered by only peaks.gff (if there are any).
 The command prints the new segmentation in BED format to stout, by default,
 but ``--mnemonic-file`` and ``--outfile`` can be specified
-to create a segmentation file with a corresponding mnemonic file that
+to create a segmentation file with a corresponding :ref:`mnemonic file` that
 can be used in further Segtools analyses.
 
 

@@ -1,6 +1,7 @@
 1.1.3:
 * segtools-signal-distribution: added --order-tracks and --order-labels options
 * install-script: now sets R_HOME enviroment variable which fixes some issues
+* docs: fixed dead mnemonic file reference
 * bugfix: removed 'new' argument to 'histrogram' for compatibility with
     newer versions of numpy
 * bugfix: segtools-html-report no longer crashes when the mnemonic file is
