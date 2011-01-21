@@ -18,7 +18,7 @@ read.track.stats <- function(filename, mnemonics = NULL,
   }
   stats$label <- relevel.mnemonics(stats$label, mnemonics)
   stats <- rename.tracks(stats, ...)
-  
+
   stats
 }
 
@@ -27,11 +27,11 @@ read.gmtk.track.stats <- function(filename, mnemonics = NULL,
   means <- parse.gmtk.means(filename)
   covars <- parse.gmtk.covars(filename)
   data <- merge.gmtk.track.stats(means, covars)
-  
+
   data$label <- relevel.mnemonics(data$label, mnemonics)
   data <- rename.tracks(data, ...)
   data <- covar2sd(data)
-  
+
   data
 }
 
@@ -44,7 +44,7 @@ merge.gmtk.track.stats <- function(means, covars) {
     stats <- subset(means, select=-value)
     stats$mean <- means$value
     stats$covar <- covars$value
-    
+
     stats
   }
 }
@@ -61,9 +61,9 @@ parse.gmtk.means <- function(filename, hierarchical =
   ## hierarchical:
   ##   TRUE: parse the params file expecting a hierarchical format
   ##   FALSE: parse the params file as a normal format
-  
+
   lines <- readLines(filename)
-  
+
   if (hierarchical) {
     pattern <- "^mean_seg([^_ ]+)_subseg([^_ ]+)_([^ ]+) 1 (.*)"
     replacement <- "\\1_\\2\t\\3\t\\4"
@@ -71,7 +71,7 @@ parse.gmtk.means <- function(filename, hierarchical =
     pattern <- "^mean_seg([^_ ]+)_([^ ]+) 1 (.*)"
     replacement <- "\\1\t\\2\t\\3"
   }
-  
+
   start <- grep("^% means$", lines) + 1
   lines.norm <- lines[start:length(lines)]
 
@@ -81,7 +81,7 @@ parse.gmtk.means <- function(filename, hierarchical =
 
   reformulated <- gsub(pattern, replacement, lines.interesting, perl = TRUE)
   writeLines(reformulated, anonfile)
-  
+
   means <- read.delim(anonfile, header = FALSE,
                       col.names = c("label", "trackname", "value"),
                       colClasses = c("factor", "factor", "numeric"))
@@ -102,7 +102,7 @@ parse.gmtk.covars <- function(filename) {
   reformulated <- gsub("^covar_([^ ]+) 1 (.*)",
                       "\\1\t\\2", lines.interesting, perl = TRUE)
   writeLines(reformulated, anonfile)
-  
+
   covars <- read.delim(anonfile, header = FALSE,
                        col.names = c("trackname", "value"),
                        colClasses = c("factor", "numeric"))
@@ -116,11 +116,11 @@ generate.mnemonics <- function(stats, hierarchical = FALSE, clust.func = hclust,
   if (!is.array(stats)) {
     stats <- as.stats.array(stats)
   }
-  
+
   stats.mean <- t(stats[, , "mean"])
   dist.func <- if (hierarchical) hierarchical.dist else dist
   hclust.col <- clust.func(dist.func(stats.mean))
-  
+
   cut.height <- mean(range(hclust.col$height))
   stems <- (cutree(hclust.col, h = cut.height) - 1)[hclust.col$order]
   stems.reorder <- as.integer(factor(stems, levels = unique(stems))) - 1
@@ -148,7 +148,7 @@ rename.tracks <- function(stats, patterns = NULL, replacements = NULL,
   if (!is.data.frame(stats)) {
     stop("rename.tracks expected stats as data.frame")
   }
-  
+
   tracknames <- levels(stats$trackname)
   # Apply translation table substitutions
   if (!is.null(translation)) {
@@ -168,7 +168,7 @@ rename.tracks <- function(stats, patterns = NULL, replacements = NULL,
     }
   }
   levels(stats$trackname) <- tracknames
-  
+
   stats
 }
 
@@ -200,13 +200,13 @@ normalize.track.stats <- function(stats, cov = FALSE, sd.scale = TRUE) {
   if (!is.array(stats)) {
     stop("normalize.track.stats expected stats in array format!")
   }
-  
+
   ## Normalize mean
   means <- stats[, , "mean"]
   means.range <- t(apply(means, 1, range))
   means.min <- means.range[, 1]
   means.max <- means.range[, 2]
-  stats[, , "mean"] <- (means - means.min) / (means.max - means.min) 
+  stats[, , "mean"] <- (means - means.min) / (means.max - means.min)
 
   if ("sd" %in% dimnames(stats)[[3]]) {
     sds <- stats[, , "sd"]
@@ -249,7 +249,7 @@ normalize.binary.track.stats <- function(stats, cov = FALSE) {
 
 hierarchical.dist <- function(mat) {
   ## Returns a distance matrix, accomodating a hierarchical model
-  
+
   ## Hierarchy is denoted in the rownames, with "a_b" or "a.b"
   ## specifying a's child, b
   ## All nodes of a given level must have the same number of children
@@ -266,10 +266,10 @@ hierarchical.dist <- function(mat) {
     ## Convert the list of arrays to a single array,
     ##   since all depths are the same
     levels.mat <- matrix(unlist(levels.tokens), ncol = depth, byrow = TRUE)
-    
+
     mat.dist <- as.matrix(dist(mat))
     dist.thresh <- max(mat.dist) + 1  # Separate hierarchy levels this far
-    
+
     for (row.i in 1:nrow(mat)) {
       diff.rows <- rep(FALSE, nrow(mat))
       for (depth.i in 1:(depth - 1)) {
@@ -287,9 +287,9 @@ hierarchical.dist <- function(mat) {
 }
 
 panel.track.stats <-
-  function(x, y, z, subscripts, at = pretty(z), sds = NULL, 
-           ncolors = 2, threshold = FALSE, sd.shape = "box", 
-           panel.fill = "mean", box.fill = "gradient", 
+  function(x, y, z, subscripts, at = pretty(z), sds = NULL,
+           ncolors = 2, threshold = FALSE, sd.shape = "box",
+           panel.fill = "mean", box.fill = "gradient",
            sd.box.size = 0.4, sd.scale = 1, sd.line.size = 0.18,
            panel.outline = FALSE, horizontal.sd = TRUE, ...)
 {
@@ -302,7 +302,7 @@ panel.track.stats <-
   } else {
     sds <- as.numeric(sds)[subscripts]
   }
-  
+
   z.low <- z - sds
   z.high <- z + sds
   if (threshold) {
@@ -323,10 +323,10 @@ panel.track.stats <-
     col.mean <- zcol[i]
     z.range <- seq(from = z.low[i], to = z.high[i], length = ncolors)
     col.gradient <- level.colors(z.range, at = at, ...)
-    
+
     panel.offsets <- seq(from = - 0.5, by = 1 / ncolors, length = ncolors)
     panel.grad.size <- 1 / ncolors
-    box.offsets <- seq(from = - sd.size / 2, by = sd.size / ncolors, 
+    box.offsets <- seq(from = - sd.size / 2, by = sd.size / ncolors,
                        length = ncolors)
     box.grad.size <- sd.size / ncolors
 
@@ -365,7 +365,7 @@ panel.track.stats <-
                 default.units = "native",
                 gp = gpar(col = NA, fill = col.mean))
     } else if (panel.fill == "gradient") {
-      grid.rect(x = xs, y = ys, height = panel.grad.height, 
+      grid.rect(x = xs, y = ys, height = panel.grad.height,
                 width = panel.grad.width,
                 just = grad.just, default.units = "native",
                 gp = gpar(col = NA, fill = col.gradient))
@@ -377,9 +377,9 @@ panel.track.stats <-
                   default.units = "native",
                   gp = gpar(col = NA, fill = col.mean))
       } else if (box.fill == "gradient") {
-        grid.rect(x = box.xs, y = box.ys, height = box.grad.height, 
-                  width = box.grad.width, just = grad.just, 
-                  default.units = "native", 
+        grid.rect(x = box.xs, y = box.ys, height = box.grad.height,
+                  width = box.grad.width, just = grad.just,
+                  default.units = "native",
                   gp = gpar(col = NA, fill = col.gradient))
       }
     }
@@ -428,7 +428,7 @@ levelplot.track.stats <-
            legend = ddgram.legend(dd.row,  row.ord, dd.col,col.ord),
            colorkey = list(space = "left", at = colorkey.at),
            palette = colorRampPalette(rev(brewer.pal(11, "RdYlBu")),
-                                      interpolate = "spline", 
+                                      interpolate = "spline",
                                       space = "Lab")(100),
            ...)
 {
@@ -446,7 +446,7 @@ levelplot.track.stats <-
     norm.func <- normalize.track.stats
   }
   stats.norm <- norm.func(track.stats)
-  
+
   means <- stats.norm[, , "mean"]
   sds <- stats.norm[, , "sd"]
 
@@ -464,13 +464,13 @@ levelplot.track.stats <-
     means <- means[!mask.rows,]
     sds <- sds[!mask.rows,]
   }
-  
+
   if (threshold || is.null(sds) || sd.shape == "line") {
     z.range <- range(means, na.rm = TRUE)
   } else {
     z.range <- c(min(means, means - sds), max(means + sds))
   }
-  
+
   if (symmetric) {
     z.max <- max(abs(z.range))
     z.range <- c(-z.max, z.max)
@@ -511,7 +511,7 @@ levelplot.track.stats <-
             sd.shape = sd.shape,
             box.fill = box.fill,
             threshold = threshold,
-            xlab = xlab, 
+            xlab = xlab,
             ylab = ylab,
             at = colorkey.at,
             col.regions = palette,
@@ -540,7 +540,7 @@ load.track.stats <- function(filename, mnemonics = NULL,
   } else {
     args$translations <- translations
   }
-  
+
   stats <- do.call(read.func, args)
 
   list(stats = stats, hierarchical = hierarchical)
@@ -554,7 +554,7 @@ plot.track.stats <- function(filename, symmetric = FALSE, ...) {
 save.track.stats <- function(dirpath, namebase, filename,
                              mnemonic_file = NULL,
                              translation_file = NULL,
-                             symmetric = FALSE, 
+                             symmetric = FALSE,
                              clobber = FALSE,
                              square.size = 15,  # px
                              ...) {
@@ -586,8 +586,8 @@ make.mnemonic.file <- function(infilename, outfilename, gmtk = FALSE, ...)
   stats <- as.stats.array(res$stats)
   stats.norm <- normalize.track.stats(stats)
   mnemonics <- generate.mnemonics(stats.norm, hierarchical = hierarchical, ...)
-  write.table(mnemonics, file = outfilename, quote = FALSE, 
+  write.table(mnemonics, file = outfilename, quote = FALSE,
               col.names = TRUE, row.names = FALSE, sep = "\t")
-  
+
   outfilename
 }
