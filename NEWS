@@ -1,10 +1,12 @@
 1.1.4:
 
-
-
-1.1.4:
-
-
+* allow comment character of # in mnemonics files, and automatically
+  add a comment to generated mnemonic files
+* segtools-html-report: fix some problem with os.path.samefile()
+  (maybe related to Python 2.7+)
+* segtools-gmtk-parameters: doesn't generate hierarchical mnemonics
+  when Segway subseg is used but has cardinality 1
+* add requirement of numpy>=1.3 (because histogram semantics change in that version)
 
 1.1.3:
 * segtools-signal-distribution: added --order-tracks and --order-labels options

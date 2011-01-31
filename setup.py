@@ -10,7 +10,7 @@ interpret its biological relevance.
 
 __version__ = "1.1.4"
 
-# Copyright 2008-2010 Michael M. Hoffman <mmh1@uw.edu>
+# Copyright 2008-2011 Michael M. Hoffman <mmh1@uw.edu>
 # Copyright 2009-2010 Orion J. Buske <stasis@uw.edu>
 
 import sys
@@ -51,7 +51,7 @@ segtools-transition = segtools.transition:main
 """
 #segtools = segtools.validate_all:main
 
-install_requires = ["genomedata", "numpy", "rpy2", "textinput",
+install_requires = ["genomedata", "numpy>=1.3", "rpy2", "textinput",
                     "tables>=2.1"]
 
 if __name__ == "__main__":

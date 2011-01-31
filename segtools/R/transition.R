@@ -42,7 +42,7 @@ read.transition <- function(filename, mnemonics = NULL, ...)
 read.gmtk.transition <- function(filename, mnemonics = NULL, ...)
 {
   lines <- readLines(filename)
-  
+
   start <- grep("^seg_seg", lines) + 3
   con <- textConnection(lines[start - 1])
   dims <- as.numeric(scan(con, what = "numeric", n = 2, quiet = TRUE))
@@ -58,7 +58,7 @@ read.gmtk.transition <- function(filename, mnemonics = NULL, ...)
 }
 
 
-matrix.find_quantile <- function(x, q) 
+matrix.find_quantile <- function(x, q)
 {
   v = as.vector(x)
   quantile(x, q, names=FALSE)

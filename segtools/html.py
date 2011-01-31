@@ -231,7 +231,7 @@ def form_mnemonic_div(mnemonicfile, results_dir, clobber=False, verbose=True):
     filebase = os.path.basename(mnemonicfile)
     link_file = os.path.join(results_dir, filebase)
 
-    if os.path.samefile(mnemonicfile, link_file):
+    if os.path.exists(link_file) and os.path.samefile(mnemonicfile, link_file):
         log("Mnemonic file already in place: %s" % mnemonicfile)
     else:
         check_clobber(link_file, clobber)
@@ -354,7 +354,9 @@ def make_html_report(bedfilename, results_dir, outfile, mnemonicfile=None,
     modules = [DESCRIPTION_MODULE]
     if mnemonicfile is not None:
         modules.append(MNEMONIC_MODULE)
-        body.append(form_mnemonic_div(mnemonicfile, results_dir, clobber=clobber, verbose=verbose))
+        div = form_mnemonic_div(mnemonicfile, results_dir, clobber=clobber,
+                                verbose=verbose)
+        body.append(div)
 
     regex = re.compile('"module" id="(.*?)".*?<h.>.*?</a>\s*(.*?)\s*</h.>',
                        re.DOTALL)

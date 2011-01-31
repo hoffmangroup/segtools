@@ -52,7 +52,7 @@ labels.log <- function(...) {
 
 read.mnemonics <- function(filename, stringsAsFactors = NULL,
                            colClasses = NULL, na.strings = NULL,
-                           quote = "", comment.char = "",
+                           quote = "", comment.char = "#",
                            ...) {
   filename <- as.character(filename)
   if (length(filename) > 0 && nchar(filename) > 0) {
@@ -111,7 +111,7 @@ read.matrix <- function(filename, nrow = NULL, ncol = NULL,
                         comment.char = "#") {
   comment.lines <- read.comment.lines(filename, comment.char = comment.char)
   skip <- length(comment.lines)
-  
+
   if (is.null(ncol)) {
     ## Read first line to determine number of columns
     first.line <- scan(filename, quiet = TRUE, skip = skip, nlines = 1)
@@ -132,7 +132,7 @@ read.matrix <- function(filename, nrow = NULL, ncol = NULL,
 }
 
 # Given a list of labels (e.g. levels(data$label)), returns a dataframe
-# with group and index fields, corresponding to the character and numeric 
+# with group and index fields, corresponding to the character and numeric
 # components of each label.
 labels.classify <- function(labels) {
   labels.str <- as.character(labels)
@@ -193,25 +193,25 @@ map.mnemonics <- function(labels, mnemonics = NULL) {
   labels.order <- 1:length(labels)
   if (length(mnemonics) > 0) {
     if (ncol(mnemonics) < 2) stop("Mnemonics should have at least 2 columns")
-    
+
     ## Order by mnemonics
     mnemonics <- data.frame(old=as.character(mnemonics[,1]),
                             new=as.character(mnemonics[,2]),
                             stringsAsFactors=FALSE)
-    
+
     ## Map the labels that we can
     mapping.rows <- match(labels.raw, mnemonics$old)
     mapping.valid <- is.finite(mapping.rows)
     labels.mapped <- mnemonics$new[mapping.rows[mapping.valid]]
     labels.new[mapping.valid] <- labels.mapped
     ## Leave the labels we can't
-    
+
     ## Order the mapped labels
     labels.order[mapping.valid] <- order(mapping.rows[mapping.valid])
   } else {
     mapping.valid <- vector(length = length(labels))
   }
-  
+
   ## Order the unmapped labels, first numerically
   nmapped <- sum(mapping.valid)
   labels.unmapped <- labels.new[!mapping.valid]
@@ -223,7 +223,7 @@ map.mnemonics <- function(labels, mnemonics = NULL) {
   nmapped <- nmapped + sum(labels.num.valid)
   labels.order[!mapping.valid][!labels.num.valid] <-
     order(labels.unmapped[!labels.num.valid]) + nmapped
-  
+
   list(labels = labels.new, order = labels.order)
 }
 
@@ -235,18 +235,18 @@ ddgram.legend <- function(dd.row = NULL, row.ord = NULL,
 
   if (!is.null(dd.row)) {
     legend$right <- list(fun = dendrogramGrob,
-                         args = list(x = dd.row, 
+                         args = list(x = dd.row,
                            ord = row.ord,
                            side = "right",
                            size = 10))
   }
   if (!is.null(dd.col)) {
     legend$top <- list(fun = dendrogramGrob,
-                       args = list(x = dd.col, 
+                       args = list(x = dd.col,
                          ord = col.ord,
                          side = "top"))
   }
-  
+
   legend
 }
 
@@ -347,7 +347,7 @@ save.image <- function(image, basename, ext, dirname, device, ..., clobber = FAL
                          ". Error message: ", e$message, "\n", sep = ""))
              })
   }
-  
+
   filename.ext
 }
 
@@ -356,7 +356,7 @@ dev.print.images <- function(basename, dirname, image,
                              width.slide = 1280, height.slide = 1024,
                              width.pdf = 11, height.pdf = 8.5,
                              device.png = png,
-                             device.pdf = pdf, 
+                             device.pdf = pdf,
                              make.png = TRUE,
                              make.slide = TRUE,
                              make.pdf = TRUE,
@@ -367,15 +367,15 @@ dev.print.images <- function(basename, dirname, image,
   # No need for PNG plot since it is done python-side
   if (make.png) {
     filename.raster <-
-      save.image(image, basename, "png", dirname, device.png, 
+      save.image(image, basename, "png", dirname, device.png,
                  width = width, height = height, units = "px",
                  ..., clobber = clobber)
   }
 
   if (make.slide) {
     filename.slide <-
-      save.image(image, basename, "slide.png", dirname, device.png, 
-                 width = width.slide, height = height.slide, 
+      save.image(image, basename, "slide.png", dirname, device.png,
+                 width = width.slide, height = height.slide,
                  units = "px", as.slide = TRUE,
                  ..., clobber = clobber)
   }
@@ -392,8 +392,8 @@ dev.print.images <- function(basename, dirname, image,
     # Suppress warnings about minimum font size
     filename.thumb <-
       suppressWarnings(
-        save.image(image, basename, "thumb.png", dirname, device.png, 
-                   width = 10, height = 10, 
+        save.image(image, basename, "thumb.png", dirname, device.png,
+                   width = 10, height = 10,
                    units = "in", res = 10, ..., clobber = clobber))
   }
 }

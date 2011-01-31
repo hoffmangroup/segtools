@@ -8,15 +8,12 @@ from __future__ import division, with_statement
 
 __version__ = "$Revision$"
 
-
 # A package-unique, descriptive module name used for filenames, etc
 # Must be the same as the folder containing this script
 MODULE = "gmtk_parameters"
 
-
 import os
 import sys
-
 
 from numpy import array
 
@@ -85,17 +82,18 @@ def validate(gmtk_file, dirpath, p_thresh=P_THRESH, q_thresh=Q_THRESH,
     if not os.path.isfile(gmtk_file):
         die("Could not find GMTK file: %s" % gmtk_file)
 
+    # XXX: why does this print "getbuffer" a few times? debug R
+    # read.gmtk.transition() code
     log("Loading gmtk transitions...", verbose, end="")
 
     labels, probs = load_gmtk_transitions(gmtk_file)
     log(" done", verbose)
 
-    # If mnemonics weren't specified, let's create a mnemonic file!
+    # If mnemonics weren't specified, let's create a mnemonic file
     if mnemonic_file is None and create_mnemonics:
-        mnemonic_file = create_mnemonic_file(gmtk_file, dirpath,
-                                             verbose=verbose,
-                                             clobber=clobber,
-                                             gmtk=True)
+        mnemonic_file = \
+            create_mnemonic_file(gmtk_file, dirpath, verbose=verbose,
+                                 clobber=clobber, gmtk=True)
 
     if not noplot:
         save_plot(dirpath, namebase=NAMEBASE, filename=gmtk_file,

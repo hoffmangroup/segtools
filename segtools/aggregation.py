@@ -693,7 +693,11 @@ def save_tab(segmentation, features, counts, components, component_bins,
                         count += len(chrom_features)
                     elif component in GENE_COMPONENTS:
                         # Separate by component (key column)
-                        label_key = features.label_key(component)
+                        try:
+                            label_key = features.label_key(component)
+                        except KeyError:
+                            continue
+
                         keep = chrom_features['key'] == label_key
                         sum += (chrom_features['end'][keep] -
                                 chrom_features['start'][keep]).sum()

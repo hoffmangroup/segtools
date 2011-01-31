@@ -24,7 +24,7 @@ read.aggregation <- function(filename, mnemonics = NULL, ...,
   }
 
   data <- melt.aggregation(data.raw)
-  
+
   data$label <- relevel.mnemonics(data$label, mnemonics)
 
   ## Order components by the order observed in the file
@@ -470,7 +470,7 @@ save.gene.aggregations <- function(dirpath, namebase1, namebase2, tabfilename,
   mnemonics <- read.mnemonics(mnemonic_file)
   data <- read.aggregation(tabfilename, mnemonics = mnemonics,
                            comment.char = comment.char)
-  
+
   image.size <- margin.size +
     panel.size * ceiling(sqrt(nlevels(data$data$label) / 2))
   ngroup1 <- as.integer(data$metadata[["spacers"]])
