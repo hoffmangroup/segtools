@@ -8,7 +8,7 @@ number of modules to analyze a segmentation in various ways and help you
 interpret its biological relevance.
 """
 
-__version__ = "1.1.5"
+__version__ = "1.1.6"
 
 # Copyright 2008-2011 Michael M. Hoffman <mmh1@uw.edu>
 # Copyright 2009-2010 Orion J. Buske <stasis@uw.edu>
