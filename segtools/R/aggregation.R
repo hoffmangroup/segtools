@@ -352,7 +352,7 @@ xyplot.aggregation <- function(agg.data = NULL,
                else list(points = FALSE, lines = TRUE),
     strip = strip.custom(horizontal = FALSE),
     strip.height = 10,
-    par.strip.text <- list(cex = 0.7),
+    par.strip.text = list(cex = 0.7),
     xlab = NULL,
     ylab = if (normalize)
               expression(paste("Enrichment: ",
