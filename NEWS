@@ -4,7 +4,7 @@
 
 1.1.6:
 
-
+* aggregation.R: fixed syntax error that caused segtools-aggregation to crash
 
 1.1.5:
 
