@@ -35,7 +35,6 @@ read.gmtk.track.stats <- function(filename, mnemonics = NULL,
   data
 }
 
-
 merge.gmtk.track.stats <- function(means, covars) {
   if (!all(means$trackname[1:nrow(covars)] == covars$trackname)) {
     stop("Track ordering different between means and covars!")
@@ -51,6 +50,21 @@ merge.gmtk.track.stats <- function(means, covars) {
 
 is.hierarchical.gmtk <- function(filename) {
   lines <- readLines(filename)
+  hierarchical <- length(grep("^seg_subseg $", lines)) > 0
+
+  hierarchical
+}
+
+##' returns whether the file is both hierarchical and uses the
+##' hierarchy (has more than 1 subseg)
+##'
+##' <details>
+##' @title 
+##' @param filename 
+##' @return boolean 
+##' @author MICHAEL M. HOFFMAN
+is.truly.hierarchical.gmtk <- function(filename) {
+  lines <- readLines(filename)
   hierarchical <- FALSE
 
   matches <- grep("^seg_subseg $", lines)
@@ -64,6 +78,28 @@ is.hierarchical.gmtk <- function(filename) {
   }
 
   hierarchical
+}
+
+regex.trailing.0 <- "_0$"
+
+##' eliminates trailing _0 if every label ends with that
+##'
+##' <details>
+##' @title simplify.labels
+##' @param labels (factor)
+##' @return factor
+##' @author Michael M. Hoffman
+simplify.labels <- function(labels) {
+  labels.levels <- levels(labels)
+
+  num.first.subsegs <- sum(grepl(regex.trailing.0, labels.levels))
+
+  # if they all end in _0
+  if (length(labels.levels) == num.first.subsegs) {
+    levels(labels) <- gsub(regex.trailing.0, "", labels.levels)
+  }
+
+  labels
 }
 
 parse.gmtk.means <- function(filename, hierarchical =
@@ -97,6 +133,7 @@ parse.gmtk.means <- function(filename, hierarchical =
                       colClasses = c("factor", "factor", "numeric"))
   close(anonfile)
 
+  means$label <- simplify.labels(means$label)
   means
 }
 
@@ -121,13 +158,15 @@ parse.gmtk.covars <- function(filename) {
   covars
 }
 
-## You should probably normalize with normalize.track.stats() first
+## You should probably normalize with normalize.track.stats() before
+## calling this.
 generate.mnemonics <- function(stats, hierarchical = FALSE, clust.func = hclust, ...) {
   if (!is.array(stats)) {
     stats <- as.stats.array(stats)
   }
 
-  stats.mean <- t(stats[, , "mean"])
+  stats.mean <- t(stats[,,"mean"])
+
   dist.func <- if (hierarchical) hierarchical.dist else dist
   hclust.col <- clust.func(dist.func(stats.mean))
 
@@ -537,7 +576,7 @@ load.track.stats <- function(filename, mnemonics = NULL,
                              ...) {
   if (gmtk) {
     read.func <- read.gmtk.track.stats
-    hierarchical <- is.hierarchical.gmtk(filename)
+    hierarchical <- is.truly.hierarchical.gmtk(filename)
   } else {
     read.func <- read.track.stats
     hierarchical <- FALSE

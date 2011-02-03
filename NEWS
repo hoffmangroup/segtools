@@ -2,6 +2,11 @@
 
 * common.R: print.image: create the filepath's parent directory, if it
   doesn't already exist
+* fix bug related to: allow comment character of # in mnemonics files,
+  and automatically add a comment to generated mnemonic files
+* segtools-gmtk-parameters: fix bug related to: doesn't generate
+  hierarchical mnemonics when Segway subseg is used but has
+  cardinality 1
 
 1.1.4:
 

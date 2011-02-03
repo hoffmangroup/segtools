@@ -597,6 +597,10 @@ def map_mnemonics(labels, mnemonicfilename, field="new"):
 
     return array(mnemonics)
 
+def make_comment_ignoring_dictreader(iterable, *args, **kwargs):
+    return DictReader(item for item in iterable if not item.startswith("#"),
+                      *args, **kwargs)
+
 ## Loads segmentation label descriptions and mnemonics
 ##   from a tab-delimited file with a header row
 def load_mnemonics(filename):
@@ -623,7 +627,7 @@ def load_mnemonics(filename):
     label_order = []
     label_data = {}
     with open(filename, "rU") as ifp:
-        reader = DictReader(ifp)
+        reader = make_comment_ignoring_dictreader(ifp)
         for row in reader:
             try:
                 label_index = row["old"]

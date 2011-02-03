@@ -9,7 +9,6 @@ mnemonics.py
 """
 
 import os
-import sys
 
 from . import log
 from .common import check_clobber, r_call, r_source, RError
