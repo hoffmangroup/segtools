@@ -148,7 +148,7 @@ def parse_options(args):
                      " Thus, all underscores could be converted to periods"
                      " with the single line: `_<TAB>.`. Mappings will be"
                      " applied sequentially, so a second line of:"
-                     " `.<TAB>#` would (together with the first line)"
+                     " `\\.<TAB>#` would (together with the first line)"
                      " convert all periods and underscores to pounds.")
     parser.add_option_group(group)
 

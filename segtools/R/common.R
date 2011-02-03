@@ -321,7 +321,11 @@ as.slide <- function(image) {
 }
 
 print.image <- function(image, filepath, device, as.slide = FALSE, ...) {
+  ## create the filepath's parent directory, if it doesn't already exist
+  dir.create(dirname(filepath), showWarnings=FALSE, recursive=TRUE)
+
   device(filepath, ...)
+
   if (as.slide) {
     plot(as.slide(image))
   } else {

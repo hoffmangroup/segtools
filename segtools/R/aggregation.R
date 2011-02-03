@@ -352,6 +352,7 @@ xyplot.aggregation <- function(agg.data = NULL,
                else list(points = FALSE, lines = TRUE),
     strip = strip.custom(horizontal = FALSE),
     strip.height = 10,
+    par.strip.text <- list(cex = 0.7),
     xlab = NULL,
     ylab = if (normalize)
               expression(paste("Enrichment: ",
@@ -422,7 +423,8 @@ xyplot.aggregation <- function(agg.data = NULL,
                auto.key = auto.key, as.table = TRUE, strip = strip,
                xlab = xlab, ylab = ylab, sub = sub,
                signif = data$signif, ngroups = ngroups,
-               panel = "panel.superpose", panel.groups = panel, ...)
+               panel = "panel.superpose", panel.groups = panel,
+               par.strip.text = par.strip.text, ...)
 
   trellis.raw <- do.call(xyplot, args)
 
