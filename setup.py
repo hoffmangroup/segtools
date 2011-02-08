@@ -51,8 +51,7 @@ segtools-transition = segtools.transition:main
 """
 #segtools = segtools.validate_all:main
 
-install_requires = ["genomedata", "numpy>=1.3", "rpy2", "textinput",
-                    "tables>=2.1"]
+install_requires = ["genomedata", "numpy>=1.3", "rpy2"]
 
 if __name__ == "__main__":
     setup(name=name,
