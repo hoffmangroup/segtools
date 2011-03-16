@@ -1,5 +1,6 @@
 1.1.7:
 
+* __init__.py: _from_pickle: fix UnpickleError message
 * common.R: fix a comment character-related bug
 * docs: automtically add --help output to every command
 * overlap.py: --help: cluster = "confusion matrix"

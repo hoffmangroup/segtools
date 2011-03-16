@@ -4,7 +4,7 @@ from __future__ import division, with_statement
 """Segtools: tools for exploratory analysis of genomic segmentations
 
 Copyright 2009: Orion Buske <stasis@uw.edu>
-
+Copyright 2011: Michael Hoffman <mmh1@uw.edu>
 """
 __version__ = "$Revision$"
 
@@ -142,8 +142,11 @@ class Annotations(object):
         with open(filename, 'rb') as ifp:
             object = cPickle.load(ifp)
             if object.__class__ != self.__class__:
-                raise self.UnpickleError("Error: Trying to load an indexed %s"
-                                         " object as an indexed %s object!")
+                msg = ("Error: Trying to load an indexed %s object"
+                       " as an indexed %s object!" % (object.__class__,
+                                                      self.__class__))
+                raise self.UnpickleError(msg)
+
             self.__dict__ = object.__dict__
 
         log(" done", verbose)
