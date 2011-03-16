@@ -391,7 +391,8 @@ Overlap_analysis_tool_specification"
                      help="Do not generate plots")
     group.add_option("--cluster", action="store_true",
                      dest="cluster", default=False,
-                     help="Cluster rows and columns in heatmap plot")
+                     help="Cluster rows and columns in heat map plot"
+                     " (confusion matrix)")
     group.add_option("-p", "--print-segments", action="store_true",
                      dest="print_segments", default=False,
                      help=("For each group"

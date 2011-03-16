@@ -598,7 +598,7 @@ def map_mnemonics(labels, mnemonicfilename, field="new"):
     return array(mnemonics)
 
 def make_comment_ignoring_dictreader(iterable, *args, **kwargs):
-    return DictReader(item for item in iterable if not item.startswith("#"),
+    return DictReader((item for item in iterable if not item.startswith("#")),
                       *args, **kwargs)
 
 ## Loads segmentation label descriptions and mnemonics

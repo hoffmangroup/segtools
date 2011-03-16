@@ -29,7 +29,7 @@ from setup import __version__ as release
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.pngmath']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.pngmath', 'sphinx.ext.viewcode']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -45,7 +45,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Segtools'
-copyright = u'2009-2010, Orion J. Buske'
+copyright = u'2009-2011, Orion J. Buske, 2010-2011 Michael M. Hoffman'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

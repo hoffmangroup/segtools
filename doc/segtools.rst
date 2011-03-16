@@ -6,7 +6,7 @@ Segtools |version| documentation
 :Organization: University of Washington
 :Address: Department of Genome Sciences, PO Box 355065,
           Seattle, WA 98195-5065, United States of America
-:Copyright: 2009-2010, Orion Buske; 2010 Michael M. Hoffman
+:Copyright: 2009-2010, Orion Buske; 2010-2011 Michael M. Hoffman
 :Last updated: |today|
 
 .. currentmodule:: segtools
@@ -18,8 +18,8 @@ you interpret its biological relevance.
 
 For a broad overview, please see the manuscript:
 
-  Buske OJ, Hoffman MM, Noble WS, "Exploratory analysis of genomic
-  segmentations with Segtools." Under revision.
+  Buske OJ, Hoffman MM, Ponts N, Le Roch KG, Noble WS, "Exploratory
+  analysis of genomic segmentations with Segtools." Submitted.
 
 Orion <stasis at uw dot edu> can send you the latest copy of the manuscript.
 Please cite the manuscript if you use Segtools.
@@ -260,6 +260,8 @@ segtools-compare
 This command compares two segmentations by a specified metric. Currently,
 the only supported metric is :option:`--edit-distance`.
 
+.. include:: _build/cmdline-help/segtools-compare.help.txt
+
 **Selected options**:
 
 .. cmdoption:: --edit-distance, -d
@@ -291,7 +293,7 @@ independently. If the segmentation is large, this can add an hour
 or more to the runtime of each Segtools command. Preprocessing cuts
 this load time to just a few seconds! See ``--help`` for more details.
 
-
+.. include:: _build/cmdline-help/segtools-preprocess.help.txt
 
 .. ####################### FEATURE AGGREGATION #######################
 
@@ -323,6 +325,7 @@ might expect by chance. This is especially true if the segments in
 one label are significantly longer than those in another label.
 In these cases, the :option:`--normalize` flag should be used.
 
+.. include:: _build/cmdline-help/segtools-aggregation.help.txt
 
 **Selected options**:
 
@@ -459,6 +462,8 @@ you could use this command to find the 100 insulators farthest from any
 transcription start site. The command can also be used to filter segments
 that overlap annotation sets by filtering for distances of 0.
 
+.. include:: _build/cmdline-help/segtools-feature-distance.help.txt
+
 
 .. ####################### FLATTEN BED #######################
 
@@ -492,7 +497,7 @@ but ``--mnemonic-file`` and ``--outfile`` can be specified
 to create a segmentation file with a corresponding :ref:`mnemonic file` that
 can be used in further Segtools analyses.
 
-
+.. include:: _build/cmdline-help/segtools-flatten.help.txt
 
 .. ####################### GMTK PARAMETERS #######################
 
@@ -512,6 +517,7 @@ the relevant parts of other commands, generating transition plots,
 a transition graph, and a heatmap of the mean and standard deviation values
 for each label and track. See ``--help`` for more information.
 
+.. include:: _build/cmdline-help/segtools-gmtk-parameters.help.txt
 
 
 .. ####################### HTML REPORT #######################
@@ -534,6 +540,7 @@ HTML report for review.
 The ``SEGMENTATION`` argument and ``--mnemonic-file`` option 
 should be the same as used to run the other Segtools commands.
 
+.. include:: _build/cmdline-help/segtools-html-report.help.txt
 
 
 .. ####################### LABEL TRANSITION #######################
@@ -564,6 +571,7 @@ so the transition frequencies can be thresholded by value
 (``--prob-threshold``) or quantile (``--quantile-threshold``) 
 in drawing the graph.
 
+.. include:: _build/cmdline-help/segtools-transition.help.txt
 
 
 .. ####################### LENGTH DISTRIBUTION #######################
@@ -597,6 +605,7 @@ lengths, and the number of bases covered by each label.
    We hope to revise this by saving instead a histogram-like summary of the
    segment lengths instead of a separate length for each segment.
 
+.. include:: _build/cmdline-help/segtools-length-distribution.help.txt
 
 
 .. ####################### NUCLEOTIDE FREQUENCY #######################
@@ -619,7 +628,7 @@ As input, it takes a segmentation and a Genomedata_
 archive for the genome the segmentation covers. The Genomedata archive is used
 solely for the nucleotide sequence. 
 
-
+.. include:: _build/cmdline-help/segtools-nucleotide-frequency.help.txt
 
 .. ####################### OVERLAP #######################
 
@@ -638,7 +647,7 @@ their label and annotations can be classified with a group, so the basic
 output is a confusion matrix with each cell representing the amount of overlap
 between segments in one label with annotations in one group. Further, the
 ability of each segment label to predict each annotation group is measured
-and summarized in a precision-recall plot.
+and summarized in a precision-recall plot or a confusion matrix heat map.
 
 **Selected options**:
 
@@ -660,6 +669,7 @@ and summarized in a precision-recall plot.
    The precision-recall plot is accurate for base-wise overlap, but is a rough
    approximation for segment-wise overlap. Use such results with caution.
 
+.. include:: _build/cmdline-help/segtools-overlap.help.txt
 
 
 .. ####################### SIGNAL DISTRIBUTION #######################
@@ -703,6 +713,7 @@ the final output. Here is sample pseudocode::
 
   submit_job --hold_on=<run_id> segtools-signal-distribution --indirs=<indirs>
 
+.. include:: _build/cmdline-help/segtools-signal-distribution.help.txt
 
 **Selected options**:
 
