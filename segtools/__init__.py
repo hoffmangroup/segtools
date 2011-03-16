@@ -61,7 +61,7 @@ class Annotations(object):
         if not os.path.isfile(filename):
             raise IOError("Could not find file: %s" % filename)
 
-        log("Loading %s:" % self.__class__, verbose)
+        log("Loading %s:" % self.__class__.__name__, verbose)
         self._load(filename, verbose=verbose)
 
     @staticmethod
@@ -136,15 +136,16 @@ class Annotations(object):
     def _from_pickle(self, filename, verbose=True):
         import cPickle
 
-        log("  Unpickling %s object..." % self.__class__,
+        log("  Unpickling %s object..." % self.__class__.__name__,
             verbose, end="")
 
         with open(filename, 'rb') as ifp:
             object = cPickle.load(ifp)
-            if object.__class__ != self.__class__:
-                msg = ("Error: Trying to load an indexed %s object"
-                       " as an indexed %s object!" % (object.__class__,
-                                                      self.__class__))
+            if not issubclass(object.__class__, self.__class__):
+                msg = ("Error: Cannot to load an indexed %s object"
+                       " as an indexed %s object."
+                       % (object.__class__.__name__,
+                          self.__class__.__name__))
                 raise self.UnpickleError(msg)
 
             self.__dict__ = object.__dict__
@@ -247,7 +248,8 @@ class Annotations(object):
         filename = os.extsep.join([self.filename, PICKLED_EXT])
 
         check_clobber(filename, clobber)
-        log("Pickling %s object to file: %s..." % (self.__class__, filename),
+        log("Pickling %s object to file: %s..."
+            % (self.__class__.__name__, filename),
             verbose, end="")
         with open(filename, 'wb') as ofp:
             cPickle.dump(self, ofp, -1)
@@ -304,8 +306,8 @@ class Segmentation(Annotations):
 
     def _iter_rows(self, filename, verbose=True):
         """Override default row reading to ignore strand for Segmentations"""
-        for row in super(self.__class__, self)._iter_rows(filename,
-                                                          verbose=verbose):
+        for row in super(self.__class__,
+                         self)._iter_rows(filename, verbose=verbose):
             row['strand'] = '.';
             yield row;
 
