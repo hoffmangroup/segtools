@@ -135,11 +135,12 @@ class Annotations(object):
 
     def _from_pickle(self, filename, verbose=True):
         import cPickle
-
+        from .common import maybe_gzip_open
+        
         log("  Unpickling %s object..." % self.__class__.__name__,
             verbose, end="")
 
-        with open(filename, 'rb') as ifp:
+        with maybe_gzip_open(filename, 'rb') as ifp:
             object = cPickle.load(ifp)
             if not issubclass(object.__class__, self.__class__):
                 msg = ("Error: Cannot to load an indexed %s object"
@@ -334,6 +335,7 @@ class Segmentation(Annotations):
     @staticmethod
     def get_bed_metadata(filename):
         from .common import maybe_gzip_open
+        
         regexp = re.compile('description="(.*) segmentation of (.*)"')
 
         segtool = ""
