@@ -9,6 +9,8 @@ Assorted utility functions and classes common or useful to most of Segtools.
 Author: Orion Buske <stasis@uw.edu>
 """
 
+# XXX: the things in here should be moved to __init__; test
+
 import os
 import sys
 
@@ -22,17 +24,11 @@ from pkg_resources import resource_filename
 from tabdelim import DictReader, DictWriter, ListReader, ListWriter
 from rpy2.robjects import r, rinterface
 
-from . import log
-
-try:
-    PKG = __package__  # Python 2.6
-except NameError:
-    PKG = "segtools"
+from . import log, EXT_GZ, PKG
 
 PKG_R = os.extsep.join([PKG, "R"])
 PKG_RESOURCE = os.extsep.join([PKG, "resources"])
 
-EXT_GZ = "gz"
 EXT_PDF = "pdf"
 EXT_PNG = "png"
 EXT_TAB = "tab"
@@ -295,13 +291,21 @@ def fill_array(scalar, shape, dtype=None, *args, **kwargs):
     res.fill(scalar)
     return res
 
-def r_source(filename):
+def r_source(filename, transcriptfile=None):
     """Simplify importing R source in the package"""
 
+    filename_full = r_filename(filename)
+    print >>transcriptfile, "source(%r)" % filename_full
     try:
-        r.source(r_filename(filename))
+        r.source(filename_full)
     except RError:
-        die("Failed to load R package: %s\n" % filename)
+        die("Failed to load R package: %s\n" % filename_full)
+
+def r_arg_to_text(arg):
+    if isinstance(arg, bool):
+        return repr(arg).upper() # True -> TRUE, False -> FALSE
+    else:
+        return repr(arg)
 
 def r_call(func, *args, **kwargs):
     """Safer way to call R functions (without importing all that junk)
@@ -310,6 +314,17 @@ def r_call(func, *args, **kwargs):
     """
     from rpy2.robjects import numpy2ri
     # numpy2ri imported for side-effect
+
+    # Grab verbose value, with default to None
+    transcriptfile = kwargs.pop("transcriptfile", None)
+
+    if transcriptfile:
+        args_text = [r_arg_to_text(arg) for arg in args]
+        kwargs_text = ["%s = %s" % (key, r_arg_to_text(value))
+                       for key, value in kwargs.iteritems()]
+        all_args = ", ".join(args_text + kwargs_text)
+
+        print >>transcriptfile, "%s(%s)" % (func, all_args)
 
     # Make sure there are no None values in args or kwargs
     # rpy2 currently doesn't support passing Nones, so replace them with ""
@@ -326,8 +341,10 @@ def r_call(func, *args, **kwargs):
 def r_plot(func, *args, **kwargs):
     """Safely call R plotting function (with verbose print option)
 
-    Calls r_call
+    Calls r_call()
     Argument "verbose" is caught by r_plot and not passed on to R functions
+
+    Other than that, it does't do anything different from r_call()
     """
 
     # Grab verbose value, with default to True
@@ -532,8 +549,7 @@ def setup_directory(dirname):
     else:
         # Require write and execute permissions on existing dir
         if not os.access(dirname, os.W_OK | os.X_OK):
-            die("Error: Output directory does not have appropriate"
-                " permissions.")
+            die("Error: Output directory is not writeable and executable.")
 
 ## Given labels and mnemonics, returns an ordered list of label_keys
 ##   and a new labels dict mapping label_keys to label strings

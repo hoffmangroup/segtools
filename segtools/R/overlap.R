@@ -384,6 +384,7 @@ save.overlap.heatmap <- function(dirpath, namebase, tabfilename,
                                  mnemonic_file = NULL,
                                  col_mnemonic_file = NULL,
                                  clobber = FALSE,
+                                 max_contrast = FALSE,
                                  panel.size = 30,  # px
                                  comment.char = "#",
                                  ...) {
@@ -396,7 +397,7 @@ save.overlap.heatmap <- function(dirpath, namebase, tabfilename,
   height <- 400 + panel.size * nrow(data$data)
   width <- 400 + panel.size * ncol(data$data)
   save.images(dirpath, namebase,
-              levelplot.overlap(data, ...),
+              levelplot.overlap(data, ..., max.contrast = max_contrast),
               height = height,
               width = width,
               clobber = clobber)

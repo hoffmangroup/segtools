@@ -1,9 +1,11 @@
 1.1.7:
 
+* __init__.py: add gzipped pickles
+* segtools-overlap: add R transcript
+* segtools-overlap: add --max-contrast option
 * __init__.py: _from_pickle: fix UnpickleError message
 * common.R: fix a comment character-related bug
 * docs: automtically add --help output to every command
-* overlap.py: --help: cluster = "confusion matrix"
 
 1.1.6:
 

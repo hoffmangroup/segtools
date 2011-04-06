@@ -19,21 +19,22 @@ import sys
 
 from . import Annotations, Segmentation
 
-def preprocess(infile, annotation=False, verbose=False, clobber=False):
+def preprocess(infilename, outfilename=None, annotation=False, verbose=False, clobber=False):
     if annotation:
         file_type = Annotations
     else:
         file_type = Segmentation
-    print >>sys.stderr, ("Preprocessing into a(n) %s object."
+
+    print >>sys.stderr, ("Making %s object."
                          " See --help for more options"
                          % file_type.__name__)
-    parsed_obj = file_type(infile, verbose=verbose)
-    parsed_obj.pickle(verbose=verbose, clobber=clobber)
+    parsed_obj = file_type(infilename, verbose=verbose)
+    parsed_obj.pickle(outfilename, verbose=verbose, clobber=clobber)
 
 def parse_options(args):
     from optparse import OptionParser
 
-    usage = "%prog [OPTIONS] INFILE"
+    usage = "%prog [OPTIONS] INFILE [OUTFILE]"
     description = __doc__.strip()
     version = "%%prog %s" % __version__
     parser = OptionParser(usage=usage, version=version,
@@ -52,7 +53,7 @@ def parse_options(args):
 
     (options, args) = parser.parse_args(args)
 
-    if len(args) != 1:
+    if len_args < 1 or len_args > 2:
         parser.error("Inappropriate number of arguments")
 
     return (options, args)
@@ -60,11 +61,10 @@ def parse_options(args):
 ## Command-line entry point
 def main(args=sys.argv[1:]):
     (options, args) = parse_options(args)
-    infile = args[0]
     kwargs = {"verbose": options.verbose,
               "clobber": options.clobber,
               "annotation": options.annotation}
-    preprocess(infile, **kwargs)
+    preprocess(*args, **kwargs)
 
 if __name__ == "__main__":
     sys.exit(main())

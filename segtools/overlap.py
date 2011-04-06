@@ -17,7 +17,7 @@ import sys
 from collections import defaultdict
 from numpy import bincount, cast, iinfo, invert, logical_or, zeros
 
-from . import Annotations, log, Segmentation
+from . import Annotations, log, open_transcript, Segmentation
 from .common import check_clobber, die, get_ordered_labels, make_tabfilename, r_plot, r_source, setup_directory, SUFFIX_GZ, tab_saver
 from .html import save_html_div
 
@@ -50,9 +50,25 @@ PNG_SIZE_PER_PANEL = 400  # px
 SIGNIFICANCE_PNG_SIZE = 600  # px
 HEATMAP_PNG_SIZE = 600 # px
 
-def start_R():
-    r_source("common.R")
-    r_source("overlap.R")
+class RStarter(object):
+    """
+    function-like object with global state
+    """
+    def __init__(self):
+        self.started = False
+
+    def __call__(self, transcriptfile):
+        if self.started:
+            return
+
+        self.started = True
+        r_source("common.R", transcriptfile)
+        r_source("overlap.R", transcriptfile)
+
+        if transcriptfile:
+            print >>transcriptfile
+
+start_R = RStarter()
 
 def calc_overlap(subseg, qryseg, quick=False, clobber=False, mode=MODE_DEFAULT,
                  print_segments=False, dirpath=None, verbose=True,
@@ -257,8 +273,8 @@ def save_tab(dirpath, row_labels, col_labels, counts, totals, nones, mode,
 
 def save_plot(dirpath, namebase=NAMEBASE, clobber=False, verbose=True,
               row_mnemonic_file=None, col_mnemonic_file=None,
-              cluster=False):
-    start_R()
+              cluster=False, max_contrast=False, transcriptfile=None):
+    start_R(transcriptfile)
 
     tabfilename = make_tabfilename(dirpath, namebase)
     if not os.path.isfile(tabfilename):
@@ -267,12 +283,14 @@ def save_plot(dirpath, namebase=NAMEBASE, clobber=False, verbose=True,
     r_plot("save.overlap.heatmap", dirpath, namebase, tabfilename,
            mnemonic_file=row_mnemonic_file,
            col_mnemonic_file=col_mnemonic_file,
-           clobber=clobber, cluster=cluster, verbose=verbose)
+           clobber=clobber, cluster=cluster, verbose=verbose,
+           transcriptfile=transcriptfile, max_contrast=max_contrast)
 
 def save_performance_plot(dirpath, namebase=PERFORMANCE_NAMEBASE,
                           clobber=False, verbose=True,
-                          row_mnemonic_file=None, col_mnemonic_file=None):
-    start_R()
+                          row_mnemonic_file=None, col_mnemonic_file=None,
+                          transcriptfile=None):
+    start_R(transcriptfile)
 
     tabfilename = make_tabfilename(dirpath, NAMEBASE)
     if not os.path.isfile(tabfilename):
@@ -281,7 +299,8 @@ def save_performance_plot(dirpath, namebase=PERFORMANCE_NAMEBASE,
     r_plot("save.overlap.performance", dirpath, namebase, tabfilename,
            mnemonic_file=row_mnemonic_file,
            col_mnemonic_file=col_mnemonic_file,
-           clobber=clobber, verbose=verbose)
+           clobber=clobber, verbose=verbose,
+           transcriptfile=transcriptfile)
 
 def save_html(dirpath, bedfilename, featurefilename, mode,
               mnemonicfile=None, clobber=False):
@@ -317,8 +336,8 @@ def overlap(bedfilename, featurefilename, dirpath, regionfilename=None,
             region_fraction=REGION_FRACTION_DEFAULT,
             subregion_fraction=SUBREGION_FRACTION_DEFAULT, min_overlap=1,
             mnemonic_filename=None, feature_mnemonic_filename=None,
-            replot=False, noplot=False, cluster=False, verbose=True):
-
+            replot=False, noplot=False, cluster=False, max_contrast=False,
+            verbose=True):
     if not replot:
         setup_directory(dirpath)
 
@@ -342,12 +361,15 @@ def overlap(bedfilename, featurefilename, dirpath, regionfilename=None,
                  clobber=clobber, verbose=verbose)
 
     if not noplot:
-        save_performance_plot(dirpath, clobber=clobber, verbose=verbose,
-                              row_mnemonic_file=mnemonic_filename,
-                              col_mnemonic_file=feature_mnemonic_filename)
-        save_plot(dirpath, clobber=clobber, cluster=cluster, verbose=verbose,
-                  row_mnemonic_file=mnemonic_filename,
-                  col_mnemonic_file=feature_mnemonic_filename)
+        with open_transcript(dirpath, MODULE, True) as transcriptfile:
+            save_performance_plot(dirpath, clobber=clobber, verbose=verbose,
+                                  row_mnemonic_file=mnemonic_filename,
+                                  col_mnemonic_file=feature_mnemonic_filename,
+                                  transcriptfile=transcriptfile)
+            save_plot(dirpath, clobber=clobber, cluster=cluster,
+                      verbose=verbose, row_mnemonic_file=mnemonic_filename,
+                      col_mnemonic_file=feature_mnemonic_filename,
+                      max_contrast=max_contrast, transcriptfile=transcriptfile)
 
     log("Saving HTML div...", verbose)
     save_html(dirpath, bedfilename, featurefilename, mode=mode,
@@ -372,35 +394,32 @@ Overlap_analysis_tool_specification"
                           description=description)
 
     group = OptionGroup(parser, "Flags")
-    group.add_option("--clobber", action="store_true",
-                     dest="clobber", default=False,
+    group.add_option("--clobber", action="store_true", default=False,
                      help="Overwrite existing output files if the specified"
                      " directory already exists.")
     group.add_option("-q", "--quiet", action="store_false",
                      dest="verbose", default=True,
                      help="Do not print diagnostic messages.")
-    group.add_option("--quick", action="store_true",
-                     dest="quick", default=False,
+    group.add_option("--quick", action="store_true", default=False,
                      help="Compute values only for one chromosome.")
-    group.add_option("--replot", action="store_true",
-                     dest="replot", default=False,
+    group.add_option("--replot", action="store_true", default=False,
                      help="Load data from output tab files and"
                      " regenerate plots instead of recomputing data")
-    group.add_option("--noplot", action="store_true",
-                     dest="noplot", default=False,
+    group.add_option("--noplot", action="store_true", default=False,
                      help="Do not generate plots")
-    group.add_option("--cluster", action="store_true",
-                     dest="cluster", default=False,
-                     help="Cluster rows and columns in heat map plot"
-                     " (confusion matrix)")
+    group.add_option("--cluster", action="store_true", default=False,
+                     help="Cluster rows and columns in heat map plot")
     group.add_option("-p", "--print-segments", action="store_true",
-                     dest="print_segments", default=False,
+                     default=False,
                      help=("For each group"
                      " in the SEGMENTATION, a separate output file will be"
                      " created that contains a list of all the segments that"
                      " the group was found to overlap with. Output files"
                      " are named %s.X.txt, where X is the name"
                      " of the SEGMENTATION group.") % OVERLAPPING_SEGMENTS_NAMEBASE)
+    group.add_option("--max-contrast", action="store_true",
+                     help="Saturate color range instead of having it go from"
+                     " 0 to 1")
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Parameters")
@@ -464,6 +483,7 @@ def main(args=sys.argv[1:]):
               "print_segments": options.print_segments,
               "mode": options.mode,
               "min_overlap": options.min_overlap,
+              "max_contrast": options.max_contrast,
               "mnemonic_filename": options.mnemonic_filename,
               "feature_mnemonic_filename": options.feature_mnemonic_filename,
               "verbose": options.verbose}

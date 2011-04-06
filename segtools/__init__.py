@@ -3,8 +3,8 @@ from __future__ import division, with_statement
 
 """Segtools: tools for exploratory analysis of genomic segmentations
 
-Copyright 2009: Orion Buske <stasis@uw.edu>
 Copyright 2011: Michael Hoffman <mmh1@uw.edu>
+Copyright 2009: Orion Buske <stasis@uw.edu>
 """
 __version__ = "$Revision$"
 
@@ -13,10 +13,18 @@ import re
 import sys
 
 from collections import defaultdict
+from contextlib import contextmanager
 from functools import partial
 from numpy import array, int64, uint32
 
-PICKLED_EXT = "pkl"
+try:
+    PKG = __package__  # Python 2.6
+except NameError:
+    PKG = "segtools"
+
+EXT_GZ = "gz"
+EXT_PICKLE = "pkl"
+EXT_R = "R"
 
 DTYPE_SEGMENT_START = int64
 DTYPE_SEGMENT_END = int64
@@ -83,7 +91,7 @@ class Annotations(object):
 
     def _load(self, filename, verbose=True):
         format = self._get_file_format(filename)
-        if format == PICKLED_EXT:
+        if format == EXT_PICKLE:
             # Read pickled object file
             self._from_pickle(filename, verbose=verbose)
         elif format in set(["bed", "gff", "gtf"]):
@@ -241,18 +249,19 @@ class Annotations(object):
         self._n_label_bases = n_label_bases
         self._inv_labels = label_dict
 
-    def pickle(self, verbose=True, clobber=False):
+    def pickle(self, filename=None, verbose=True, clobber=False):
         """Pickle the annotations into an output file"""
         import cPickle
-        from .common import check_clobber
+        from .common import check_clobber, maybe_gzip_open
 
-        filename = os.extsep.join([self.filename, PICKLED_EXT])
+        if filename is None:
+            filename = os.extsep.join([self.filename, EXT_PICKLE, EXT_GZ])
 
         check_clobber(filename, clobber)
         log("Pickling %s object to file: %s..."
             % (self.__class__.__name__, filename),
             verbose, end="")
-        with open(filename, 'wb') as ofp:
+        with maybe_gzip_open(filename, 'wb') as ofp:
             cPickle.dump(self, ofp, -1)
 
         log(" done", verbose)
@@ -362,6 +371,17 @@ def log(message, verbose=True, end="\n", file=sys.stderr):
     if verbose:
         file.write(str(message))
         file.write(end)
+
+@contextmanager
+def open_transcript(dirpath, module, verified=False):
+    filename = os.path.join(dirpath, os.extsep.join([module, EXT_R]))
+    with open(filename, "w") as res:
+        if not verified:
+            print >>res, "## Experimental R transcript"
+            print >>res, "## You may not be able to run the R code in this file exactly as written."
+            print >>res
+
+        yield res
 
 if __name__ == "__main__":
     pass
