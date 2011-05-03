@@ -208,11 +208,11 @@ def parse_options(args):
     group.add_option("--noplot", action="store_true",
                      dest="noplot", default=False,
                      help="Do not generate plots")
-    group.add_option("--no_segments", action="store_false",
+    group.add_option("--no-segments", action="store_false",
                      dest="show_segments", default=True,
                      help="Do not show total segments covered by labels"
                      " in size plot")
-    group.add_option("--no_bases", action="store_false",
+    group.add_option("--no-bases", action="store_false",
                      dest="show_bases", default=True,
                      help="Do not show total bases covered by labels"
                      " in size plot")
