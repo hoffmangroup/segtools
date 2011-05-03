@@ -81,7 +81,7 @@ segmentations, Segtools uses fields ``1-4`` of a BED file or fields
 ``1,3-5`` of a GFF file.
 
 Annotations (i.e., segmentations in which overlapping segments are
-allowed) may be specified in `BED format`_, `GFF format`_, or `GTF formt`_.
+allowed) may be specified in `BED format`_, `GFF format`_, or `GTF format`_.
 
 If you want to change the order in which labels appear or if you want
 to change the text displayed in plots, a :ref:`mnemonic file` can be
