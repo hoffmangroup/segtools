@@ -81,7 +81,7 @@ segmentations, Segtools uses fields ``1-4`` of a BED file or fields
 ``1,3-5`` of a GFF file.
 
 Annotations (i.e., segmentations in which overlapping segments are
-allowed) may be specified in `BED format`_, `GFF format`_, FIXME[OJB]
+allowed) may be specified in `BED format`_, `GFF format`_, or `GTF formt`_.
 
 If you want to change the order in which labels appear or if you want
 to change the text displayed in plots, a :ref:`mnemonic file` can be
@@ -384,12 +384,7 @@ In these cases, the :option:`--normalize` flag should be used.
 
 .. include:: _build/cmdline-help/segtools-aggregation.help.txt
 
-**Selected options**:
-
-.. cmdoption:: --help, -h
-
-   Display complete usage information
-
+**Further description of selected options**:
 .. cmdoption:: --mode <mode>
 
    Specify the aggregation mode. The following options are available: 
@@ -466,30 +461,6 @@ In these cases, the :option:`--normalize` flag should be used.
    features, such as TSSs split by expression level or cell type.
 
 
-.. cmdoption:: --significance
-
-   This option includes the significance of the
-   overlap at a region in the plot. If :option:`--groups` is not
-   specified or there is only one group, then significance is shown by
-   shading the regions that are significant. Otherwise, the significance
-   of the various groups are shown using colored "rugs" at the bottom of 
-   the plot. The probability of observing :math:`n` overlapping segments
-   of a given label at a given position is modeled with a binomial
-   distribution: :math:`p = binom(n, N, f_{rand})`, where :math:`N` is the
-   total number of overlapping segments at that position and
-   :math:`f_{rand}` is the same as in :option:`--normalize`.
-   The p-value is then the probability of observing an overlap count
-   as extreme or more extreme than :math:`n` (either enrichment or
-   depletion). This corresponds to a two-tailed binomial test. These
-   pvalues are then transformed to qvalues using Storey et al.'s QVALUE
-   R package, which should be installed if you use this option.
-
-   .. Didn't use note directive because of latex math image backgrounds.
-
-   *Note:* If :math:`n > 100` and :math:`f_{rand}*N < 10`, a Poisson
-   approximation is used.
-
-
 .. ####################### FEATURE DISTANCE #######################
 
 .. _segtools-feature-distance:
@@ -540,12 +511,9 @@ between segments in one label with annotations in one group. Further, the
 ability of each segment label to predict each annotation group is measured
 and summarized in a precision-recall plot or a confusion matrix heat map.
 
-**Selected options**:
+.. include:: _build/cmdline-help/segtools-overlap.help.txt
 
-.. cmdoption:: --by <mode>, -b <mode>
-
-   This specifies whether the overlap analysis will be base-wise
-   (``<mode> = "bases"``) or segment-wise (``<mode> = "segments"``). 
+**Additional description of selected options**:
 
 .. cmdoption:: --min-overlap <n>
 
@@ -560,7 +528,6 @@ and summarized in a precision-recall plot or a confusion matrix heat map.
    The precision-recall plot is accurate for base-wise overlap, but is a rough
    approximation for segment-wise overlap. Use such results with caution.
 
-.. include:: _build/cmdline-help/segtools-overlap.help.txt
 
 
 .. ####################### SIGNAL DISTRIBUTION #######################
@@ -606,7 +573,7 @@ the final output. Here is sample pseudocode::
 
 .. include:: _build/cmdline-help/segtools-signal-distribution.help.txt
 
-**Selected options**:
+**Additional description of selected options**:
 
 .. cmdoption:: --chrom <chrom>, -c <chrom>
 
@@ -654,15 +621,6 @@ This command compares two segmentations by a specified metric. Currently,
 the only supported metric is :option:`--edit-distance`.
 
 .. include:: _build/cmdline-help/segtools-compare.help.txt
-
-**Selected options**:
-
-.. cmdoption:: --edit-distance, -d
-
-   Prints (to standard output) the base-wise edit distance between two
-   segmentations.  This is the number of bases that are assigned
-   different labels in the two segmentations.
-
 
 
 .. ####################### FLATTEN BED #######################

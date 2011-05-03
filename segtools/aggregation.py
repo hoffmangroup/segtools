@@ -926,15 +926,15 @@ def parse_options(args):
                      " normalized by the number of segments in that group"
                      " instead of the raw counts"
                      " (normalize over SEGMENTATION labels)")
-    group.add_option("--significance", action="store_true",
-                     dest="significance", default=False,
-                     help="Include the significance of the aggregation"
-                     " at each base in the plot. Warning: significance"
-                     " is approximated using a binomial distribution"
-                     " adjusted to a q-value threshold. Uses the QVALUE"
-                     " package which must be installed. This method does"
-                     " not always yield reasonable results, so use with"
-                     " extreme caution.")
+#     group.add_option("--significance", action="store_true",
+#                      dest="significance", default=False,
+#                      help="Include the significance of the aggregation"
+#                      " at each base in the plot. Warning: significance"
+#                      " is approximated using a binomial distribution"
+#                      " adjusted to a q-value threshold. Uses the QVALUE"
+#                      " package which must be installed. This method does"
+#                      " not always yield reasonable results, so use with"
+#                      " extreme caution.")
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Main aggregation options")
@@ -991,7 +991,7 @@ def main(args=sys.argv[1:]):
               "by_groups": options.by_groups,
               "normalize": options.normalize,
               "mode": options.mode,
-              "significance": options.significance,
+#               "significance": options.significance,
               "mnemonic_file": options.mnemonic_file}
     validate(bedfilename, featurefilename, options.outdir, **kwargs)
 
