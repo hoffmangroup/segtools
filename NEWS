@@ -6,6 +6,12 @@
 * __init__.py: _from_pickle: fix UnpickleError message
 * common.R: fix a comment character-related bug
 * docs: automtically add --help output to every command
+* segtools-length-distribution: allows more generic ANNOTATIONS as input
+* segtools-length-distribution: added --no-segments and --no-bases
+  flags to control display on size summary plot
+* segtools-nucleotide-frequency: improved speed by caching 
+  whole chromosome sequence
+
 
 1.1.6:
 
