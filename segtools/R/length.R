@@ -144,8 +144,10 @@ panel.segment.sizes <-
 
 barchart.segment.sizes <- 
   function(data, 
-           x = reorder(label, -(frac.segs + frac.bp)) ~ frac.bp + frac.segs,
+           x = reorder(label, -frac.bp) ~ frac.bp + frac.segs,
            main = NULL, #"Segment sizes",
+           show_bases = TRUE,
+           show_segments = TRUE,
            xlab = "Fraction of segmentation",
            ylab = "Segment label",
            panel = panel.segment.sizes,
@@ -160,8 +162,24 @@ barchart.segment.sizes <-
            par.settings = list(superpose.polygon = list(col = col)),
            ...)
 {
-  
-  max.frac <- min(c(1, 1.05 * max(c(data$frac.bp, data$frac.segs))))
+  max.data <- max(c(data$frac.bp, data$frac.segs))
+  if (show_bases & !show_segments) {
+    delayedAssign("x", reorder(label, -frac.bp) ~ frac.bp)
+    auto.key$columns <- 1
+    auto.key$text <- auto.key$text[1]
+    col <- c(col[1])
+    max.data <- max(data$frac.bp)
+  } else if (show_segments & !show_bases) {
+    delayedAssign("x", reorder(label, -frac.segs) ~ frac.segs)
+    auto.key$columns <- 2
+    auto.key$text <- auto.key$text[2]
+    col <- c(col[2])
+    max.data <- max(data$frac.segs)
+  } else if (!show_segments & !show_bases) {
+    stop("Expected either/both show_bases or show_segments")
+  }
+
+  max.frac <- min(c(1, 1.05 * max.data))
 
   barchart(x = x, 
            data = data,
@@ -171,6 +189,7 @@ barchart.segment.sizes <-
            panel = panel,
            as.table = as.table,
            xlim = xlim,
+           col = col,
            auto.key = auto.key,
            par.settings = par.settings,
            ...)

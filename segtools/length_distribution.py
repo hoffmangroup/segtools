@@ -55,7 +55,7 @@ def annotations_lengths(annotations):
             labeled_rows = rows[labeled_row_indexes]
             length = labeled_rows['end'] - labeled_rows['start']
             lengths[label_key].append(length)
-            length[LABEL_ALL].append(length)
+            lengths[LABEL_ALL].append(length)
 
     # key: label_key
     # val: int
@@ -88,9 +88,9 @@ def save_size_tab(lengths, labels, num_bp, dirpath, verbose=True,
     with tab_saver(dirpath, namebase, FIELDNAMES_SUMMARY,
                    clobber=clobber, verbose=verbose) as saver:
         # "all" row first
-        total_bp = sum(num_bp.itervalues())
+        total_bp = num_bp[LABEL_ALL]
         row = make_size_row(LABEL_ALL, lengths[LABEL_ALL],
-                               num_bp[LABEL_ALL], total_bp)
+                            total_bp, total_bp)
         saver.writerow(row)
 
         # Remaining label rows
@@ -140,7 +140,8 @@ def save_plot(dirpath, namebase=NAMEBASE, clobber=False, verbose=True,
 
 ## Generates and saves an R plot of the length distributions
 def save_size_plot(dirpath, namebase=NAMEBASE_SIZES, clobber=False,
-                   verbose=True, mnemonic_file=None):
+                   verbose=True, mnemonic_file=None,
+                   show_bases=True, show_segments=True):
     start_R()
 
     # Load data from corresponding tab file
@@ -149,7 +150,8 @@ def save_size_plot(dirpath, namebase=NAMEBASE_SIZES, clobber=False,
         die("Unable to find tab file: %s" % tabfilename)
 
     r_plot("save.segment.sizes", dirpath, namebase, tabfilename,
-           mnemonic_file=mnemonic_file, clobber=clobber, verbose=verbose)
+           mnemonic_file=mnemonic_file, clobber=clobber, verbose=verbose,
+           show_segments=show_segments, show_bases=show_bases)
 
 def save_html(dirpath, clobber=False, mnemonicfile=None):
     extra_namebases = {"sizes": NAMEBASE_SIZES}
@@ -160,7 +162,8 @@ def save_html(dirpath, clobber=False, mnemonicfile=None):
 
 ## Package entry point
 def validate(filename, dirpath, clobber=False, replot=False, noplot=False,
-             verbose=True, mnemonic_file=None):
+             verbose=True, mnemonic_file=None,
+             show_segments=True, show_bases=True):
     if not replot:
         setup_directory(dirpath)
         annotations = Annotations(filename, verbose=verbose)
@@ -177,7 +180,9 @@ def validate(filename, dirpath, clobber=False, replot=False, noplot=False,
         save_plot(dirpath, mnemonic_file=mnemonic_file,
                   clobber=clobber, verbose=verbose)
         save_size_plot(dirpath, clobber=clobber, verbose=verbose,
-                       mnemonic_file=mnemonic_file)
+                       mnemonic_file=mnemonic_file,
+                       show_segments=show_segments,
+                       show_bases=show_bases)
 
     save_html(dirpath, clobber=clobber, mnemonicfile=mnemonic_file)
 
@@ -203,6 +208,14 @@ def parse_options(args):
     group.add_option("--noplot", action="store_true",
                      dest="noplot", default=False,
                      help="Do not generate plots")
+    group.add_option("--no_segments", action="store_false",
+                     dest="show_segments", default=True,
+                     help="Do not show total segments covered by labels"
+                     " in size plot")
+    group.add_option("--no_bases", action="store_false",
+                     dest="show_bases", default=True,
+                     help="Do not show total bases covered by labels"
+                     " in size plot")
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Output")
@@ -229,7 +242,7 @@ def main(args=sys.argv[1:]):
     filename = args[0]
 
     kwargs = dict(options.__dict__)
-    outdir = kwargs.pop("dict")
+    outdir = kwargs.pop("outdir")
     validate(filename, outdir, **kwargs)
 
 if __name__ == "__main__":

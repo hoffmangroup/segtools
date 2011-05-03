@@ -89,7 +89,6 @@ def calc_nucleotide_frequencies(annotations, genome,
     # Count (di)nucleotides over annotations
     for chromosome in genome:
         chrom = chromosome.name
-        log("\t%s" % chrom, verbose)
 
         try:
             chrom_rows = annotations.chromosomes[chrom]
@@ -101,6 +100,7 @@ def calc_nucleotide_frequencies(annotations, genome,
         except KeyError:
             continue
 
+        log("\t%s" % chrom, verbose)
         for row in chrom_rows:
             start = row['start']
             end = row['end']
