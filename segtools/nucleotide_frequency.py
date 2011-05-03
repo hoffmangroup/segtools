@@ -54,8 +54,8 @@ def start_R():
     r_source("dinucleotide.R")
 
 ## Caclulates nucleotide and dinucleotide frequencies over the specified
-## segmentation
-def calc_nucleotide_frequencies(segmentation, genome,
+## annotations
+def calc_nucleotide_frequencies(annotations, genome,
                                 nuc_categories=NUC_CATEGORIES,
                                 dinuc_categories=DINUC_CATEGORIES,
                                 quick=False, verbose=True):
@@ -79,13 +79,13 @@ def calc_nucleotide_frequencies(segmentation, genome,
     nuc_counts = defaultdict(dict)
     dinuc_counts = defaultdict(dict)
 
-    labels = segmentation.labels
+    labels = annotations.labels
     for label_key in labels.iterkeys():
         nuc_counts[label_key] = zeros(len(nuc_categories)+1, dtype=numpy.long)
         dinuc_counts[label_key] = zeros(len(dinuc_categories)+1,
                                         dtype=numpy.long)
 
-    # Count (di)nucleotides over segmentation
+    # Count (di)nucleotides over annotations
     for chromosome in genome:
         chrom = chromosome.name
         log("\t%s" % chrom, verbose)
@@ -181,7 +181,7 @@ def validate(filename, genomedatadir, dirpath, clobber=False, quick=False,
              replot=False, noplot=False, mnemonic_file=None, verbose=True):
     setup_directory(dirpath)
     if not replot:
-        anotations = Annotations(filename, verbose=verbose)
+        annotations = Annotations(filename, verbose=verbose)
         labels = annotations.labels
 
         with Genome(genomedatadir) as genome:

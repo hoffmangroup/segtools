@@ -53,7 +53,7 @@ def parse_options(args):
 
     (options, args) = parser.parse_args(args)
 
-    if len_args < 1 or len_args > 2:
+    if len(args) < 1 or len(args) > 2:
         parser.error("Inappropriate number of arguments")
 
     return (options, args)
