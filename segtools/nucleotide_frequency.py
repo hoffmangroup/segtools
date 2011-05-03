@@ -13,6 +13,7 @@ file.
 import numpy
 import os
 import sys
+import warnings
 
 from collections import defaultdict
 from genomedata import Genome
@@ -94,12 +95,16 @@ def calc_nucleotide_frequencies(annotations, genome,
             chrom_rows = annotations.chromosomes[chrom]
             # Store entire chromosome's sequence as string in memory
             # for speedup
+            warnings.simplefilter("ignore")
             chrom_sequence = chromosome.seq[0:chromosome.end].tostring().upper()
+            warnings.resetwarnings()
         except KeyError:
             continue
 
         for row in chrom_rows:
-            start, end, label = row[:3]
+            start = row['start']
+            end = row['end']
+            label = row['key']
 
             sequence = chrom_sequence[start:end]
 
