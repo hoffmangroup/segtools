@@ -36,7 +36,8 @@ class Annotations(object):
 
     chromosomes: a dict
       key: chromosome name
-      val: segments, a numpy.ndarray, (each row is a (start, end, key) struct)
+      val: segments, a numpy.ndarray, 
+           (each row is a (start, end, key, [strand, ...]) struct)
            sorted by start, end
            * These segments are not necessarily non-overlapping
     labels: a dict

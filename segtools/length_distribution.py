@@ -2,8 +2,8 @@
 from __future__ import division, with_statement
 
 """
-Provides command-line and package entry points for analyzing the segment
-length distribution in a provided BED-formatted segmentation.
+Provides command-line and package entry points for analyzing the
+length distribution of entries in a provided segmentation or annotations file.
 
 """
 
@@ -19,7 +19,7 @@ import sys
 from collections import defaultdict
 from numpy import concatenate, median
 
-from . import Segmentation
+from . import Annotations
 from .common import die, get_ordered_labels, LABEL_ALL, make_tabfilename, r_plot, r_source, setup_directory, tab_saver
 
 from .html import save_html_div
@@ -41,20 +41,21 @@ def start_R():
     r_source("common.R")
     r_source("length.R")
 
-## Given a segmentation, returns the length of each segment
-def segmentation_lengths(segmentation):
+## Given annotations, returns the length of each annotation
+def annotations_lengths(annotations):
     # key: label_key
     # val: list of numpy.ndarray
     lengths = defaultdict(list)
-    labels = segmentation.labels
+    labels = annotations.labels
 
     # convert segment coords to lengths
-    for segments in segmentation.chromosomes.itervalues():
+    for rows in annotations.chromosomes.itervalues():
         for label_key in labels.iterkeys():
-            labeled_row_indexes = (segments['key'] == label_key)
-            labeled_rows = segments[labeled_row_indexes]
-            lengths[label_key].append(labeled_rows['end'] -
-                                      labeled_rows['start'])
+            labeled_row_indexes = (rows['key'] == label_key)
+            labeled_rows = rows[labeled_row_indexes]
+            length = labeled_rows['end'] - labeled_rows['start']
+            lengths[label_key].append(length)
+            length[LABEL_ALL].append(length)
 
     # key: label_key
     # val: int
@@ -88,9 +89,8 @@ def save_size_tab(lengths, labels, num_bp, dirpath, verbose=True,
                    clobber=clobber, verbose=verbose) as saver:
         # "all" row first
         total_bp = sum(num_bp.itervalues())
-        all_lengths = concatenate(lengths.values())
-        row = make_size_row(LABEL_ALL, all_lengths,
-                               total_bp, total_bp)
+        row = make_size_row(LABEL_ALL, lengths[LABEL_ALL],
+                               num_bp[LABEL_ALL], total_bp)
         saver.writerow(row)
 
         # Remaining label rows
@@ -159,15 +159,15 @@ def save_html(dirpath, clobber=False, mnemonicfile=None):
                   clobber=clobber, title=HTML_TITLE)
 
 ## Package entry point
-def validate(bedfilename, dirpath, clobber=False, replot=False, noplot=False,
+def validate(filename, dirpath, clobber=False, replot=False, noplot=False,
              verbose=True, mnemonic_file=None):
     if not replot:
         setup_directory(dirpath)
-        segmentation = Segmentation(bedfilename, verbose=verbose)
+        annotations = Annotations(filename, verbose=verbose)
 
-        labels = segmentation.labels
+        labels = annotations.labels
 
-        lengths, num_bp=segmentation_lengths(segmentation)
+        lengths, num_bp = annotations_lengths(annotations)
         save_tab(lengths, labels, num_bp, dirpath,
                  clobber=clobber, verbose=verbose)
         save_size_tab(lengths, labels, num_bp, dirpath,
@@ -184,7 +184,7 @@ def validate(bedfilename, dirpath, clobber=False, replot=False, noplot=False,
 def parse_options(args):
     from optparse import OptionGroup, OptionParser
 
-    usage = "%prog [OPTIONS] SEGMENTATION"
+    usage = "%prog [OPTIONS] ANNOTATIONS"
     version = "%%prog %s" % __version__
     parser = OptionParser(usage=usage, version=version)
 
@@ -226,14 +226,11 @@ def parse_options(args):
 ## Command-line entry point
 def main(args=sys.argv[1:]):
     (options, args) = parse_options(args)
-    bedfilename = args[0]
+    filename = args[0]
 
-    kwargs = {"clobber": options.clobber,
-              "verbose": options.verbose,
-              "replot": options.replot,
-              "noplot": options.noplot,
-              "mnemonic_file": options.mnemonic_file}
-    validate(bedfilename, options.outdir, **kwargs)
+    kwargs = dict(options.__dict__)
+    outdir = kwargs.pop("dict")
+    validate(filename, outdir, **kwargs)
 
 if __name__ == "__main__":
     sys.exit(main())

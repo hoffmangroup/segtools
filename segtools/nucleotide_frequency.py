@@ -5,7 +5,8 @@ __version__ = "$Revision$"
 
 """
 Provides command-line and package entry points for analyzing nucleotide
-and dinucleotide frequencies for each segmentation label.
+and dinucleotide frequencies for each label in the segmentation or annotations
+file.
 
 """
 
@@ -17,7 +18,7 @@ from collections import defaultdict
 from genomedata import Genome
 from numpy import zeros
 
-from . import log, Segmentation
+from . import log, Annotations
 from .common import die, make_tabfilename, r_plot,  r_source, setup_directory, tab_saver
 
 from .html import save_html_div
@@ -90,15 +91,17 @@ def calc_nucleotide_frequencies(segmentation, genome,
         log("\t%s" % chrom, verbose)
 
         try:
-            segments = segmentation.chromosomes[chrom]
+            chrom_rows = annotations.chromosomes[chrom]
+            # Store entire chromosome's sequence as string in memory
+            # for speedup
+            chrom_sequence = chromosome.seq[0:chromosome.end].tostring().upper()
         except KeyError:
             continue
 
-        for segment in segments:
-            seg_start, seg_end, seg_label = segment
+        for row in chrom_rows:
+            start, end, label = row[:3]
 
-            sequence = chromosome.seq[seg_start:seg_end]
-            sequence = sequence.tostring().upper()
+            sequence = chrom_sequence[start:end]
 
             # XXXopt: could be optimized to use matrix operations
             # to determine number of occurances of each (di)nuc
@@ -113,17 +116,17 @@ def calc_nucleotide_frequencies(segmentation, genome,
                 nuc_cat = quick_nuc_categories[cur_nuc]
                 if nuc_cat == {}:  # Didn't find; put in last bin
                     #print >>sys.stderr, "Unknown nuc: %s" % (cur_nuc)
-                    nuc_cat = len(nuc_counts[seg_label]) - 1
+                    nuc_cat = len(nuc_counts[label]) - 1
 
-                nuc_counts[seg_label][nuc_cat] += 1
+                nuc_counts[label][nuc_cat] += 1
 
                 # Record dinucleotide (last and current)
                 if prev_nuc is not None:
                     dinuc_cat = quick_dinuc_categories[(prev_nuc, cur_nuc)]
                     if dinuc_cat == {}:  # Didn't find; put in last bin
-                        dinuc_cat = len(dinuc_counts[seg_label]) - 1
+                        dinuc_cat = len(dinuc_counts[label]) - 1
 
-                    dinuc_counts[seg_label][dinuc_cat] += 1
+                    dinuc_counts[label][dinuc_cat] += 1
 
         # Only look at first chromosome if quick
         if quick: break
@@ -174,16 +177,16 @@ def save_html(dirpath, clobber=False, mnemonicfile=None):
                   mnemonicfile=mnemonicfile, title=HTML_TITLE)
 
 ## Package entry point
-def validate(bedfilename, genomedatadir, dirpath, clobber=False, quick=False,
+def validate(filename, genomedatadir, dirpath, clobber=False, quick=False,
              replot=False, noplot=False, mnemonic_file=None, verbose=True):
     setup_directory(dirpath)
     if not replot:
-        segmentation = Segmentation(bedfilename, verbose=verbose)
-        labels = segmentation.labels
+        anotations = Annotations(filename, verbose=verbose)
+        labels = annotations.labels
 
         with Genome(genomedatadir) as genome:
             nuc_counts, dinuc_counts = \
-                calc_nucleotide_frequencies(segmentation, genome,
+                calc_nucleotide_frequencies(annotations, genome,
                                             quick=quick, verbose=verbose)
 
         save_tab(labels, nuc_counts, dinuc_counts, dirpath,
@@ -198,7 +201,7 @@ def validate(bedfilename, genomedatadir, dirpath, clobber=False, quick=False,
 def parse_options(args):
     from optparse import OptionGroup, OptionParser
 
-    usage = "%prog [OPTIONS] SEGMENTATION GENOMEDATAFILE"
+    usage = "%prog [OPTIONS] ANNOTATIONS GENOMEDATAFILE"
     version = "%%prog %s" % __version__
     parser = OptionParser(usage=usage, version=version)
 
@@ -243,16 +246,12 @@ def parse_options(args):
 ## Command-line entry point
 def main(args=sys.argv[1:]):
     (options, args) = parse_options(args)
-    bedfilename = args[0]
+    filename = args[0]
     genomedatadir = args[1]
 
-    kwargs = {"clobber": options.clobber,
-              "verbose": options.verbose,
-              "quick": options.quick,
-              "replot": options.replot,
-              "noplot": options.noplot,
-              "mnemonic_file": options.mnemonic_file}
-    validate(bedfilename, genomedatadir, options.outdir, **kwargs)
+    kwargs = dict(options.__dict__)
+    outdir = kwargs.pop("outdir")
+    validate(filename, genomedatadir, outdir, **kwargs)
 
 if __name__ == "__main__":
     sys.exit(main())
