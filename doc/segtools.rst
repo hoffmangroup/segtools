@@ -32,19 +32,27 @@ Please cite the manuscript if you use Segtools.
 
 Installation
 ============
-A simple, interactive script_ has been created to install Segtools
-(and most dependencies) on any Linux platform. Installation is as simple
-as downloading and running this script.  For instance::
 
-   wget http://noble.gs.washington.edu/proj/segtools/install.py
-   python install.py
+Segtools requires the following prerequisites:
 
-.. note::
-   The following prerequisites must be installed first:
+- Python 2.5.1-2.7, with Rpy2 2.1.3+ and Genomedata packages
+- Zlib
+- Numpy 1.3+
+- R 2.10.0+, with latticeExtra and reshape packages
 
-   - Python 2.5.1-2.7
-   - Zlib
+Once these prerequisites are properly installed, Segtools can be
+installed with::
 
+  easy_install segtools
+
+To help install these prerequisites and Segtools on any Linux platform,
+we developed a simple, interactive script_. To download and run the script::
+
+  wget http://noble.gs.washington.edu/proj/segtools/install.py
+  python install.py
+
+We are constantly trying to improve the installation script,
+so please let use know if you run into any trouble using it.
 
 Segmentations versus annotations
 ================================
@@ -84,7 +92,8 @@ Annotations (i.e., segmentations in which overlapping segments are
 allowed) may be specified in `BED format`_, `GFF format`_, or `GTF format`_.
 
 If you want to change the order in which labels appear or if you want
-to change the text displayed in plots, a :ref:`mnemonic file` can be
+to change the text displayed in plots, 
+a :ref:`mnemonic file <mnemonic file>` can be
 created.  Segtools commands can then be re-run with the ``--replot``
 flag and the ``--mnemonic-file=<FILE>`` option to regenerate the plots
 without redoing the computation.
@@ -230,7 +239,7 @@ run `segtools-length-distribution -opt ARG` from Python with the following:
 >>> from segtools import length_distribution
 >>> length_distribution.main(["-opt", "ARG"])
 
-The ommands and corresponding modules are as follows:
+The commands and corresponding modules are as follows:
 
 ======================  ====================
 Command (segtools-...)       Module
@@ -266,30 +275,29 @@ segtools-length-distribution
 
 .. program:: segtools-length-distribution
 
-**segtools-length-distribution [OPTIONS] SEGMENTATION**
-
 This command summarizes the distribution of segment lengths, by label.
 It generates a violin plot (a box plot, but instead of a box, it is a
 smoothed density curve), a simple bar chart that describes the overall
-label composition of the segmentation, and a table listing the number
+label composition of the annotations file,
+and a table listing the number
 of segments of each label, the mean and median segment lengths, and
 the number of bases covered by each label.
 
+.. include:: _build/cmdline-help/segtools-length-distribution.help.txt
+
 .. note::
-   This command requires only a segmentation as a parameter and performs
+   This command requires only an annotations file as a parameter and performs
    minimal computation. As such, it is a useful test to make sure Segtools
    works on your system.
 
-.. warning::
+.. note::
    Since the violin plot is based upon a density distribution, the lengths
-   of all the segments in the segmentation is saved in a tab file to allow
+   of all the segments in the segmentation or annotations
+   is saved in a tab file to allow
    this plot to be regenerated solely from R. Unfortunately, for large
-   segmentations, this tab file can get very large (hundreds of megabytes).
+   annotationss, this tab file can get very large (hundreds of megabytes).
    We hope to revise this by saving instead a histogram-like summary of the
    segment lengths instead of a separate length for each segment.
-
-.. include:: _build/cmdline-help/segtools-length-distribution.help.txt
-
 
 
 .. ####################### NUCLEOTIDE FREQUENCY #######################
@@ -301,15 +309,13 @@ segtools-nucleotide-frequency
 
 .. program:: segtools-nucleotide-frequency
 
-**segtools-nucleotide-frequency [OPTIONS] SEGMENTATION GENOMEDATAFILE**
-
 This command generates a heatmap of the normalized dinucleotide frequencies
 found across segments of each label, as well as table of such nucleotide and
 dinucleotide frequencies.
 
-As input, the command takes a segmentation and a Genomedata_
-archive for the genome the segmentation covers. The Genomedata archive is used
-solely for the nucleotide sequence. 
+As input, the command takes a annotations file
+and a Genomedata_ archive for the genome the annotations cover.
+The Genomedata archive is used solely for the nucleotide sequence. 
 
 .. include:: _build/cmdline-help/segtools-nucleotide-frequency.help.txt
 
@@ -322,8 +328,6 @@ segtools-transition
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. program:: segtools-transition
-
-**segtools-transition [OPTIONS] SEGMENTATION**
 
 This command takes a segmentation and computes the frequencies all all
 possible transitions between segment labels.  If a segment with label
@@ -360,8 +364,6 @@ segtools-aggregation
 
 .. program:: segtools-aggregation
 
-**segtools-aggregation [OPTIONS] SEGMENTATION ANNOTATIONS**
-
 This command looks at the aggregate occurrence of segment labels around
 and within annotated features. A typical example of this would be to
 look at the relative occurrences of segment labels around transcription
@@ -385,6 +387,7 @@ In these cases, the :option:`--normalize` flag should be used.
 .. include:: _build/cmdline-help/segtools-aggregation.help.txt
 
 **Further description of selected options**:
+
 .. cmdoption:: --mode <mode>
 
    Specify the aggregation mode. The following options are available: 
@@ -470,9 +473,7 @@ segtools-feature-distance
 
 .. program:: segtools-feature-distance
 
-**segtools-feature-distance [OPTIONS] SEGMENTATION ANNOTATIONS...**
-
-This command takes a segmentation and one or more annotation files and
+This command takes a segmentation and one or more annotations files and
 prints the distance from each segment to the nearest annotation in each
 file. Results are printed in tab-delimited format on stdout::
 
@@ -504,7 +505,7 @@ segtools-overlap
 **segtools-overlap [OPTIONS] SEGMENTATION ANNOTATIONS**
 
 This command measures the base-wise or segment-wise overlap between segments
-in a segmentation and an annotation. Segments are classified by
+in a segmentation and an annotations file. Segments are classified by
 their label and annotations can be classified with a group, so the primary
 output is a confusion matrix with each cell representing the amount of overlap
 between segments in one label with annotations in one group. Further, the
@@ -524,10 +525,8 @@ and summarized in a precision-recall plot or a confusion matrix heat map.
    directly adjacent, and ``<n> = -1`` indicating that there can be one base
    separation for them to still count as overlapping.
 
-.. warning::
-   The precision-recall plot is accurate for base-wise overlap, but is a rough
-   approximation for segment-wise overlap. Use such results with caution.
-
+.. note::
+   The precision-recall plot is only generated for base-wise overlap.
 
 
 .. ####################### SIGNAL DISTRIBUTION #######################
@@ -539,8 +538,6 @@ segtools-signal-distribution
 
 .. program:: segtools-signal-distribution
 
-**segtools-signal-distribution [OPTIONS] SEGMENTATION GENOMEDATAFILE**
-
 This command takes a segmentation and a Genomedata_ archive and summarizes
 the distribution of values for each Genomedata track that fall within
 segments of each label. Essentially, it generates a histogram for each
@@ -549,7 +546,7 @@ track found in segments of that label. Currently, Segtools no longer
 generates this matrix of histograms, but instead generates a heatmap
 of mean and standard deviation values.
 
-.. warning::
+.. note::
    Mean and standard deviation values are approximated from a histogram
    (binned) representation of the data. The effect should be minimal, but
    it is important to keep this in mind as a potential source of error.
@@ -615,8 +612,6 @@ segtools-compare
 
 .. program:: segtools-compare
 
-**segtools-compare [OPTIONS] SEGMENTATION SEGMENTATION**
-
 This command compares two segmentations by a specified metric. Currently,
 the only supported metric is :option:`--edit-distance`.
 
@@ -632,13 +627,12 @@ segtools-flatten
 
 .. program:: segtools-flatten
 
-**segtools-flatten [OPTIONS] SEGMENTATION...**
-
 This command takes multiple segmentations and combinatorially flattens them
 into one. Thus, there is a segment boundary in the new segmentation
 for every segment boundary in any of the input segmentations. The label for
 each new segment is a concatenation of the labels for segments that
-overlap this segment. 
+overlap this segment. We hope to expand this to support annotations files
+in the near future.
 
 For example, given two files of regions of high transcription factor binding, 
 one with peak calls and one with a lower threshold, you could create a single
@@ -653,7 +647,8 @@ both files, and one for bases covered by only peaks.gff (if there are
 any).  The command prints the new segmentation in BED format to
 standard output, by default, but ``--mnemonic-file`` and ``--outfile``
 can be specified to create a segmentation file with a corresponding
-:ref:`mnemonic file` that can be used in further Segtools analyses.
+:ref:`mnemonic file <mnemonic file>` that can be used in further
+Segtools analyses.
 
 .. include:: _build/cmdline-help/segtools-flatten.help.txt
 
@@ -666,8 +661,6 @@ segtools-html-report
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. program:: segtools-html-report
-
-**segtools-html-report [OPTIONS] SEGMENTATION**
 
 This command is intended to be run after other Segtools
 commands. Starting in the current working directory (or directory
@@ -694,7 +687,7 @@ segtools-preprocess
 
 **segtools-preprocess [OPTIONS] INFILE**
 
-This command takes a segmentation or annotation file (INFILE) and generates
+This command takes a segmentation or annotations file (INFILE) and generates
 a binary, preprocessed file (INFILE.pkl) that can be quickly loaded in
 subsequent calls to Segtools commands. This is especially useful if you want
 to run many Segtools commands on one segmentation. If you don't preprocess
