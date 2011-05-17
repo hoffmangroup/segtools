@@ -362,10 +362,16 @@ def overlap(bedfilename, featurefilename, dirpath, regionfilename=None,
 
     if not noplot:
         with open_transcript(dirpath, MODULE, True) as transcriptfile:
-            save_performance_plot(dirpath, clobber=clobber, verbose=verbose,
-                                  row_mnemonic_file=mnemonic_filename,
-                                  col_mnemonic_file=feature_mnemonic_filename,
-                                  transcriptfile=transcriptfile)
+            # Performance plot is only valid for bases
+            if mode == "bases":
+                save_performance_plot(\
+                    dirpath, clobber=clobber, verbose=verbose,
+                    row_mnemonic_file=mnemonic_filename,
+                    col_mnemonic_file=feature_mnemonic_filename,
+                    transcriptfile=transcriptfile)
+            else:
+                log("Not in base-mode, so skipping performance plot", verbose)
+
             save_plot(dirpath, clobber=clobber, cluster=cluster,
                       verbose=verbose, row_mnemonic_file=mnemonic_filename,
                       col_mnemonic_file=feature_mnemonic_filename,
@@ -416,7 +422,8 @@ Overlap_analysis_tool_specification"
                      " created that contains a list of all the segments that"
                      " the group was found to overlap with. Output files"
                      " are named %s.X.txt, where X is the name"
-                     " of the SEGMENTATION group.") % OVERLAPPING_SEGMENTS_NAMEBASE)
+                     " of the SEGMENTATION group.")
+                     % OVERLAPPING_SEGMENTS_NAMEBASE)
     group.add_option("--max-contrast", action="store_true",
                      help="Saturate color range instead of having it go from"
                      " 0 to 1")

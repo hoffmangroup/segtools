@@ -591,13 +591,13 @@ def map_mnemonics(labels, mnemonicfilename, field="new"):
     if not mnemonicfilename:
         return []
 
-    label_order, label_data = load_mnemonics(mnemonicfilename)
+    label_order, label_mnemonics = load_mnemonics(mnemonicfilename)
     str_labels = labels.values()
     mnemonics = []
     # Add mapping for labels in mnemonic file
     for old_label in label_order:
         try:
-            new_label = label_data[old_label][field]
+            new_label = label_mnemonics[old_label][field]
         except KeyError:
             die("Mnemonic file missing expected column: %s" % field)
 
@@ -624,7 +624,7 @@ def load_mnemonics(filename):
     Input file should have a tab-delimited row for each label, of the form:
                old    new    description
       e.g.     4    IS   initiation (strong)
-    Returns a tuple of (label_order, label_data)
+    Returns a tuple of (label_order, label_mnemonics)
 
     label_order: an ordered list of old labels,
       corresponding to the preferred display order in plots
@@ -641,7 +641,7 @@ def load_mnemonics(filename):
         die("Could not find mnemonic file: %s" % filename)
 
     label_order = []
-    label_data = {}
+    label_mnemonics = {}
     with open(filename, "rU") as ifp:
         reader = make_comment_ignoring_dictreader(ifp)
         for row in reader:
@@ -651,6 +651,6 @@ def load_mnemonics(filename):
                 die("Mnemonic file missing required column: 'old'")
 
             label_order.append(label_index)
-            label_data[label_index] = row
+            label_mnemonics[label_index] = row
 
-    return (label_order, label_data)
+    return (label_order, label_mnemonics)

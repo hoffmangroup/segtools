@@ -162,6 +162,9 @@ Segtools utilities:
 - :ref:`segtools-preprocess <segtools-preprocess>`:
   Preprocess segmentation and annotation files into a binary format
   that can be quickly re-read in future calls to Segtools commands.
+- :ref:`segtools-relabel <segtools-relabel>`:
+  Generate a new segmentation by relabeling the segments in one
+  segmentation according to a mnemonic file.
 
 All the above commands respond to ``-h`` and ``--help`` by displaying
 usage information and options.
@@ -253,6 +256,7 @@ length-distribution     length_distribution
 nucleotide-frequency    nucleotide_frequency
 overlap                 overlap
 preprocess              preprocess
+relabel                 relabel
 signal-distribution     signal_distribution
 transition              transition
 ======================  ====================
@@ -685,7 +689,6 @@ segtools-preprocess
 
 .. program:: segtools-preprocess
 
-**segtools-preprocess [OPTIONS] INFILE**
 
 This command takes a segmentation or annotations file (INFILE) and generates
 a binary, preprocessed file (INFILE.pkl) that can be quickly loaded in
@@ -697,6 +700,28 @@ or more to the runtime of each Segtools command. Preprocessing cuts
 this load time to just a few seconds. See ``--help`` for more details.
 
 .. include:: _build/cmdline-help/segtools-preprocess.help.txt
+
+
+
+
+
+.. ####################### RELABEL #######################
+
+.. _segtools-relabel:
+
+segtools-relabel
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+.. program:: segtools-relabel
+
+This command generates a new segmentation by remapping the labels in
+a segmentation according to a mnemonic file. Multiple old labels can
+be mapped to the same new label. Immediately djacent segments that
+have the same new label are merged, so that in the new segmentation,
+no two consecutive segments have the same label.
+
+.. include:: _build/cmdline-help/segtools-relabel.help.txt
 
 
 

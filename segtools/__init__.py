@@ -118,6 +118,8 @@ class Annotations(object):
             raise self.FormatError("Cannot iterate segments in file format:"
                                    " %s" % format)
 
+        log("  Parsing %s file: %s" % (format, filename), verbose)
+
         with maybe_gzip_open(filename) as infile:
             for datum in reader(infile):
                 row = {}
@@ -145,7 +147,7 @@ class Annotations(object):
     def _from_pickle(self, filename, verbose=True):
         import cPickle
         from .common import maybe_gzip_open
-        
+
         log("  Unpickling %s object..." % self.__class__.__name__,
             verbose, end="")
 
@@ -345,7 +347,7 @@ class Segmentation(Annotations):
     @staticmethod
     def get_bed_metadata(filename):
         from .common import maybe_gzip_open
-        
+
         regexp = re.compile('description="(.*) segmentation of (.*)"')
 
         segtool = ""

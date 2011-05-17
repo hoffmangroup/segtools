@@ -11,7 +11,7 @@
   flags to control display on size summary plot
 * segtools-nucleotide-frequency: improved speed by caching 
   whole chromosome sequence
-
+* segtools-relabel: added command to relabel a segmentation
 
 1.1.6:
 
