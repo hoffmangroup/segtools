@@ -43,7 +43,7 @@ $(CMDLINEHELPDIR)/%.help.txt:
 	@mkdir -p $(@D)
 	python gethelp.py $* > $@
 
-cmdline-help: $(addprefix $(CMDLINEHELPDIR)/segtools-,compare.help.txt preprocess.help.txt aggregation.help.txt feature-distance.help.txt flatten.help.txt gmtk-parameters.help.txt html-report.help.txt transition.help.txt length-distribution.help.txt nucleotide-frequency.help.txt overlap.help.txt signal-distribution.help.txt)
+cmdline-help: $(addprefix $(CMDLINEHELPDIR)/segtools-,compare.help.txt preprocess.help.txt aggregation.help.txt feature-distance.help.txt flatten.help.txt gmtk-parameters.help.txt html-report.help.txt transition.help.txt length-distribution.help.txt nucleotide-frequency.help.txt overlap.help.txt signal-distribution.help.txt relabel.help.txt)
 
 html: $(PREREQS)
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
