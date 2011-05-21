@@ -25,10 +25,13 @@ from numpy import NaN, zeros
 from . import Annotations, log, Segmentation, RInterface, open_transcript
 from .common import FeatureScanner, die, get_ordered_labels, \
     make_tabfilename, setup_directory, tab_saver
-
+from .html import save_html_div
 
 MODULE = "feature_distance"
 NAMEBASE = MODULE
+HTML_TITLE_BASE = "Distance to nearest feature"
+HTML_TEMPLATE_FILENAME = "distance_div.tmpl"
+
 
 PRINT_FIELDS = ["chrom", "start", "end", "name", "distance"]
 TAB_FIELDS = ["label", "group", "distance", "count"]
@@ -74,6 +77,16 @@ def save_plot(outdir, namebase=NAMEBASE, clobber=False,
 
     R.plot("save.distances", outdir, namebase, tabfilename,
            mnemonic_file=mnemonic_file, clobber=clobber)
+
+def save_html(dirpath, feature_file, mnemonic_file=None,
+              clobber=False, verbose=True):
+    feature_base = os.path.basename(feature_file)
+
+    title = "%s (%s)" % (HTML_TITLE_BASE, feature_base)
+
+    save_html_div(HTML_TEMPLATE_FILENAME, dirpath, NAMEBASE, clobber=clobber,
+                  verbose=verbose, title=title, mnemonic_file=mnemonic_file,
+                  module=MODULE, featurefilename=feature_base)
 
 def calc_distance_bin(n_bins, bin_width, distance, stranded):
     if distance == 0:
@@ -227,7 +240,8 @@ def feature_distance(segment_file, annotations_file,
                       mnemonic_file=mnemonic_file,
                       transcriptfile=transcriptfile)
 
-    #save_html(outdir, annotations_file, clobber=clobber)
+    save_html(outdir, annotations_file, mnemonic_file=mnemonic_file,
+              clobber=clobber, verbose=verbose)
 
 def parse_options(args):
     from optparse import OptionParser, OptionGroup

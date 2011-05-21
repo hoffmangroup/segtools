@@ -752,7 +752,8 @@ def save_plot(dirpath, mode, namebase=NAMEBASE, clobber=False, verbose=True,
                mnemonic_file=mnemonic_file, normalize=normalize,
                clobber=clobber, significance=significance)
 
-def save_html(dirpath, featurefilename, mode, clobber=False, normalize=False):
+def save_html(dirpath, featurefilename, mode, clobber=False,
+              verbose=True, normalize=False):
     featurebasename = os.path.basename(featurefilename)
     title = "%s (%s)" % (HTML_TITLE_BASE, featurebasename)
     if normalize:
@@ -770,7 +771,8 @@ def save_html(dirpath, featurefilename, mode, clobber=False, normalize=False):
 
     save_html_div(templatefile, dirpath, NAMEBASE, clobber=clobber,
                   module=MODULE, featurefilename=featurebasename, mode=mode,
-                  title=title, yaxis=yaxis, extra_namebases=extra_namebases)
+                  title=title, yaxis=yaxis, verbose=verbose,
+                  extra_namebases=extra_namebases)
 
 def print_array(arr, tag="", type="%d"):
     if len(arr) > 2:
@@ -867,7 +869,7 @@ def validate(bedfilename, featurefilename, dirpath,
                   mnemonic_file=mnemonic_file, normalize=normalize,
                   significance=significance)
 
-    save_html(dirpath, featurefilename, mode=mode,
+    save_html(dirpath, featurefilename, mode=mode, verbose=verbose,
               clobber=clobber, normalize=normalize)
 
 def parse_options(args):

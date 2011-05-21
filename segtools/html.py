@@ -215,14 +215,15 @@ def write_html_div(dirpath, namebase, html, clobber=False):
         ofp.write("%s\n" % html)
 
 def save_html_div(template_filename, dirpath, namebase,
-                  clobber=False, **kwargs):
+                  clobber=False, verbose=True, **kwargs):
     """Save an HTML div file for a module run by subsituting a template file"""
     fields = form_template_dict(dirpath, namebase, **kwargs)
-
+    div_filename = make_divfilename(dirpath, namebase)
+    log("Saving html data to file: %s" % div_filename, verbose)
     try:
         html = template_substitute(template_filename)(fields)
     except KeyError, e:
-        log("Skipping HTML output. Missing data: %s" % e)
+        log("Error: Missing data: %s. Skipping HTML output." % e)
         return
 
     write_html_div(dirpath, namebase, html, clobber=clobber)

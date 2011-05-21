@@ -486,7 +486,7 @@ class RInterface(object):
         try:
             result = self.call(func, *args, **kwargs)
         except self.RError:
-            die("Encoundered error within R:\n%s" % "\n  ".join(msg))
+            die("Encoundered error within R:\n%s" % "\n  ".join(r_log))
 
         # Return console back to stderr
         self._rinterface.set_writeconsole(self._r_console)

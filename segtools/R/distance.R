@@ -20,7 +20,7 @@ figure.distances <-
            panel = panel.distances,
            col = "blue",
            auto.key = as.logical(nlevels(data$group) > 1),
-           label.count = 15,
+           label.count = 11,
            ...)
 {
   layout <- c(1, nlevels(data$label))
@@ -32,9 +32,10 @@ figure.distances <-
   
   distance.labels <- format(distance.vals, scientific = FALSE)
 
-  distance.labels[distance.labels == "Inf"] <- paste(">", distance.max)
-  distance.labels[distance.labels == "-Inf"] <- paste("<", distance.min)
-
+  distance.labels[distance.vals == Inf] <-
+    paste(">", format(distance.max, scientific = FALSE))
+  distance.labels[distance.vals == -Inf] <-
+    paste("<", format(distance.min, scientific = FALSE))
   keep.label.indices <-
     if (distance.min == 0) {
       seq(1, length(distance.labels), length.out=label.count)
@@ -44,14 +45,15 @@ figure.distances <-
         tail(seq(zero.index, length(distance.labels),
                  length.out=as.integer(label.count / 2 + 1)), -1))
     }
-  
+
+
   keep.labels <- vector(mode = "logical", length = length(distance.labels))
   keep.labels[keep.label.indices] <- TRUE
   distance.labels[!keep.labels] <- ""
   
   # Replace infinities with bounded vals so everything sorts correctly
-  data[data$distance == Inf,]$distance <- distance.max + 1
-  data[data$distance == -Inf,]$distance <- distance.min - 1
+  data$distance[data$distance == Inf] <- distance.max + 1
+  data$distance[data$distance == -Inf] <- distance.min - 1
   barchart(x = x, 
            data = data,
            group = group,
@@ -74,10 +76,12 @@ plot.distances <- function(filename, ...) {
 
 save.distances <- function(dirpath, namebase, tabfilename,
                            clobber = FALSE, mnemonic_file = NULL,
-                           height = 800, width = 800,
+                           height = 200 * rows, width = 600,
                            ...) {
   mnemonics <- read.mnemonics(mnemonic_file)
   data <- read.distances(tabfilename, mnemonics = mnemonics)
+  rows <- nlevels(data$label)
+  height <- 200 * rows
   save.images(dirpath, namebase,
               figure.distances(data = data, ...),
               height = height,

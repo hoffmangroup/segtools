@@ -12,6 +12,7 @@
 * segtools-nucleotide-frequency: improved speed by caching 
   whole chromosome sequence
 * segtools-relabel: added command to relabel a segmentation
+* segtools-feature-distance: added histogram output
 
 1.1.6:
 

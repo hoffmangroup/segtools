@@ -632,7 +632,7 @@ def save_stats_plot(dirpath, namebase=NAMEBASE_STATS, filename=None,
            as_regex=allow_regex, gmtk=gmtk, clobber=clobber,
            label_order=label_order, track_order=track_order)
 
-def save_html(dirpath, genomedatadir, nseg_dps=None,
+def save_html(dirpath, genomedatadir, nseg_dps=None, verbose=True,
               ecdf=False, clobber=False):
     if ecdf:
         title = "%s (ECDF mode)" % HTML_TITLE
@@ -647,7 +647,7 @@ def save_html(dirpath, genomedatadir, nseg_dps=None,
     extra_namebases = {"stats": NAMEBASE_STATS}
     save_html_div(HTML_TEMPLATE_FILENAME, dirpath, NAMEBASE, clobber=clobber,
                   module=MODULE, title=title, segdatapoints=nseg_dps,
-                  extra_namebases=extra_namebases)
+                  extra_namebases=extra_namebases, verbose=verbose)
 
 def read_order_file(filename):
     if filename is None:
@@ -738,7 +738,7 @@ def validate(bedfilename, genomedatadir, dirpath,
         except KeyError:
             nseg_dps = None
         save_html(dirpath, genomedatadir, nseg_dps=nseg_dps,
-                  ecdf=ecdf, clobber=clobber)
+                  ecdf=ecdf, clobber=clobber, verbose=verbose)
 
 
 def parse_options(args):

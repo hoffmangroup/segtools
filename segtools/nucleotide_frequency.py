@@ -98,7 +98,7 @@ def calc_nucleotide_frequencies(annotations, genome,
         except KeyError:
             continue
 
-        log("\t%s" % chrom, verbose)
+        log("  %s" % chrom, verbose)
         for row in chrom_rows:
             start = row['start']
             end = row['end']
@@ -174,9 +174,9 @@ def save_plot(dirpath, clobber=False, verbose=True,
     R.plot("save.dinuc", dirpath, namebase, tabfilename,
            mnemonic_file=mnemonic_file, clobber=clobber)
 
-def save_html(dirpath, clobber=False, mnemonicfile=None):
+def save_html(dirpath, clobber=False, verbose=True, mnemonicfile=None):
     save_html_div(HTML_TEMPLATE_FILENAME, dirpath, NAMEBASE, clobber=clobber,
-                  tables={"":NAMEBASE}, module=MODULE,
+                  tables={"":NAMEBASE}, module=MODULE, verbose=verbose,
                   mnemonicfile=mnemonicfile, title=HTML_TITLE)
 
 ## Package entry point
@@ -199,7 +199,8 @@ def validate(filename, genomedatadir, dirpath, clobber=False, quick=False,
         save_plot(dirpath, clobber=clobber, verbose=verbose,
                   mnemonic_file=mnemonic_file)
 
-    save_html(dirpath, clobber=clobber, mnemonicfile=mnemonic_file)
+    save_html(dirpath, clobber=clobber, mnemonicfile=mnemonic_file,
+              verbose=verbose)
 
 def parse_options(args):
     from optparse import OptionGroup, OptionParser

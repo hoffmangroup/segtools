@@ -114,7 +114,7 @@ def save_tab(labels, probs, dirpath, clobber=False, verbose=True):
                 row[labels[end_key]] = "%.5f" % prob_row[end_key]
             saver.writerow(row)
 
-def save_html(dirpath, p_thresh, q_thresh, clobber=False):
+def save_html(dirpath, p_thresh, q_thresh, clobber=False, verbose=True):
     extra_namebases = {"graph": NAMEBASE_GRAPH}
 
     if p_thresh > 0:
@@ -124,7 +124,7 @@ def save_html(dirpath, p_thresh, q_thresh, clobber=False):
 
     save_html_div(HTML_TEMPLATE_FILENAME, dirpath, NAMEBASE, clobber=clobber,
                   module=MODULE, extra_namebases=extra_namebases,
-                  title=HTML_TITLE, thresh=thresh)
+                  title=HTML_TITLE, thresh=thresh, verbose=verbose)
 
 def save_plot(dirpath, namebase=NAMEBASE, filename=None, ddgram=False,
               clobber=False, mnemonic_file=None, verbose=False, gmtk=False):
@@ -273,7 +273,7 @@ def validate(bedfilename, dirpath, ddgram=False, p_thresh=P_THRESH,
                    verbose=verbose)
 
     save_html(dirpath, p_thresh=p_thresh, q_thresh=q_thresh,
-              clobber=clobber)
+              clobber=clobber, verbose=verbose)
 
 def parse_options(args):
     from optparse import OptionParser, OptionGroup

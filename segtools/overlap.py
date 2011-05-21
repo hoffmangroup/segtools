@@ -287,7 +287,7 @@ def save_performance_plot(dirpath, namebase=PERFORMANCE_NAMEBASE,
 
 
 def save_html(dirpath, bedfilename, featurefilename, mode,
-              mnemonicfile=None, clobber=False):
+              mnemonicfile=None, clobber=False, verbose=True):
     bedfilename = os.path.basename(bedfilename)
     featurebasename = os.path.basename(featurefilename)
     extra_namebases = {"performance": PERFORMANCE_NAMEBASE}
@@ -297,7 +297,7 @@ def save_html(dirpath, bedfilename, featurefilename, mode,
     significance = ""
     save_html_div(HTML_TEMPLATE_FILENAME, dirpath, NAMEBASE, clobber=clobber,
                   title=title, tables={"":(PERFORMANCE_NAMEBASE, "exact")},
-                  mnemonicfile=mnemonicfile,
+                  mnemonicfile=mnemonicfile, verbose=verbose,
                   extra_namebases=extra_namebases,
                   module=MODULE, by=mode, significance=significance,
                   bedfilename=bedfilename, featurefilename=featurebasename)
@@ -361,10 +361,8 @@ def overlap(bedfilename, featurefilename, dirpath, regionfilename=None,
                       col_mnemonic_file=feature_mnemonic_filename,
                       max_contrast=max_contrast, transcriptfile=transcriptfile)
 
-    log("Saving HTML div...", verbose)
     save_html(dirpath, bedfilename, featurefilename, mode=mode,
-              mnemonicfile=mnemonic_filename, clobber=clobber)
-    log(" done", verbose)
+              mnemonicfile=mnemonic_filename, clobber=clobber, verbose=verbose)
 
 def parse_options(args):
     from optparse import OptionParser, OptionGroup
