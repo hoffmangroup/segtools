@@ -21,9 +21,7 @@ import sys
 
 from numpy import concatenate
 
-from . import log, Segmentation
-from .common import die
-
+from . import log, Segmentation, die
 
 DEFAULT_HELPFILE = "flat.mnemonics"
 

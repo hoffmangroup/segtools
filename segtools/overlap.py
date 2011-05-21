@@ -6,10 +6,11 @@ __version__ = "$Revision$"
 """
 Evaluates the overlap between two BED files, based upon the spec at:
 http://encodewiki.ucsc.edu/EncodeDCC/index.php/Overlap_analysis_tool_specification
-
-Author: Orion Buske <stasis@uw.edu>
-Date:   August 18, 2009
 """
+
+# Author: Orion Buske <stasis@uw.edu>
+# Date:   August 18, 2009
+
 
 import os
 import sys
@@ -17,8 +18,9 @@ import sys
 from collections import defaultdict
 from numpy import bincount, cast, iinfo, invert, logical_or, zeros
 
-from . import Annotations, log, open_transcript, Segmentation
-from .common import check_clobber, die, get_ordered_labels, make_tabfilename, r_plot, r_source, setup_directory, SUFFIX_GZ, tab_saver
+from . import Annotations, log, open_transcript, Segmentation, RInterface
+from .common import check_clobber, die, get_ordered_labels, make_tabfilename, \
+     setup_directory, SUFFIX_GZ, tab_saver
 from .html import save_html_div
 
 # A package-unique, descriptive module name used for filenames, etc
@@ -50,25 +52,7 @@ PNG_SIZE_PER_PANEL = 400  # px
 SIGNIFICANCE_PNG_SIZE = 600  # px
 HEATMAP_PNG_SIZE = 600 # px
 
-class RStarter(object):
-    """
-    function-like object with global state
-    """
-    def __init__(self):
-        self.started = False
-
-    def __call__(self, transcriptfile):
-        if self.started:
-            return
-
-        self.started = True
-        r_source("common.R", transcriptfile)
-        r_source("overlap.R", transcriptfile)
-
-        if transcriptfile:
-            print >>transcriptfile
-
-start_R = RStarter()
+R = RInterface(["common.R", "overlap.R"])
 
 def calc_overlap(subseg, qryseg, quick=False, clobber=False, mode=MODE_DEFAULT,
                  print_segments=False, dirpath=None, verbose=True,
@@ -274,33 +258,33 @@ def save_tab(dirpath, row_labels, col_labels, counts, totals, nones, mode,
 def save_plot(dirpath, namebase=NAMEBASE, clobber=False, verbose=True,
               row_mnemonic_file=None, col_mnemonic_file=None,
               cluster=False, max_contrast=False, transcriptfile=None):
-    start_R(transcriptfile)
+    R.start(transcriptfile, verbose=verbose)
 
     tabfilename = make_tabfilename(dirpath, namebase)
     if not os.path.isfile(tabfilename):
         die("Unable to find tab file: %s" % tabfilename)
 
-    r_plot("save.overlap.heatmap", dirpath, namebase, tabfilename,
+    R.plot("save.overlap.heatmap", dirpath, namebase, tabfilename,
            mnemonic_file=row_mnemonic_file,
            col_mnemonic_file=col_mnemonic_file,
-           clobber=clobber, cluster=cluster, verbose=verbose,
-           transcriptfile=transcriptfile, max_contrast=max_contrast)
+           clobber=clobber, cluster=cluster,
+           max_contrast=max_contrast)
 
 def save_performance_plot(dirpath, namebase=PERFORMANCE_NAMEBASE,
                           clobber=False, verbose=True,
                           row_mnemonic_file=None, col_mnemonic_file=None,
                           transcriptfile=None):
-    start_R(transcriptfile)
+    R.start(transcriptfile, verbose=verbose)
 
     tabfilename = make_tabfilename(dirpath, NAMEBASE)
     if not os.path.isfile(tabfilename):
         die("Unable to find tab file: %s" % tabfilename)
 
-    r_plot("save.overlap.performance", dirpath, namebase, tabfilename,
+    R.plot("save.overlap.performance", dirpath, namebase, tabfilename,
            mnemonic_file=row_mnemonic_file,
            col_mnemonic_file=col_mnemonic_file,
-           clobber=clobber, verbose=verbose,
-           transcriptfile=transcriptfile)
+           clobber=clobber)
+
 
 def save_html(dirpath, bedfilename, featurefilename, mode,
               mnemonicfile=None, clobber=False):

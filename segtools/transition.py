@@ -34,8 +34,10 @@ import sys
 from numpy import empty, loadtxt, where, zeros
 from subprocess import call
 
-from . import log, Segmentation
-from .common import check_clobber, die, get_ordered_labels, make_dotfilename, make_pdffilename, make_pngfilename, make_namebase_summary, make_tabfilename, map_mnemonics, r_call, r_plot, r_source, setup_directory, tab_saver
+from . import log, Segmentation, die, RInterface
+from .common import check_clobber, get_ordered_labels, make_dotfilename, \
+     make_pdffilename, make_pngfilename, make_namebase_summary, \
+     make_tabfilename, map_mnemonics, setup_directory, tab_saver
 from .html import save_html_div
 from .mnemonics import create_mnemonic_file
 
@@ -53,9 +55,7 @@ BASE_WEIGHT = 0.3  # Base edge/arrow weight
 EDGE_WEIGHT = 2.7
 ARROW_WEIGHT = 1.7
 
-def start_R():
-    r_source("common.R")
-    r_source("transition.R")
+R = RInterface(["common.R", "transition.R"])
 
 ## Returns array of row-normalized probabilities corresponding
 ## to transition probabilities between labels
@@ -131,7 +131,7 @@ def save_plot(dirpath, namebase=NAMEBASE, filename=None, ddgram=False,
     """
     if filename is specified, it is used instead of dirpath/namebase.tab
     """
-    start_R()
+    R.start(verbose=verbose)
 
     if filename is None:
         filename = make_tabfilename(dirpath, namebase)
@@ -139,9 +139,9 @@ def save_plot(dirpath, namebase=NAMEBASE, filename=None, ddgram=False,
     if not os.path.isfile(filename):
         die("Unable to find tab file: %s" % filename)
 
-    r_plot("save.transition", dirpath, namebase, filename, clobber=clobber,
+    R.plot("save.transition", dirpath, namebase, filename, clobber=clobber,
            mnemonic_file=mnemonic_file, ddgram=ddgram,
-           gmtk=gmtk, verbose=verbose)
+           gmtk=gmtk)
 
 def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
                clobber=False, mnemonic_file=None, fontname="Helvetica",
@@ -167,7 +167,7 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
 
     # Threshold
     if q_thresh > 0:
-        quantile = r_call('matrix.find_quantile', probs, q_thresh)[0]
+        quantile = R.call('matrix.find_quantile', probs, q_thresh)[0]
         log("Removing edges below %.4f" % float(quantile), verbose)
 
         probs[probs < quantile] = 0

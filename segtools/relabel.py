@@ -17,8 +17,8 @@ __version__ = "$Revision$"
 import os
 import sys
 
-from . import log, Segmentation
-from .common import die, map_mnemonics, get_ordered_labels
+from . import log, Segmentation, die
+from .common import map_mnemonics, get_ordered_labels
 
 
 def print_bed(segments, filename=None):

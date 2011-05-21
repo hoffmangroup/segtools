@@ -19,8 +19,9 @@ from pkg_resources import resource_string
 from shutil import copy
 from string import Template
 
-from . import log, Segmentation
-from .common import check_clobber, die, get_ordered_labels, make_divfilename, make_id, make_filename, make_tabfilename, map_mnemonics, NICE_EXTS, PKG_RESOURCE
+from . import log, Segmentation, die
+from .common import check_clobber, get_ordered_labels, make_divfilename, \
+     make_id, make_filename, make_tabfilename, map_mnemonics, NICE_EXTS, PKG_RESOURCE
 
 MNEMONIC_TEMPLATE_FILENAME = "mnemonic_div.tmpl"
 HEADER_TEMPLATE_FILENAME = "html_header.tmpl"

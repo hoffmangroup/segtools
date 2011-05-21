@@ -19,8 +19,9 @@ import sys
 from collections import defaultdict
 from numpy import concatenate, median
 
-from . import Annotations
-from .common import die, get_ordered_labels, LABEL_ALL, make_tabfilename, r_plot, r_source, setup_directory, tab_saver
+from . import Annotations, die, RInterface, open_transcript
+from .common import get_ordered_labels, LABEL_ALL, make_tabfilename, \
+     setup_directory, tab_saver
 
 from .html import save_html_div
 
@@ -37,9 +38,7 @@ PNG_WIDTH = 600
 PNG_HEIGHT_BASE = 100  # Axes and label
 PNG_HEIGHT_PER_LABEL = 45
 
-def start_R():
-    r_source("common.R")
-    r_source("length.R")
+R = RInterface(["common.R", "length.R"])
 
 ## Given annotations, returns the length of each annotation
 def annotations_lengths(annotations):
@@ -127,30 +126,31 @@ def save_tab(lengths, labels, num_bp, dirpath, clobber=False, verbose=True):
 
 ## Generates and saves an R plot of the length distributions
 def save_plot(dirpath, namebase=NAMEBASE, clobber=False, verbose=True,
-              mnemonic_file=None):
-    start_R()
+              mnemonic_file=None, transcriptfile=None):
+    R.start(transcriptfile=transcriptfile, verbose=verbose)
 
     # Load data from corresponding tab file
     tabfilename = make_tabfilename(dirpath, namebase)
     if not os.path.isfile(tabfilename):
         die("Unable to find tab file: %s" % tabfilename)
 
-    r_plot("save.length", dirpath, namebase, tabfilename,
-           mnemonic_file=mnemonic_file, clobber=clobber, verbose=verbose)
+    R.plot("save.length", dirpath, namebase, tabfilename,
+           mnemonic_file=mnemonic_file, clobber=clobber)
 
 ## Generates and saves an R plot of the length distributions
 def save_size_plot(dirpath, namebase=NAMEBASE_SIZES, clobber=False,
                    verbose=True, mnemonic_file=None,
-                   show_bases=True, show_segments=True):
-    start_R()
+                   show_bases=True, show_segments=True,
+                   transcriptfile=None):
+    R.start(transcriptfile=transcriptfile, verbose=verbose)
 
     # Load data from corresponding tab file
     tabfilename = make_tabfilename(dirpath, namebase)
     if not os.path.isfile(tabfilename):
         die("Unable to find tab file: %s" % tabfilename)
 
-    r_plot("save.segment.sizes", dirpath, namebase, tabfilename,
-           mnemonic_file=mnemonic_file, clobber=clobber, verbose=verbose,
+    R.plot("save.segment.sizes", dirpath, namebase, tabfilename,
+           mnemonic_file=mnemonic_file, clobber=clobber,
            show_segments=show_segments, show_bases=show_bases)
 
 def save_html(dirpath, clobber=False, mnemonicfile=None):
@@ -177,12 +177,15 @@ def validate(filename, dirpath, clobber=False, replot=False, noplot=False,
                       clobber=clobber, verbose=verbose)
 
     if not noplot:
-        save_plot(dirpath, mnemonic_file=mnemonic_file,
-                  clobber=clobber, verbose=verbose)
-        save_size_plot(dirpath, clobber=clobber, verbose=verbose,
-                       mnemonic_file=mnemonic_file,
-                       show_segments=show_segments,
-                       show_bases=show_bases)
+        with open_transcript(dirpath, MODULE) as transcriptfile:
+            save_plot(dirpath, mnemonic_file=mnemonic_file,
+                      clobber=clobber, verbose=verbose,
+                      transcriptfile=transcriptfile)
+            save_size_plot(dirpath, clobber=clobber, verbose=verbose,
+                           mnemonic_file=mnemonic_file,
+                           show_segments=show_segments,
+                           show_bases=show_bases,
+                           transcriptfile=transcriptfile)
 
     save_html(dirpath, clobber=clobber, mnemonicfile=mnemonic_file)
 

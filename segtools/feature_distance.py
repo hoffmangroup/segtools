@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 
 """
-Given a list of segments and lists of features, prints the distance to
-the nearest feature in each list (zero if overlap), for each segment.
-Distance is the difference between the nearest bases of the segment and the,
-features so features with one base pair between them are a distance of two
-apart.
-
-Segments and features should be specified in [gzip'd] files in either
-BED3+ or GFF format.
+Given a SEGMENTATION and ANNOTATIONS file, 1) prints the distance of each
+segment to the nearest feature in the ANNOTATIONS file
+(zero if the two overlap) and
+2) generates a histogram of these distances.
+Distance is the difference between the nearest bases of the segment and the
+annotation, so if there is one base pair between them, the distance is 2.
+Distances can be strand-corrected with respect to stranded annotations
+by specifying --stranded.
 """
 
 from __future__ import division, with_statement
@@ -18,191 +18,299 @@ __version__ = "$Revision$"
 
 import os
 import sys
+from time import time
 
-from numpy import array, NaN
+from numpy import NaN, zeros
 
-from . import Annotations, log, Segmentation
-from .common import FeatureScanner
+from . import Annotations, log, Segmentation, RInterface, open_transcript
+from .common import FeatureScanner, die, get_ordered_labels, \
+    make_tabfilename, setup_directory, tab_saver
 
-STANDARD_FIELDS = ["chrom", "start", "end", "name"]
+
+MODULE = "feature_distance"
+NAMEBASE = MODULE
+
+PRINT_FIELDS = ["chrom", "start", "end", "name", "distance"]
+TAB_FIELDS = ["label", "group", "distance", "count"]
 DELIM = "\t"
 
-def print_header_line(feature_files):
-    file_fields = [os.path.basename(filename) for filename in feature_files]
-    fields = STANDARD_FIELDS + file_fields
+DEFAULT_BINS = 100
+DEFAULT_BIN_WIDTH = 100
+
+R = RInterface(["common.R", "distance.R"])
+
+def print_line(labels, chrom, segment, distance):
+    fields = [chrom,
+              str(segment['start']),
+              str(segment['end']),
+              labels[segment['key']],
+              str(distance)]
     print DELIM.join(fields)
 
-def print_line(labels, chrom, segment, distances, extra=[]):
-    """Print distance line, allowing individual distances to be lists
+def save_tab(counts, bins, labels, groups, outdir,
+             clobber=False, verbose=True):
+    label_keys = sorted(labels.keys())
+    group_keys = sorted(groups.keys())
+    with tab_saver(outdir, NAMEBASE, TAB_FIELDS, verbose=verbose,
+                   clobber=clobber) as saver:
+        for label_key in label_keys:
+            for group_key in group_keys:
+                count_vector = counts[label_key, group_key, :]
+                # Only print if there is at least one data point
+                if count_vector.sum() == 0: continue
+                for bin, count in zip(bins, count_vector):
+                    row = dict(zip(TAB_FIELDS,
+                                   [labels[label_key], groups[group_key],
+                                    str(bin), str(count)]))
+                    saver.writerow(row)
 
-    If a single distance is a list, multiple lines are printed, one with
-    each distance.
+def save_plot(outdir, namebase=NAMEBASE, clobber=False,
+              verbose=True, mnemonic_file=None, transcriptfile=None):
+    R.start(transcriptfile, verbose=verbose)
+    # Load data from corresponding tab file
+    tabfilename = make_tabfilename(outdir, namebase)
+    if not os.path.isfile(tabfilename):
+        die("Unable to find tab file: %s" % tabfilename)
 
-    """
-    # If any distances are lists, recurse
-    for i, distance in enumerate(distances):
-        if isinstance(distance, list):
-            for sub_distance in distance:
-                new_distances = list(distances)
-                # Print line for each single value
-                new_distances[i] = sub_distance
-                print_line(labels, chrom, segment, new_distances, extra=extra)
-            return
+    R.plot("save.distances", outdir, namebase, tabfilename,
+           mnemonic_file=mnemonic_file, clobber=clobber)
 
-    distance_strs = [str(distance) for distance in distances]
-    segment_strs = [chrom,
-                    str(segment['start']),
-                    str(segment['end']),
-                    labels[segment['key']]]
-    extra_strs = [str(extra_field) for extra_field in extra]
-    fields = segment_strs + distance_strs + extra_strs
-    print DELIM.join(fields)
+def calc_distance_bin(n_bins, bin_width, distance, stranded):
+    if distance == 0:
+        return 0
 
-def die(msg):
-    raise Exception("ERROR: %s" % msg)
+    sign = (distance > 0) * 2 - 1
+    bin = int((distance - sign) / bin_width) + sign
+    limit = n_bins * bin_width
+    return min(max(bin, -n_bins - 1), n_bins + 1)
 
-def indices_to_bools(indices, length):
-    indices = set([int(index) for index in indices])
-    bools = [False] * length
-    for index in indices:
-        if index < 0 or index >= length:
-            raise ValueError(index)
-        else:
-            bools[index] = True
+def test_calc_distance_bin():
+    params = [(10, 5),
+              (5, 13),
+              (1, 2)]
 
-    return bools
+    for n_bins, bin_width in params:
+        stranded = True
+        bins = range(n_bins * 2 + 3)
+        tests = [(0, 0),
+                 (1, 1),
+                 (bin_width, 1),
+                 (bin_width + 1, 2),
+                 (-1, bins[-1]),
+                 (-2, bins[-1]),
+                 (n_bins * bin_width, n_bins),
+                 (n_bins * bin_width + 1, n_bins + 1),
+                 (-n_bins * bin_width - 1, n_bins + 2),
+                 (-n_bins * bin_width, n_bins + 3)]
+        for distance, answer in tests:
+            index = calc_distance_bin(n_bins, bin_width, distance, stranded)
+            assert bins[index] == answer, """
+Failed test:
+  bins:      %r
+  bin width: %r
+  distance:  %r
+  found:     %r (%r)
+  correct:   %r
+""" % (n_bins, bin_width, distance, bins[index], index, answer)
 
-def feature_distance(segment_file, feature_files, verbose=True,
-                     correct_strands=[], print_nearest=[], all_overlapping=[]):
-    # Lists are of integer file indices (0-indexed), for which files that
-    # property applies to.
-    try:
-        correct_strand = indices_to_bools(correct_strands, len(feature_files))
-    except ValueError, e:
-            die("File index for strand correction: %s is invalid" % e)
+def print_distances(segmentation, annotations,
+                    n_bins=DEFAULT_BINS,
+                    bin_width=DEFAULT_BIN_WIDTH,
+                    verbose=True,
+                    stranded=False,
+                    print_nearest=False,
+                    all_overlapping=False):
+    segment_data = segmentation.chromosomes
+    feature_data = annotations.chromosomes
 
-    try:
-        print_nearest = indices_to_bools(print_nearest, len(feature_files))
-    except ValueError, e:
-        die("File index for print nearest: %s is invalid" % e)
+    labels = segmentation.labels
+    groups = annotations.labels
 
-    try:
-        all_overlapping = indices_to_bools(all_overlapping, len(feature_files))
-    except ValueError, e:
-        die("File index for all overlapping: %s is invalid" % e)
+    print DELIM.join(PRINT_FIELDS)
 
-    # Load segment file
-    segment_obj = Segmentation(segment_file, verbose=verbose)
-    labels = segment_obj.labels
-    segment_data = segment_obj.chromosomes
+    bin_distances = range(0, n_bins * bin_width + 1, bin_width) + \
+        ["Inf"]
+    if stranded:
+        bin_distances.extend(["-Inf"] + range(-n_bins * bin_width, 0, bin_width))
 
-    # Load feature files
-    feature_objs = [Annotations(feature_file, verbose=verbose)
-                    for feature_file in feature_files]
-    feature_datas = [feature_obj.chromosomes for feature_obj in feature_objs]
-
-    print_header_line(feature_files)
+    log("Calulating distances...", verbose)
+    start_time = time()
     for chrom in segment_data:
-        log("%s" % chrom, verbose)
-
         segments = segment_data[chrom]
-        features_list = []
-        for feature_data in feature_datas:
-            try:
-                features = feature_data[chrom]
-            except KeyError:
-                features = array(())
-            features_list.append(features)
+        try:
+            features = feature_data[chrom]
+        except KeyError:
+            continue
 
-        feature_scanners = [FeatureScanner(features)
-                            for features in features_list]
+        log("  %s" % chrom, verbose)
+        feature_scanner = FeatureScanner(features)
+
+        count_len = n_bins * (stranded + 1) + 2 + stranded
+        assert count_len == len(bin_distances)
+        counts = zeros((len(labels), len(groups), count_len), dtype="int")
         for segment in segments:
-            distances = []
-            for file_i, feature_scanner in enumerate(feature_scanners):
-                nearest = feature_scanner.nearest(segment)
-                distance = NaN
-                if nearest is not None:
-                    if isinstance(nearest, list):
-                        # If we are only printing one, use the first regardless
-                        if not all_overlapping[file_i]:
-                            nearest = nearest[0:1]
-                    else:
-                        # Make sure nearest is a list, even if only one element
-                        nearest = [nearest]
+            nearest = feature_scanner.nearest(segment)
+            distance = NaN
+            if nearest is not None:
+                if isinstance(nearest, list):
+                    # If we are only printing one, use the first regardless
+                    if not all_overlapping:
+                        nearest = nearest[0:1]
+                else:
+                    # Make sure nearest is a list, even if only one element
+                    nearest = [nearest]
 
-                    # Save multiple distances as a list of them
-                    distance = []
-                    for feature in nearest:
-                        one_dist = FeatureScanner.distance(segment, feature)
-                        if correct_strand[file_i]:
-                            try:
-                                strand = feature['strand']
-                                if strand == ".":
-                                    strand = None
-                            except IndexError:
+                # Save multiple distances as a list of them
+                for feature in nearest:
+                    distance = FeatureScanner.distance(segment, feature)
+                    if stranded:
+                        try:
+                            strand = feature['strand']
+                            if strand == ".":
                                 strand = None
+                        except IndexError:
+                            strand = None
 
-                            if strand is None:
-                                die("Trying to use strand information from:"
-                                    " %r, but it was not found" %
-                                    os.path.basename(feature_files[file_i]))
+                        if strand is None:
+                            die("Trying to use strand information but it was"
+                                " not found")
 
-                            if (strand == "+" and \
-                                    feature['start'] < segment['start']) or \
-                                    (strand == "-" and \
-                                         feature['end'] > segment['end']):
-                                one_dist = -one_dist
+                        if (strand == "+" and \
+                                segment['end'] < feature['start']) or \
+                                (strand == "-" and \
+                                     segment['start'] > feature['end']):
+                            distance = -distance
 
-                        if print_nearest[file_i]:
-                            name = feature_objs[file_i].labels[feature['key']]
-                            one_dist = "%s %s" % (one_dist, name)
 
-                        distance.append(one_dist)
+                    count_bin = \
+                        calc_distance_bin(n_bins, bin_width,
+                                          distance, stranded)
 
-                distances.append(distance)
+                    counts[segment['key'], feature['key'], count_bin] += 1
 
-            print_line(labels, chrom, segment, distances)
+                    if print_nearest:
+                        name = groups[feature['key']]
+                        distance_str = "%s %s" % (distance, name)
+                    else:
+                        distance_str = str(distance)
+
+                    print_line(labels, chrom, segment, distance_str)
+
+    log("Distances calculated in %.1f seconds" % (time() - start_time), verbose)
+    return counts, bin_distances
+
+def feature_distance(segment_file, annotations_file,
+                     outdir, mnemonic_file=None,
+                     n_bins=DEFAULT_BINS, bin_width=DEFAULT_BIN_WIDTH,
+                     clobber=False,
+                     stranded=False, print_nearest=False,
+                     all_overlapping=False,
+                     verbose=True, replot=False, noplot=False):
+    if not replot:
+        setup_directory(outdir)
+        segmentation = Segmentation(segment_file, verbose=verbose)
+        annotations = Annotations(annotations_file, verbose=verbose)
+        labels = segmentation.labels
+        groups = annotations.labels
+        counts, bins = print_distances(segmentation, annotations,
+                                       n_bins=n_bins, bin_width=bin_width,
+                                       verbose=verbose,
+                                       stranded=stranded,
+                                       print_nearest=print_nearest,
+                                       all_overlapping=all_overlapping)
+        save_tab(counts, bins, labels, groups, outdir,
+                 clobber=clobber, verbose=verbose)
+
+    if not noplot:
+        with open_transcript(outdir, MODULE) as transcriptfile:
+            save_plot(outdir, clobber=clobber, verbose=verbose,
+                      mnemonic_file=mnemonic_file,
+                      transcriptfile=transcriptfile)
+
+    #save_html(outdir, annotations_file, clobber=clobber)
 
 def parse_options(args):
-    from optparse import OptionParser
+    from optparse import OptionParser, OptionGroup
 
-    usage = "%prog [OPTIONS] SEGMENTATION ANNOTATIONS..."
+    usage = "%prog [OPTIONS] SEGMENTATION ANNOTATIONS"
     version = "%%prog %s" % __version__
 
     parser = OptionParser(usage=usage, version=version,
                           description=__doc__.strip())
 
-    parser.add_option("-q", "--quiet", dest="verbose",
-                      default=True, action="store_false",
-                      help="Do not print diagnostic messages.")
-    parser.add_option("-s", "--strand-correct", dest="correct_strands",
-                      default=[], action="append", metavar="N", type="int",
-                      help="Strand correct features from the Nth feature file"
-                      " (where N=1 is the first file)."
-                      " If the feature list contain strand information,"
-                      " the sign of the distance value is used to portray the"
-                      " relationship between the segment and the nearest"
-                      " stranded feature. A positive distance value indicates"
-                      " that the segment is nearest the 5' end of the feature,"
-                      " whereas a negative value indicates the segment is"
-                      " nearest the 3' end of the feature.")
-    parser.add_option("-p", "--print-nearest", dest="print_nearest",
-                      default=[], action="append", metavar="N", type="int",
-                      help="The name of the nearest feature will be printed"
-                      " after each distance (with a space separating the"
-                      " two) for features from the Nth feature file (where"
-                      " N=1 is the first file). If multiple features"
-                      " are equally near (or overlap), it is undefined"
-                      " which will be printed")
-    parser.add_option("-a", "--all-overlapping", dest="all_overlapping",
-                      default=[], action="append", metavar="N", type="int",
-                      help="If multiple features in the Nth file"
-                      " overlap a segment, a separate line"
-                      " is printed for each overlapping segment-feature"
-                      " pair (where N=1 is the first file). This is most"
-                      " interesting with --print-nearest=N. Otherwise,"
-                      " the first overlapping segment will be used for"
-                      " printing.")
+    group = OptionGroup(parser, "Basic options")
+    group.add_option("--clobber", action="store_true",
+                     dest="clobber", default=False,
+                     help="Overwrite existing output files if the specified"
+                     " directory already exists.")
+    group.add_option("-q", "--quiet", dest="verbose",
+                     default=True, action="store_false",
+                     help="Do not print diagnostic messages.")
+    group.add_option("-s", "--stranded", dest="stranded",
+                     default=False, action="store_true",
+                     help="Strand correct annotations in the ANNOTATIONS file."
+                     " If the annotations contains strand information,"
+                     " the sign of the distance value is used to portray the"
+                     " relationship between the segment and the nearest"
+                     " stranded annotation. A negative distance value"
+                     " indicates that the segment is nearest the 5' end of the"
+                     " annotation, whereas a positive value indicates the"
+                     " segment is nearest the 3' end of the annotation.")
+    parser.add_option_group(group)
+
+    group = OptionGroup(parser, "Print options")
+    group.add_option("-p", "--print-nearest", dest="print_nearest",
+                     default=False, action="store_true",
+                     help="The name of the nearest annotation will be printed"
+                     " after each distance (with a space separating the"
+                     " two) for annotations from the ANNOTATIONS file."
+                     " If multiple features are equally near (or overlap),"
+                     " it is undefined which will be printed")
+    group.add_option("-a", "--all-overlapping", dest="all_overlapping",
+                     default=False, action="store_true",
+                     help="If multiple annotations in the ANNOTATIONS file"
+                     " overlap a segment, a separate line is printed for each"
+                     " overlapping segment-annotation pair. This is most"
+                     " interesting with --print-nearest. Otherwise,"
+                     " the first overlapping segment will be used for"
+                     " printing.")
+    parser.add_option_group(group)
+
+    group = OptionGroup(parser, "Plotting options")
+    group.add_option("--noplot", action="store_true",
+                     dest="noplot", default=False,
+                     help="Do not generate plots")
+    group.add_option("--replot", action="store_true",
+                     dest="replot", default=False,
+                     help="Load data from output tab files and"
+                     " regenerate plots instead of recomputing data")
+    group.add_option("-n", "--n-bins", metavar="N", type="int",
+                     dest="n_bins", default=DEFAULT_BINS,
+                     help="Number of bins to use in histogram for distances"
+                     " greater than zero and less than or equal to N*W."
+                     " Distances of 0 and greater than N*W are placed in"
+                     " additional bins. If --stranded, N more"
+                     " bins are included in the negative direction and"
+                     " a bin for distances less than -N*W.")
+    group.add_option("-w", "--bin-width", metavar="W", type="int",
+                     dest="bin_width", default=DEFAULT_BIN_WIDTH,
+                     help="Number of bases in each bin."
+                     " If --stranded, bins cover distances of"
+                     " (-Inf,-N*W), ..., [-W,0), [0], (0,W], ..., (N*W,Inf)."
+                     " Otherwise, the bins cover distances of"
+                     " [0], (0,W], (W,2W], ..., (N*W,Inf).")
+    parser.add_option_group(group)
+
+    group = OptionGroup(parser, "Output options")
+    group.add_option("-m", "--mnemonic-file", dest="mnemonic_file",
+                     default=None, metavar="FILE",
+                     help="If specified, labels will be shown using"
+                     " mnemonics found in FILE")
+    group.add_option("-o", "--outdir", metavar="DIR",
+                     dest="outdir", default="%s" % MODULE,
+                     help="File output directory (will be created"
+                     " if it does not exist) [default: %default]")
+    parser.add_option_group(group)
 
     (options, args) = parser.parse_args(args)
 
@@ -215,19 +323,9 @@ def parse_options(args):
 def main(args=sys.argv[1:]):
     (options, args) = parse_options(args)
 
-    segment_file = args[0]
-    feature_files = args[1:]
+    kwargs = dict(options.__dict__)
 
-    # Convert file indices to 0-indexed
-    correct_strands = [int(val) - 1 for val in options.correct_strands]
-    print_nearest = [int(val) - 1 for val in options.print_nearest]
-    all_overlapping = [int(val) - 1 for val in options.all_overlapping]
-
-    kwargs = {"verbose": options.verbose,
-              "correct_strands": correct_strands,
-              "print_nearest": print_nearest,
-              "all_overlapping": all_overlapping}
-    feature_distance(segment_file, feature_files, **kwargs)
+    feature_distance(*args, **kwargs)
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -19,8 +19,8 @@ from collections import defaultdict
 from genomedata import Genome
 from numpy import zeros
 
-from . import log, Annotations
-from .common import die, make_tabfilename, r_plot,  r_source, setup_directory, tab_saver
+from . import log, Annotations, die, RInterface
+from .common import make_tabfilename, setup_directory, tab_saver
 
 from .html import save_html_div
 
@@ -50,9 +50,7 @@ DINUC_CATEGORIES = [[('A', 'A'), ('T', 'T')],
                     [('G', 'C')],
                     [('T', 'A')]]
 
-def start_R():
-    r_source("common.R")
-    r_source("dinucleotide.R")
+R = RInterface(["common.R", "dinucleotide.R"])
 
 ## Caclulates nucleotide and dinucleotide frequencies over the specified
 ## annotations
@@ -167,14 +165,14 @@ def save_tab(labels, nuc_counts, dinuc_counts, dirpath,
 
 def save_plot(dirpath, clobber=False, verbose=True,
               mnemonic_file="", namebase=NAMEBASE):
-    start_R()
+    R.start(verbose=verbose)
 
     tabfilename = make_tabfilename(dirpath, NAMEBASE)
     if not os.path.isfile(tabfilename):
         die("Unable to find tab file: %s" % tabfilename)
 
-    r_plot("save.dinuc", dirpath, namebase, tabfilename,
-           mnemonic_file=mnemonic_file, clobber=clobber, verbose=verbose)
+    R.plot("save.dinuc", dirpath, namebase, tabfilename,
+           mnemonic_file=mnemonic_file, clobber=clobber)
 
 def save_html(dirpath, clobber=False, mnemonicfile=None):
     save_html_div(HTML_TEMPLATE_FILENAME, dirpath, NAMEBASE, clobber=clobber,

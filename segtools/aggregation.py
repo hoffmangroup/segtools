@@ -24,10 +24,10 @@ from functools import partial
 from numpy import arange, array, empty, linspace, round
 
 from . import (Annotations, log, Segmentation, DTYPE_SEGMENT_START,
-               DTYPE_SEGMENT_END, DTYPE_SEGMENT_KEY, DTYPE_STRAND)
-from .common import (die, fill_array, get_ordered_labels, make_tabfilename,
-                     map_segment_label, r_plot, r_source, setup_directory,
-                     tab_saver)
+               DTYPE_SEGMENT_END, DTYPE_SEGMENT_KEY, DTYPE_STRAND,
+               die, RInterface)
+from .common import (fill_array, get_ordered_labels, make_tabfilename,
+                     map_segment_label, setup_directory, tab_saver)
 from .html import save_html_div
 
 NAMEBASE = "%s" % MODULE
@@ -91,6 +91,8 @@ FLANK_BASES = 500
 REGION_BINS = 50
 INTRON_BINS = 50
 EXON_BINS = 25
+
+R = RInterface(["common.R", "aggregation.R"])
 
 class GeneAnnotations(Annotations):
     """Annotations class for gene-type annotations"""
@@ -423,10 +425,6 @@ class GeneAnnotations(Annotations):
         return res
 
 
-def start_R():
-    r_source("common.R")
-    r_source("aggregation.R")
-
 def print_bed_from_gene_component(features, component="terminal exon"):
     with open("%s.bed" % component, "w") as ofp:
         for chrom, chrom_features in features.iteritems():
@@ -735,7 +733,7 @@ def save_tab(segmentation, features, counts, components, component_bins,
 ## Plots aggregation data from tab file
 def save_plot(dirpath, mode, namebase=NAMEBASE, clobber=False, verbose=True,
               mnemonic_file=None, normalize=False, significance=False):
-    start_R()
+    R.start(verbose=verbose)
 
     tabfilename = make_tabfilename(dirpath, namebase)
     if not os.path.isfile(tabfilename):
@@ -746,14 +744,13 @@ def save_plot(dirpath, mode, namebase=NAMEBASE, clobber=False, verbose=True,
 
     # Plot data in tab file
     if mode == GENE_MODE:
-        r_plot("save.gene.aggregations", dirpath, NAMEBASE_SPLICING,
+        R.plot("save.gene.aggregations", dirpath, NAMEBASE_SPLICING,
                NAMEBASE_TRANSLATION, tabfilename, mnemonic_file=mnemonic_file,
-               normalize=normalize, clobber=clobber, verbose=verbose,
-               significance=significance)
+               normalize=normalize, clobber=clobber, significance=significance)
     else:
-        r_plot("save.aggregation", dirpath, namebase, tabfilename,
+        R.plot("save.aggregation", dirpath, namebase, tabfilename,
                mnemonic_file=mnemonic_file, normalize=normalize,
-               clobber=clobber, verbose=verbose, significance=significance)
+               clobber=clobber, significance=significance)
 
 def save_html(dirpath, featurefilename, mode, clobber=False, normalize=False):
     featurebasename = os.path.basename(featurefilename)
@@ -885,7 +882,7 @@ def parse_options(args):
     parser = OptionParser(usage=usage, version=version,
                           description=description)
 
-    group = OptionGroup(parser, "Input options")
+    group = OptionGroup(parser, "Output options")
     group.add_option("-m", "--mnemonic-file", dest="mnemonic_file",
                       default=None, metavar="FILE",
                       help="If specified, labels will be shown using"

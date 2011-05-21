@@ -16,11 +16,16 @@ from collections import defaultdict
 from contextlib import contextmanager
 from functools import partial
 from numpy import array, int64, uint32
+from time import time
+
+from pkg_resources import resource_filename
 
 try:
     PKG = __package__  # Python 2.6
 except NameError:
     PKG = "segtools"
+
+PKG_R = os.extsep.join([PKG, "R"])
 
 EXT_GZ = "gz"
 EXT_PICKLE = "pkl"
@@ -70,8 +75,11 @@ class Annotations(object):
         if not os.path.isfile(filename):
             raise IOError("Could not find file: %s" % filename)
 
-        log("Loading %s:" % self.__class__.__name__, verbose)
+        log("Loading %s from file: %s" %
+            (self.__class__.__name__, filename), verbose)
+        start = time()
         self._load(filename, verbose=verbose)
+        log("Loading finished in %.1f seconds." % (time() - start), verbose)
 
     @staticmethod
     def _get_file_format(filepath):
@@ -98,7 +106,7 @@ class Annotations(object):
         elif format in set(["bed", "gff", "gtf"]):
             self._from_file(filename, verbose=verbose)
         else:
-            raise self.FormatError("Unrecognized file format: %s on file: %s"
+            raise self.FormatError("Unrecognized extension (%s) on file: %s"
                                    % (format, filename))
 
     def _iter_rows(self, filename, verbose=True):
@@ -118,7 +126,7 @@ class Annotations(object):
             raise self.FormatError("Cannot iterate segments in file format:"
                                    " %s" % format)
 
-        log("  Parsing %s file: %s" % (format, filename), verbose)
+        log("  Parsing lines from %s format" % format, verbose)
 
         with maybe_gzip_open(filename) as infile:
             for datum in reader(infile):
@@ -148,8 +156,7 @@ class Annotations(object):
         import cPickle
         from .common import maybe_gzip_open
 
-        log("  Unpickling %s object..." % self.__class__.__name__,
-            verbose, end="")
+        log("  Unpickling %s" % self.__class__.__name__, verbose)
 
         with maybe_gzip_open(filename, 'rb') as ifp:
             object = cPickle.load(ifp)
@@ -161,8 +168,6 @@ class Annotations(object):
                 raise self.UnpickleError(msg)
 
             self.__dict__ = object.__dict__
-
-        log(" done", verbose)
 
     def _from_file(self, filename, verbose=True):
         """Parses a data file and sets object attributes
@@ -235,15 +240,11 @@ class Annotations(object):
 
         # Sort segments within each chromosome
         if unsorted_chroms:
-            log("  Segments were unsorted relative to the following"
+            log("  Sorting unsorted segments in the following"
                 " chromosomes: %s" % ", ".join(unsorted_chroms), verbose)
-            log("  Sorting...", verbose, end="")
-
             for chrom in unsorted_chroms:
                 segments = chromosomes[chrom]
                 segments.sort(order=['start'])
-
-            log(" done", verbose)
 
         self.filename = filename
         self.chromosomes = chromosomes
@@ -261,13 +262,10 @@ class Annotations(object):
             filename = os.extsep.join([self.filename, EXT_PICKLE, EXT_GZ])
 
         check_clobber(filename, clobber)
-        log("Pickling %s object to file: %s..."
-            % (self.__class__.__name__, filename),
-            verbose, end="")
+        log("Pickling %s object to file: %s"
+            % (self.__class__.__name__, filename), verbose)
         with maybe_gzip_open(filename, 'wb') as ofp:
             cPickle.dump(self, ofp, -1)
-
-        log(" done", verbose)
 
     def num_label_segments(self, label):
         return self._n_label_segments[str(label)]
@@ -333,7 +331,6 @@ class Segmentation(Annotations):
         """
         super(self.__class__, self)._from_file(filename, verbose=verbose)
 
-        log("  Checking for overlapping segments...", verbose, end="")
         for chrom, segments in self.chromosomes.iteritems():
             # Make sure there are no overlapping segments
             if segments.shape[0] > 1 and \
@@ -341,7 +338,6 @@ class Segmentation(Annotations):
                 raise self.SegmentOverlapError("Found overlapping segments"
                                                " in chromosome: %s" % chrom)
 
-        log(" done", verbose)
         self.segtool, self.tracks = self.get_bed_metadata(filename)
 
     @staticmethod
@@ -374,6 +370,131 @@ def log(message, verbose=True, end="\n", file=sys.stderr):
     if verbose:
         file.write(str(message))
         file.write(end)
+
+## Die with error message
+def die(msg="Unexpected error"):
+    log("\nFatal error: %s\n" % msg)
+    sys.exit(1)
+
+
+## Class to handle sourcing, plotting, and calling R functions
+class RInterface(object):
+    """
+    Interface to R environment, providing methods to source files,
+    call functions, and plot with R
+    """
+    _get_filename = partial(resource_filename, PKG_R)
+    def __init__(self, files_to_source=[], verbose=True):
+        self.started = False
+        self._files = tuple(files_to_source)
+        self.verbose = verbose
+        self._r_console = lambda msg: sys.stderr.write(str(msg))
+
+    def start(self, transcriptfile=None, verbose=None):
+        if verbose is not None:
+            self.verbose = verbose
+
+        if self.started:
+            return
+
+        self.started = True
+
+        # Start up R
+        log("Opening connection to R environment.", self.verbose)
+        from rpy2.robjects import r, rinterface
+        self._r = r
+        self._rinterface = rinterface
+        self.RError = rinterface.RRuntimeError
+
+        # Set up transcript
+        self._transcript = transcriptfile
+        if self._transcript:
+            print >>self._transcript
+            log("Saving transcript to file: %s" % self._transcript.name,
+                self.verbose)
+
+        # Source any R files
+        for file in self._files:
+            self.source(file)
+
+    def source(self, filename):
+        """Simplify importing R source in the package"""
+        self.start()
+
+        filename_full = self._get_filename(filename)
+        print >>self._transcript, "source(%r)" % filename_full
+        try:
+            self._r.source(filename_full)
+        except self.RError:
+            die("Failed to load R package: %s\n" % filename_full)
+
+    @classmethod
+    def arg_to_text(cls, arg):
+        if isinstance(arg, bool):
+            return repr(arg).upper() # True -> TRUE, False -> FALSE
+        else:
+            return repr(arg)
+
+    def call(self, func, *args, **kwargs):
+        """Safer way to call R functions (without importing all that junk)
+
+        None values are substituted with empty string
+        """
+        self.start()
+
+        from rpy2.robjects import numpy2ri
+        # numpy2ri imported for side-effect
+
+        # Make sure there are no None values in args or kwargs
+        # rpy2 currently doesn't support passing Nones, so replace them with ""
+        for arg_i, arg in enumerate(args):
+            if arg is None:
+                args[arg_i] = ""
+
+        for key, val in kwargs.iteritems():
+            if val is None:
+                kwargs[key] = ""
+
+        # Save call to transcript
+        if self._transcript:
+            args_text = [self.arg_to_text(arg) for arg in args]
+            kwargs_text = ["%s = %s" % (key, self.arg_to_text(value))
+                           for key, value in kwargs.iteritems()]
+            all_args = ", ".join(args_text + kwargs_text)
+
+            print >>self._transcript, "%s(%s)" % (func, all_args)
+
+        return self._r[func](*args, **kwargs)
+
+    def plot(self, func, *args, **kwargs):
+        """Call R function but print timing information
+
+        (kept around for backwards compatibility)
+        """
+        self.start()
+        log("Plotting with R function: %r" % func, self.verbose)
+        start = time()
+
+        # Unless verbose, only print R output when there is an error
+        r_log = []
+        if self.verbose:
+            r_console = self._r_console
+        else:
+            r_console = lambda msg: r_log.append(str(msg))
+
+        self._rinterface.set_writeconsole(r_console)
+        try:
+            result = self.call(func, *args, **kwargs)
+        except self.RError:
+            die("Encoundered error within R:\n%s" % "\n  ".join(msg))
+
+        # Return console back to stderr
+        self._rinterface.set_writeconsole(self._r_console)
+
+        log("Plotting completed in %.1f seconds" % (time() - start),
+            self.verbose)
+        return result
+
 
 @contextmanager
 def open_transcript(dirpath, module, verified=False):

@@ -10,8 +10,8 @@ mnemonics.py
 
 import os
 
-from . import log
-from .common import check_clobber, r_call, r_source, RError
+from . import log, RInterface
+from .common import check_clobber
 
 def create_mnemonic_file(datafile, dirpath, clobber=False,
                          namebase=None, gmtk=False, verbose=True):
@@ -24,8 +24,7 @@ def create_mnemonic_file(datafile, dirpath, clobber=False,
     """
     assert os.path.isfile(datafile)
 
-    r_source("common.R")
-    r_source("track_statistics.R")
+    R = RInterface(["common.R", "track_statistics.R"], verbose=verbose)
 
     if namebase is None:
         namebase = os.path.basename(datafile)
@@ -41,7 +40,7 @@ def create_mnemonic_file(datafile, dirpath, clobber=False,
 
     # Create mnemonic file via R
     try:
-        r_filename = r_call("make.mnemonic.file",
+        r_filename = R.call("make.mnemonic.file",
                             datafile, filename, gmtk=gmtk)
         # Peel off rpy2 layers
         mnemonicfilename = str(r_filename[0])
@@ -49,7 +48,7 @@ def create_mnemonic_file(datafile, dirpath, clobber=False,
         log("Created mnemonic file: %s" % mnemonicfilename, verbose)
 
         return mnemonicfilename
-    except RError:
+    except R.RError:
         log("ERROR: Failed to create mnemonic file."
             " Continuing without mnemonics.")
         return None

@@ -17,8 +17,8 @@ import sys
 
 from numpy import array
 
-from . import log
-from .common import die, r_call, r_source, setup_directory
+from . import log, die, RInterface
+from .common import setup_directory
 from .html import save_html_div
 from .transition import save_plot, save_graph
 from .mnemonics import create_mnemonic_file
@@ -34,22 +34,20 @@ HTML_TITLE = "GMTK Theoretical Parameters"
 P_THRESH = 0.15  # Default
 Q_THRESH = 0.0
 
-def start_R():
-    r_source("common.R")
-    r_source("transition.R")
+R = RInterface(["common.R", "transition.R"])
 
 def get_default_labels(num_labels):
     """Generate default labels (0 through num_labels-1)"""
     return dict([(val, str(val)) for val in range(0, num_labels)])
 
-def load_gmtk_transitions(gmtk_file):
+def load_gmtk_transitions(gmtk_file, verbose=True):
     """Loads probabilites from a gmtk_file, through R.
 
     Returns probs as a numpy.array
     """
-    start_R()
+    R.start(verbose=verbose)
 
-    r_data = r_call("read.gmtk.transition", gmtk_file)
+    r_data = R.call("read.gmtk.transition", gmtk_file)
     # Rpy automatically transposes, so need to transpose it back
     probs = array(r_data, dtype="double").transpose()
     num_labels = probs.shape[0]
@@ -86,7 +84,7 @@ def validate(gmtk_file, dirpath, p_thresh=P_THRESH, q_thresh=Q_THRESH,
     # read.gmtk.transition() code
     log("Loading gmtk transitions...", verbose, end="")
 
-    labels, probs = load_gmtk_transitions(gmtk_file)
+    labels, probs = load_gmtk_transitions(gmtk_file, verbose=verbose)
     log(" done", verbose)
 
     # If mnemonics weren't specified, let's create a mnemonic file

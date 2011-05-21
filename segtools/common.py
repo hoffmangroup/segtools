@@ -18,15 +18,13 @@ from contextlib import closing, contextmanager
 from functools import partial
 from gzip import open as _gzip_open
 from warnings import warn
+from time import time
 
 from numpy import array, empty, iinfo, ndarray, searchsorted
-from pkg_resources import resource_filename
 from tabdelim import DictReader, DictWriter, ListReader, ListWriter
-from rpy2.robjects import r, rinterface
 
-from . import log, EXT_GZ, PKG
+from . import log, EXT_GZ, PKG, die
 
-PKG_R = os.extsep.join([PKG, "R"])
 PKG_RESOURCE = os.extsep.join([PKG, "resources"])
 
 EXT_PDF = "pdf"
@@ -49,9 +47,6 @@ SUFFIX_GZ = os.extsep + EXT_GZ
 LABEL_ALL = "all"
 
 THUMB_SIZE = 100
-
-r_filename = partial(resource_filename, PKG_R)
-RError = rinterface.RRuntimeError
 
 class OutputMasker(object):
     """Class to mask the output of a stream.
@@ -237,11 +232,6 @@ class FeatureScanner(object):
 
 ## UTILITY FUNCTIONS
 
-## Die with error message
-def die(msg="Unexpected error"):
-    log("\nERROR: %s\n" % msg)
-    sys.exit(1)
-
 def inverse_dict(d):
     """Given a dict, returns the inverse of the dict (val -> key)"""
     res = {}
@@ -291,72 +281,6 @@ def fill_array(scalar, shape, dtype=None, *args, **kwargs):
     res.fill(scalar)
     return res
 
-def r_source(filename, transcriptfile=None):
-    """Simplify importing R source in the package"""
-
-    filename_full = r_filename(filename)
-    print >>transcriptfile, "source(%r)" % filename_full
-    try:
-        r.source(filename_full)
-    except RError:
-        die("Failed to load R package: %s\n" % filename_full)
-
-def r_arg_to_text(arg):
-    if isinstance(arg, bool):
-        return repr(arg).upper() # True -> TRUE, False -> FALSE
-    else:
-        return repr(arg)
-
-def r_call(func, *args, **kwargs):
-    """Safer way to call R functions (without importing all that junk)
-
-    None values are substituted with ""
-    """
-    from rpy2.robjects import numpy2ri
-    # numpy2ri imported for side-effect
-
-    # Grab verbose value, with default to None
-    transcriptfile = kwargs.pop("transcriptfile", None)
-
-    if transcriptfile:
-        args_text = [r_arg_to_text(arg) for arg in args]
-        kwargs_text = ["%s = %s" % (key, r_arg_to_text(value))
-                       for key, value in kwargs.iteritems()]
-        all_args = ", ".join(args_text + kwargs_text)
-
-        print >>transcriptfile, "%s(%s)" % (func, all_args)
-
-    # Make sure there are no None values in args or kwargs
-    # rpy2 currently doesn't support passing Nones, so replace them with ""
-    for arg_i, arg in enumerate(args):
-        if arg is None:
-            args[arg_i] = ""
-
-    for key, val in kwargs.iteritems():
-        if val is None:
-            kwargs[key] = ""
-
-    return r[func](*args, **kwargs)
-
-def r_plot(func, *args, **kwargs):
-    """Safely call R plotting function (with verbose print option)
-
-    Calls r_call()
-    Argument "verbose" is caught by r_plot and not passed on to R functions
-
-    Other than that, it does't do anything different from r_call()
-    """
-
-    # Grab verbose value, with default to True
-    verbose = kwargs.pop("verbose", True)
-
-    log("Saving plots with R function: %r..." % func, verbose, end="")
-
-    result = r_call(func, *args, **kwargs)
-    log(" done", verbose)
-
-    return result
-
 @contextmanager
 def tab_saver(dirpath, basename, fieldnames=None, header=True,
               clobber=False, metadata=None, verbose=True):
@@ -369,9 +293,9 @@ def tab_saver(dirpath, basename, fieldnames=None, header=True,
       Comment line will start with '# ' and then will be a space-delimited
       list of <field>=<value> pairs, one for each element of the dict.
     """
-    log("Saving tab file...", verbose, end="")
-
     outfilename = make_tabfilename(dirpath, basename)
+    log("Saving tab file: %s" % outfilename, verbose)
+    start = time()
     check_clobber(outfilename, clobber)
     with open(outfilename, "w") as outfile:
         if metadata is not None:
@@ -385,7 +309,7 @@ def tab_saver(dirpath, basename, fieldnames=None, header=True,
         else:
             yield ListWriter(outfile)
 
-    log(" done", verbose)
+    log("Saved tab file in %.1f seconds" % (time() - start), verbose)
 
 @contextmanager
 def tab_reader(dirpath, basename, verbose=True, fieldnames=False):
@@ -397,9 +321,10 @@ def tab_reader(dirpath, basename, verbose=True, fieldnames=False):
 
     metadata: a dict describing the data included in the comment line.
     """
-    log("Reading tab file...", verbose, end="")
 
     infilename = make_tabfilename(dirpath, basename)
+    log("Reading tab file: %s" % infilename, verbose)
+    start = time()
     if not os.path.isfile(infilename):
         raise IOError("Unable to find tab file: %s" % infilename)
 
@@ -420,7 +345,7 @@ def tab_reader(dirpath, basename, verbose=True, fieldnames=False):
         else:
             yield ListReader(infile), metadata
 
-    log(" done", verbose)
+    log("Tab file read in %.1f seconds" % (time() - start), verbose)
 
 def map_segment_label(segments, range):
     """Flatten segments to a segment label per base vector

@@ -21,10 +21,12 @@ from collections import defaultdict
 from genomedata import Genome
 from itertools import repeat
 from functools import partial
-from numpy import array, ceil, compress, floor, fromiter, histogram, isfinite, NAN, nanmax, nanmin, nansum, NINF, PINF
+from numpy import array, ceil, compress, floor, fromiter, histogram, \
+     isfinite, NAN, nanmax, nanmin, nansum, NINF, PINF
 
-from . import log, Segmentation
-from .common import die, iter_segments_continuous, iter_supercontig_segments, make_tabfilename, r_plot, r_source, setup_directory, tab_reader, tab_saver
+from . import log, Segmentation, die, RInterface
+from .common import iter_segments_continuous, iter_supercontig_segments, \
+     make_tabfilename, setup_directory, tab_reader, tab_saver
 from .html import save_html_div
 from .mnemonics import create_mnemonic_file
 
@@ -38,6 +40,8 @@ HTML_TITLE = "Signal value distribution"
 HTML_TEMPLATE_FILENAME = "signal_div.tmpl"
 
 NBINS = 100
+
+R = RInterface(["common.R", "signal.R"])
 
 class SignalHistogram(object):
     def __init__(self, histogram=None, **fields):
@@ -366,10 +370,6 @@ def save_stats_tab(stats, dirpath, clobber=False, verbose=True,
                 sd = track_stats["sd"]
                 saver.writerow(locals())
 
-def start_R():
-    r_source("common.R")
-    r_source("signal.R")
-
 def constant_factory(val):
     return repeat(val).next
 
@@ -617,8 +617,8 @@ def save_stats_plot(dirpath, namebase=NAMEBASE_STATS, filename=None,
 
     """
     ## Plot the track stats data with R
-    start_R()
-    r_source("track_statistics.R")
+    R.start(verbose=verbose)
+    R.source("track_statistics.R")
 
     if filename is None:
         filename = make_tabfilename(dirpath, namebase)
@@ -626,11 +626,10 @@ def save_stats_plot(dirpath, namebase=NAMEBASE_STATS, filename=None,
     if not os.path.isfile(filename):
         die("Unable to find stats data file: %s" % filename)
 
-    r_plot("save.track.stats", dirpath, namebase, filename,
+    R.plot("save.track.stats", dirpath, namebase, filename,
            mnemonic_file=mnemonic_file,
            translation_file=translation_file,
-           as_regex=allow_regex, gmtk=gmtk,
-           clobber=clobber, verbose=verbose,
+           as_regex=allow_regex, gmtk=gmtk, clobber=clobber,
            label_order=label_order, track_order=track_order)
 
 def save_html(dirpath, genomedatadir, nseg_dps=None,
