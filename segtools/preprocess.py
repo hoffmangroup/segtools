@@ -5,7 +5,8 @@ annotation file (specify --annotation), this
 tool allows you to pre-process that file only once
 and have it load much faster in the future.
 INFILE will be parsed to create a special binary file with
-a name of the form: "INFILE.pkl". Then, you can substitute this
+a name of the form: "INFILE.pkl" or "OUTFILE.pkl".
+Then, you can substitute this
 new file for the corresponding SEGMENTATION or ANNOTATIONS
 argument in future Segtools calls and Segtools will parse
 it in much faster (but be sure to keep the ".pkl" extension intact)!

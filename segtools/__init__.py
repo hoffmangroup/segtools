@@ -41,7 +41,7 @@ class Annotations(object):
 
     chromosomes: a dict
       key: chromosome name
-      val: segments, a numpy.ndarray, 
+      val: segments, a numpy.ndarray,
            (each row is a (start, end, key, [strand, ...]) struct)
            sorted by start, end
            * These segments are not necessarily non-overlapping
@@ -259,7 +259,9 @@ class Annotations(object):
         from .common import check_clobber, maybe_gzip_open
 
         if filename is None:
-            filename = os.extsep.join([self.filename, EXT_PICKLE, EXT_GZ])
+            filename = self.filename
+
+        filename = os.extsep.join([filename, EXT_PICKLE, EXT_GZ])
 
         check_clobber(filename, clobber)
         log("Pickling %s object to file: %s"
@@ -422,7 +424,9 @@ class RInterface(object):
         self.start()
 
         filename_full = self._get_filename(filename)
-        print >>self._transcript, "source(%r)" % filename_full
+        if self._transcript:
+            print >>self._transcript, "source(%r)" % filename_full
+
         try:
             self._r.source(filename_full)
         except self.RError:
