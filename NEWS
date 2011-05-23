@@ -12,7 +12,8 @@
 * segtools-nucleotide-frequency: improved speed by caching 
   whole chromosome sequence
 * segtools-relabel: added command to relabel a segmentation
-* segtools-feature-distance: added histogram output
+* segtools-feature-distance: added histogram visualization output
+* segtools-preprocess: if OUTFILE is specified, the .pkl.gz extension is still added
 
 1.1.6:
 
