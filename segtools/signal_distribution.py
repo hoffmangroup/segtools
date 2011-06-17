@@ -21,8 +21,8 @@ from collections import defaultdict
 from genomedata import Genome
 from itertools import repeat
 from functools import partial
-from numpy import array, ceil, compress, floor, fromiter, histogram, \
-     isfinite, NAN, nanmax, nanmin, nansum, NINF, PINF
+from numpy import apply_along_axis, array, ceil, compress, floor, fromiter, \
+    histogram, isfinite, NAN, nanmax, nanmin, nansum, NINF, PINF, zeros
 
 from . import log, Segmentation, die, RInterface
 from .common import iter_segments_continuous, iter_supercontig_segments, \
@@ -94,8 +94,6 @@ class SignalHistogram(object):
         assert segmentation is not None
 
         labels = segmentation.labels
-
-        label_bins = xrange(0, len(labels) + 1)  # [0, 1, ..., n, n + 1]
 
         tracks = genome.tracknames_continuous
         max_bins = ceil(genome.maxs).astype(int)
@@ -182,6 +180,86 @@ class SignalHistogram(object):
         return SignalHistogram(res, nseg_dps=nseg_dps)
 
     @staticmethod
+    def calculate_stat(genome, segmentation, chroms=None,
+                       quick=False, verbose=True):
+        """
+        Computes a mean and variance for each track-label pair.
+        
+
+        if chroms is:
+        - a sequence of chromosome names: only those chromosomes are processed
+        - False, [], None: all chromosomes are processed
+
+        if calc_ranges is:
+        - False: use the precomputed ranges stored for the entire genome file
+        - True: calculate the segmentation ranges across the entire input
+ 
+        if quick is:
+        - True: the histogram is calculated for only the first chromosome
+ 
+        returns a dict
+ 
+        """
+        assert genome is not None
+        assert segmentation is not None
+ 
+        labels = segmentation.labels
+        
+        tracks = genome.tracknames_continuous
+        max_bins = ceil(genome.maxs).astype(int)
+        min_bins = floor(genome.mins).astype(int)
+        # A dict from tracks to a range tuple
+        track_indices = dict(zip(tracks, range(len(tracks))))
+        
+        if len(tracks) == 0:
+            die("Trying to calculate histogram for no tracks")
+            
+        nseg_dps = 0  # Number of non-NaN data points in segmentation tracks
+        sum_total, sum2_total, nseg_dps_total = zeros(\
+            (len(tracks), len(labels)), dtype=float),  
+        zeros((len(tracks), len(labels)), dtype=float), 
+        zeros((len(tracks), len(labels)), dtype=float)
+        log("Generating signal distribution histograms", verbose)
+ 
+        with genome:
+            if chroms:
+                chromosomes = [genome[chrom] for chrom in chroms]
+            else:
+                chromosomes = genome
+                
+            for chromosome in chromosomes:
+                # Iterate through supercontigs and segments together
+                for segment, continuous_seg in \
+                        iter_segments_continuous(chromosome, segmentation,
+                                                 verbose=verbose):
+ 
+                    sum_segment, sum2_segment, nseg_dps_segment  = \
+                        apply_along_axis(get_stat, 0, continuous_seg)
+                    seg_label = labels[segment['key']]
+                    sum_total[:,seg_label], \
+                        sum2_total[:,seg_label], \
+                        nseg_dps_total[:,seg_label] = \
+                        sum_total[:,seg_label] + sum_segment, \
+                        sum2_total[:,seg_label] + sum2_segment, \
+                        nseg_dps_total[:,seg_label] + nseg_dps_segment
+                     # Iterate through each track
+ 
+                if quick: break  # 1 chromosome
+ 
+        mean = sum_total/nseg_dps_total
+        sd = (sum2_total -
+              ((sum_total**2)/nseg_dps_total))/(nseg_dps_total -1)
+        nseg_dps = sum(nseg_dps_total)
+        stats = defaultdict(partial(defaultdict, dict))
+        for trackname, track_index in track_indices.iteritems():
+            for label in labels:
+                cur_stat = stats[label][trackname]
+                cur_stat["sd"] = sd[track_index,label]
+                cur_stat["mean"] = mean[track_index,label]
+        return stats, nseg_dps 
+ 
+
+    @staticmethod
     def calculate2(genome, segmentation, nbins=None, chroms=None,
                   calc_ranges=False,
                   value_range=(None, None), quick=False, verbose=True):
@@ -189,8 +267,6 @@ class SignalHistogram(object):
         assert segmentation is not None
 
         labels = segmentation.labels
-
-        label_bins = xrange(0, len(labels) + 1)  # [0, 1, ..., n, n + 1]
 
         tracks = genome.tracknames_continuous
         max_bins = ceil(genome.maxs).astype(int)
@@ -370,11 +446,26 @@ def save_stats_tab(stats, dirpath, clobber=False, verbose=True,
                 sd = track_stats["sd"]
                 saver.writerow(locals())
 
+def save_stats_tab_genhist(stats, dirpath, clobber=False, verbose=True,
+                           namebase=NAMEBASE_STATS, 
+                           fieldnames=FIELDNAMES_STATS):
+    with tab_saver(dirpath, namebase, fieldnames, verbose=verbose,
+                   clobber=clobber) as saver:
+        for label, label_stats in stats.iteritems():
+            for trackname, track_stats in label_stats.iteritems():
+                mean = track_stats["mean"]
+                sd = track_stats["sd"]
+                saver.writerow(locals())
+
 def constant_factory(val):
     return repeat(val).next
 
 def remove_nans(numbers):
     return numbers[isfinite(numbers)]
+
+def get_stat(arr):
+    arr_nonan = remove_nans(arr)
+    return arr_nonan.sum(), arr_nonan.square().sum(), arr_nonan.shape[0]
 
 ## Returns a dict of trackname -> tuples: (min, max), one for each trackname
 def seg_min_max(chromosome, segmentation, verbose=False):
@@ -670,11 +761,11 @@ def validate(bedfilename, genomedatadir, dirpath,
              clobber=False, calc_ranges=False, inputdirs=None,
              quick=False, replot=False, noplot=False, verbose=True,
              nbins=NBINS, value_range=(None, None),
-             ecdf=False, mnemonic_file=None,
+             ecdf=False, mnemonic_file=None, genhist=False,
              create_mnemonics=False, chroms=None,
              label_order_file=None, track_order_file=None):
 
-    if not replot:
+    if not genhist or not replot:
         setup_directory(dirpath)
         genome = Genome(genomedatadir)
         segmentation = Segmentation(bedfilename, verbose=verbose)
@@ -686,30 +777,44 @@ def validate(bedfilename, genomedatadir, dirpath,
         nlabels = len(labels)
         fieldnames = FIELDNAMES
 
-    if inputdirs:
-        histogram = SignalHistogram()
-        for inputdir in inputdirs:
-            try:
-                sub_histogram = SignalHistogram.read(inputdir, verbose=verbose)
-            except IOError, e:
-                log("Problem reading data from %s: %s" % (inputdir, e))
-            else:
-                histogram.add(sub_histogram)
 
-    elif not replot:
-        # Generate histogram
-        histogram = SignalHistogram.calculate(genome, segmentation,
-                                              nbins=nbins, verbose=verbose,
-                                              calc_ranges=calc_ranges,
-                                              value_range=value_range,
-                                              quick=quick, chroms=chroms)
+    if genhist:
+        if inputdirs:
+            histogram = SignalHistogram()
+            for inputdir in inputdirs:
+                try:
+                    sub_histogram = SignalHistogram.read(inputdir, verbose=verbose)
+                except IOError, e:
+                    log("Problem reading data from %s: %s" % (inputdir, e))
+                else:
+                    histogram.add(sub_histogram)
+
+        elif not replot:
+            # Generate histogram
+            histogram = SignalHistogram.calculate(genome, segmentation,
+                                                  nbins=nbins, verbose=verbose,
+                                                  calc_ranges=calc_ranges,
+                                                  value_range=value_range,
+                                                  quick=quick, chroms=chroms)
+        else:
+            histogram = SignalHistogram.read(dirpath, verbose=verbose)
+
+        if not replot:
+            histogram.save(dirpath, clobber=clobber, verbose=verbose)
+
+            stats = calc_stats(histogram)
+            save_stats_tab(stats, dirpath, clobber=clobber, verbose=verbose,
+                           namebase=NAMEBASE_STATS)
+
+            if mnemonic_file is None and create_mnemonics:
+                statsfilename = make_tabfilename(dirpath, NAMEBASE_STATS)
+                mnemonic_file = create_mnemonic_file(statsfilename, dirpath,
+                                                     clobber=clobber,
+                                                     verbose=verbose)
     else:
-        histogram = SignalHistogram.read(dirpath, verbose=verbose)
+        stats, nseg_dps = SignalHistogram.calculate_stat(\
+            genome, segmentation, quick=quick, chroms=chroms)
 
-    if not replot:
-        histogram.save(dirpath, clobber=clobber, verbose=verbose)
-
-        stats = calc_stats(histogram)
         save_stats_tab(stats, dirpath, clobber=clobber, verbose=verbose,
                        namebase=NAMEBASE_STATS)
 
@@ -719,6 +824,7 @@ def validate(bedfilename, genomedatadir, dirpath,
                                                  clobber=clobber,
                                                  verbose=verbose)
 
+ 
     if not noplot:
         if label_order_file is not None:
             log("Reading label ordering from: %s" % label_order_file)
@@ -732,11 +838,13 @@ def validate(bedfilename, genomedatadir, dirpath,
                         mnemonic_file=mnemonic_file, verbose=verbose,
                         label_order=label_order, track_order=track_order)
 
-    if histogram:
+    if genhist and histogram:
         try:
             nseg_dps = histogram.metadata["nseg_dps"]
         except KeyError:
             nseg_dps = None
+
+    if not genhist or histogram:
         save_html(dirpath, genomedatadir, nseg_dps=nseg_dps,
                   ecdf=ecdf, clobber=clobber, verbose=verbose)
 
@@ -766,6 +874,9 @@ def parse_options(args):
                      dest="replot", default=False,
                      help="Load data from output tab files and"
                      " regenerate plots instead of recomputing data")
+    group.add_option("--genhist", action="store_true",
+                     dest="genhist", default=False,
+                     help="Generate histogram for each track")
     group.add_option("--create-mnemonics", action="store_true",
                      dest="create_mnemonics", default=False,
                      help="If mnemonics are not specified, they will be"
@@ -852,23 +963,10 @@ def main(args=sys.argv[1:]):
     (options, args) = parse_options(args)
     bedfilename = args[0]
     genomedatadir = args[1]
-    kwargs = {"clobber": options.clobber,
-              "verbose": options.verbose,
-              "quick": options.quick,
-              "calc_ranges": options.calc_ranges,
-              "replot": options.replot,
-              "noplot": options.noplot,
-              "nbins": options.nbins,
-#               "value_range": (options.min_value, options.max_value),
-              "ecdf": options.ecdf,
-              "inputdirs": options.inputdirs,
-              "mnemonic_file": options.mnemonic_file,
-              "create_mnemonics": options.create_mnemonics,
-              "chroms": options.chroms,
-              "label_order_file": options.label_order_file,
-              "track_order_file": options.track_order_file}
 
-    validate(bedfilename, genomedatadir, options.outdir, **kwargs)
+    kwargs = dict(options.__dict__)
+    outdir = kwargs.pop('outdir')
+    validate(bedfilename, genomedatadir, outdir, **kwargs)
 
 if __name__ == "__main__":
     sys.exit(main())
