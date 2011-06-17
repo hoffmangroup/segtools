@@ -22,7 +22,7 @@ from genomedata import Genome
 from itertools import repeat
 from functools import partial
 from numpy import apply_along_axis, array, ceil, compress, floor, fromiter, \
-    histogram, isfinite, NAN, nanmax, nanmin, nansum, NINF, PINF, zeros
+    histogram, isfinite, NAN, nanmax, nanmin, nansum, NINF, PINF, square, zeros,
 
 from . import log, Segmentation, die, RInterface
 from .common import iter_segments_continuous, iter_supercontig_segments, \
@@ -465,7 +465,7 @@ def remove_nans(numbers):
 
 def get_stat(arr):
     arr_nonan = remove_nans(arr)
-    return arr_nonan.sum(), arr_nonan.square().sum(), arr_nonan.shape[0]
+    return arr_nonan.sum(), square(arr_nonan).sum(), arr_nonan.shape[0]
 
 ## Returns a dict of trackname -> tuples: (min, max), one for each trackname
 def seg_min_max(chromosome, segmentation, verbose=False):
