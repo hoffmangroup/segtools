@@ -22,7 +22,7 @@ from genomedata import Genome
 from itertools import repeat
 from functools import partial
 from numpy import apply_along_axis, array, ceil, compress, floor, fromiter, \
-    histogram, isfinite, NAN, nanmax, nanmin, nansum, NINF, PINF, square, zeros,
+    histogram, isfinite, NAN, nanmax, nanmin, nansum, NINF, PINF, square, zeros
 
 from . import log, Segmentation, die, RInterface
 from .common import iter_segments_continuous, iter_supercontig_segments, \
