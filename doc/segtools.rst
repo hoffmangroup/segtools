@@ -508,13 +508,24 @@ segtools-overlap
 
 **segtools-overlap [OPTIONS] SEGMENTATION ANNOTATIONS**
 
-This command measures the base-wise or segment-wise overlap between segments
-in a segmentation and an annotations file. Segments are classified by
-their label and annotations can be classified with a group, so the primary
-output is a confusion matrix with each cell representing the amount of overlap
-between segments in one label with annotations in one group. Further, the
-ability of each segment label to predict each annotation group is measured
-and summarized in a precision-recall plot or a confusion matrix heat map.
+This command measures the base-wise or segment-wise overlap between
+segments in a segmentation and in an annotation. The primary output is
+a confusion matrix in which each row corresponds to one segment label,
+each column corresponds to one annotation label, and each cell
+indicates the amount of overlap between the corresponding pair of
+labels.  In addition, the ability of each segment label to predict
+each annotation label is measured and summarized in a precision-recall
+plot and a confusion matrix heat map.
+
+Two types of confusion matrices are computed: base level and segment
+level.  In the base level analysis, the entry in cell (i,j) is a ratio
+in which the numerator is the number of bases that are assigned the
+segment label i and the annotation label j, and the denominator is the
+total number of bases that are assigned segmentation label i.  In the
+segment level analysis, the numerator is the number of segmentation
+segments with label i that overlap with annotation segments with label
+j, and the denominator is the total number of segmentation segments
+with label i.
 
 .. include:: _build/cmdline-help/segtools-overlap.help.txt
 
@@ -527,7 +538,8 @@ and summarized in a precision-recall plot or a confusion matrix heat map.
    negative, with ``<n> = 1`` indicating that the segment and annotation must
    overlap by at least one base, a ``<n> = 0`` indicating that they can be
    directly adjacent, and ``<n> = -1`` indicating that there can be one base
-   separation for them to still count as overlapping.
+   separation for them to still count as overlapping.  The default
+   value is 1.
 
 .. note::
    The precision-recall plot is only generated for base-wise overlap.
