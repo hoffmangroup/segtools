@@ -510,22 +510,22 @@ segtools-overlap
 
 This command measures the base-wise or segment-wise overlap between
 segments in a segmentation and in an annotation. The primary output is
-a confusion matrix in which each row corresponds to one segment label,
-each column corresponds to one annotation label, and each cell
+a pair of confusion matrices, computed at the base level and the
+segment level.  In each matrix, each row corresponds to one segment
+label, each column corresponds to one annotation label, and each cell
 indicates the amount of overlap between the corresponding pair of
-labels.  In addition, the ability of each segment label to predict
-each annotation label is measured and summarized in a precision-recall
-plot and a confusion matrix heat map.
+labels.  In the base level matrix, the entry in cell (i,j) contains
+the number of bases that are assigned the segment label i and the
+annotation label j.  In the segment level matrix, cell (i,j) contains
+the number of segmentation segments with label i that overlap with
+annotation segments with label j.
 
-Two types of confusion matrices are computed: base level and segment
-level.  In the base level analysis, the entry in cell (i,j) is a ratio
-in which the numerator is the number of bases that are assigned the
-segment label i and the annotation label j, and the denominator is the
-total number of bases that are assigned segmentation label i.  In the
-segment level analysis, the numerator is the number of segmentation
-segments with label i that overlap with annotation segments with label
-j, and the denominator is the total number of segmentation segments
-with label i.
+In addition to the matrices of counts, the command produces two
+corresponding heat maps in which each row is normalized to sum to 1.
+
+Finally, base-level and segment-level precision-recall plots are
+produced, summarizing the ability of each segment label to predict each
+annotation label.
 
 .. include:: _build/cmdline-help/segtools-overlap.help.txt
 
