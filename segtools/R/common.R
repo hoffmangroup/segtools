@@ -176,7 +176,7 @@ relevel.mnemonics <- function(labels, mnemonics = NULL) {
 
   if (length(unique(label.map$labels)) != length(label.map$labels)) {
     stop(paste("Error: mnemonic replacement labels are not unique:",
-               paste(label.map$labels, collapse = ", ")))
+               paste(sort(label.map$labels), collapse = ", ")))
   }
 
   levels(labels) <- label.map$labels

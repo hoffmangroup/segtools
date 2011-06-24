@@ -213,8 +213,15 @@ rename.tracks <- function(stats, patterns = NULL, replacements = NULL,
       stop("Must have an equal number of patterns and replacements")
     }
     for (i in 1:length(patterns)) {
-      tracknames <- gsub(patterns[[i]], replacements[[i]], tracknames)
+      tracknames <- gsub(patterns[[i]], replacements[[i]], tracknames, perl = TRUE)
     }
+  }
+
+  # sometimes replacements can cause the number of unique tracks to change 
+  if (length(levels(stats$trackname)) != length(unique(tracknames))) {
+    print(levels(stats$trackname))
+    print(unique(tracknames))
+    stop("length of unique replaced tracknames must be same as length of original tracknames")
   }
   levels(stats$trackname) <- tracknames
 

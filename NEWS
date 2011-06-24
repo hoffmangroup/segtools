@@ -9,6 +9,7 @@
 * segtools-overlap: add --max-contrast option
 * __init__.py: _from_pickle: fix UnpickleError message
 * common.R: fix a comment character-related bug
+* common.R: perl-style regexes for trackname translations
 * docs: automtically add --help output to every command
 * segtools-length-distribution: allows more generic ANNOTATIONS as input
 * segtools-length-distribution: added --no-segments and --no-bases
