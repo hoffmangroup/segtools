@@ -280,12 +280,14 @@ segtools-length-distribution
 .. program:: segtools-length-distribution
 
 This command summarizes the distribution of segment lengths, by label.
-It generates a violin plot (a box plot, but instead of a box, it is a
-smoothed density curve), a simple bar chart that describes the overall
-label composition of the annotations file,
-and a table listing the number
-of segments of each label, the mean and median segment lengths, and
-the number of bases covered by each label.
+
+:Visualization: A violin plot (a box plot, but instead of a box, it is a
+  smoothed density curve)
+:Visualization: A simple bar chart that describes the overall
+  label composition of the annotations file
+:Summary file: A table listing the number
+  of segments of each label, the mean and median segment lengths, and
+  the number of bases covered by each label.
 
 .. include:: _build/cmdline-help/segtools-length-distribution.help.txt
 
@@ -313,13 +315,15 @@ segtools-nucleotide-frequency
 
 .. program:: segtools-nucleotide-frequency
 
-This command generates a heatmap of the normalized dinucleotide frequencies
-found across segments of each label, as well as table of such nucleotide and
-dinucleotide frequencies.
+This command computes nucleotide and dinucleotide frequencies across labels in
+a segmentation of groups in an annotations file. The nucleotide sequence
+is specified by providing a Genomedata_ archive which allows efficient, low-memory
+operations on genomic sequences.
 
-As input, the command takes a annotations file
-and a Genomedata_ archive for the genome the annotations cover.
-The Genomedata archive is used solely for the nucleotide sequence. 
+:Visualization: A heatmap of the normalized dinucleotide frequencies 
+  across segment labels.
+:Summary file: A table of all nucleotide and dinucleotide frequencies.
+
 
 .. include:: _build/cmdline-help/segtools-nucleotide-frequency.help.txt
 
@@ -334,21 +338,31 @@ segtools-transition
 .. program:: segtools-transition
 
 This command takes a segmentation and computes the frequencies all all
-possible transitions between segment labels.  If a segment with label
-A is immediately followed by a segment with label B, then this is
-counted as one A->B transition.  This command is thus most useful for
+possible transitions between segment labels.  
+
+:Visualization: A heatmap of transition frequencies between segment labels.
+:Visualization: A graph of the transitions between labels with frequencies exceeding 
+  a given threshold. The weight of an edge is a linear function of the transition
+  frequency.
+:Output file: The transition graph in .dot format.
+:Summary file: A table of transition frequencies.
+
+
+If a segment with label A is immediately followed by a segment with 
+label B, then this is counted as one A->B transition.  
+This command is thus most useful for
 segmentations that are a partition of large regions or the whole
 genome. If your segmentation consists of a collection of peak calls or
 regions of interest, then it is unlikely that there are many pairs of
 directly adjacent segments, and the results will be meaningless.
 
-As output, this command generates a heatmap of transition frequencies
-as well as a graph interpretation of this heatmap. In many cases,
+In many cases,
 there will be at least one transition between every pair of segment
 labels, making the transition graph fully connected.  To make the
 graph more interpretable, the transition frequencies can be
 thresholded by value (``--prob-threshold``) or quantile
 (``--quantile-threshold``) before drawing the edges.
+
 
 .. include:: _build/cmdline-help/segtools-transition.help.txt
 
@@ -369,7 +383,15 @@ segtools-aggregation
 .. program:: segtools-aggregation
 
 This command looks at the aggregate occurrence of segment labels around
-and within annotated features. A typical example of this would be to
+and within a set of annotations. 
+
+
+:Visualization: A graph showing the count or enrichment of each segment label
+  on the y-axis and the position relative to the annotation on the x-axis.
+:Output file: A table of the aggregate count of each segment label at 
+  each interrogated position around the annotations.
+
+A typical example of this would be to
 look at the relative occurrences of segment labels around transcription
 start sites (TSSs). You would do this with something like::
 
@@ -509,23 +531,28 @@ segtools-overlap
 **segtools-overlap [OPTIONS] SEGMENTATION ANNOTATIONS**
 
 This command measures the base-wise or segment-wise overlap between
-segments in a segmentation and in an annotation. The primary output is
-a pair of confusion matrices, computed at the base level and the
-segment level.  In each matrix, each row corresponds to one segment
+segments in a segmentation and in an annotation. 
+
+:Visualization: A heatmap of the frequency of overlap between segment
+  labels and annotation groups, with each row normalized to sum to 1.
+:Visualization: If ``--by=bases``, a cumulative precision-recall plot for the
+  ability of segment labels to predict annotation groups, where
+  labels are accumulated in order of decreasing precision.
+:Output file: A confusion matrix of the number of overlaps between 
+  segment labels and annotation groups.
+:Summary file: A table of the precision and recall of each segment label
+  with respect to each annotation group.
+
+The primary output is a confusion matrix, computed at the base level or the
+segment level.  In the matrix, each row corresponds to one segment
 label, each column corresponds to one annotation label, and each cell
 indicates the amount of overlap between the corresponding pair of
-labels.  In the base level matrix, the entry in cell (i,j) contains
+labels.  If ``--by=bases``, the entry in cell (i,j) contains
 the number of bases that are assigned the segment label i and the
-annotation label j.  In the segment level matrix, cell (i,j) contains
+annotation label j.  If ``--by=segments``, cell (i,j) contains
 the number of segmentation segments with label i that overlap with
 annotation segments with label j.
 
-In addition to the matrices of counts, the command produces two
-corresponding heat maps in which each row is normalized to sum to 1.
-
-Finally, base-level and segment-level precision-recall plots are
-produced, summarizing the ability of each segment label to predict each
-annotation label.
 
 .. include:: _build/cmdline-help/segtools-overlap.help.txt
 
@@ -556,11 +583,13 @@ segtools-signal-distribution
 
 This command takes a segmentation and a Genomedata_ archive and summarizes
 the distribution of values for each Genomedata track that fall within
-segments of each label. Essentially, it generates a histogram for each
-label-track pair, where the values being measured are the values for that 
-track found in segments of that label. Currently, Segtools no longer
-generates this matrix of histograms, but instead generates a heatmap
-of mean and standard deviation values.
+segments of each label. 
+
+:Visualization: A heatmap of the mean value for each label-track pair, 
+  augmented with a bar representing the standard deviation of that value.
+:Summary file: A table of the mean and standard deviation for each
+  label-track pair.
+
 
 .. note::
    Mean and standard deviation values are approximated from a histogram
@@ -729,7 +758,7 @@ segtools-relabel
 
 This command generates a new segmentation by remapping the labels in
 a segmentation according to a mnemonic file. Multiple old labels can
-be mapped to the same new label. Immediately djacent segments that
+be mapped to the same new label. Immediately adjacent segments that
 have the same new label are merged, so that in the new segmentation,
 no two consecutive segments have the same label.
 
