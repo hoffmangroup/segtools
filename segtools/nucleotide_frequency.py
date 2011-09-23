@@ -17,9 +17,9 @@ import warnings
 
 from collections import defaultdict
 from genomedata import Genome
-from numpy import zeros
+from numpy import zeros, bincount, array
 
-from . import log, Annotations, die, RInterface
+from . import log, Annotations, die, RInterface, open_transcript
 from .common import make_tabfilename, setup_directory, tab_saver
 
 from .html import save_html_div
@@ -52,6 +52,16 @@ DINUC_CATEGORIES = [[('A', 'A'), ('T', 'T')],
 
 R = RInterface(["common.R", "dinucleotide.R"])
 
+def reduce_nucs(arr):
+    # Return array with nucs compressed to 0-4
+    return numpy.digitize(arr, [ord(i) for i in 'CGNT'])
+
+def zip_nucs(nuc1, nuc2):
+    # Given 2 reduced nuc arrays, return the dinuc value where dinucs are
+    # formed from zip(nuc1, nuc2)
+    # each reduced nuc array has a range of 0-4
+    return nuc1 * 5 + nuc2
+
 ## Caclulates nucleotide and dinucleotide frequencies over the specified
 ## annotations
 def calc_nucleotide_frequencies(annotations, genome,
@@ -64,14 +74,25 @@ def calc_nucleotide_frequencies(annotations, genome,
     quick_nuc_categories = defaultdict(dict)
     for index, category in enumerate(nuc_categories):
         for entry in category:
-            #print("Mapping %s -> %d" % (entry, index))
-            quick_nuc_categories[entry] = index
+            key = reduce_nucs(array([ord(entry)], dtype='i8'))[0]
+            #print("Mapping %s -> %d -> %d" % (entry, key, index))
+            assert key not in quick_nuc_categories, \
+                   "Error: nucleotide hash for %s is not unique" % entry
+            quick_nuc_categories[key] = index
+    quick_nuc_categories = dict(quick_nuc_categories)
 
     quick_dinuc_categories = defaultdict(dict)
     for index, category in enumerate(dinuc_categories):
         for entry in category:
-            #print("Mapping %s%s -> %d" % (entry[0], entry[1], index))
-            quick_dinuc_categories[entry] = index
+            # Second letter between 0-4, first letter (0-4)*5
+            nucs = reduce_nucs(array([ord(i) for i in entry], dtype='i8'))
+            key = zip_nucs(nucs[0], nucs[1])
+            #print("Mapping %s%s -> %d -> %d" % (entry[0], entry[1], key, index))
+            assert key not in quick_dinuc_categories, \
+                   "Error: dinucleotide hash for %s%s is not unique" % \
+                   (entry[0], entry[1])
+            quick_dinuc_categories[key] = index
+    quick_dinuc_categories = dict(quick_dinuc_categories)
 
     # Store counts of each (di)nucleotide observed
     # separated by label
@@ -90,46 +111,52 @@ def calc_nucleotide_frequencies(annotations, genome,
 
         try:
             chrom_rows = annotations.chromosomes[chrom]
-            # Store entire chromosome's sequence as string in memory
-            # for speedup
+            # Store entire chromosome's sequence as string in memory for speed
             warnings.simplefilter("ignore")
-            chrom_sequence = chromosome.seq[0:chromosome.end].tostring().upper()
+            log("  %s" % chrom, verbose)
+            log("    preparing chromosome sequence...", verbose)
+            chrom_sequence = chromosome.seq[0:chromosome.end]
+            # Convert to capital letter within integer representation
+            chrom_sequence[chrom_sequence >= ord('a')] -= ord('a') - ord('A')
+            # Convert to reduced integer representation (0-4)
+            chrom_sequence = reduce_nucs(chrom_sequence)
             warnings.resetwarnings()
         except KeyError:
             continue
 
-        log("  %s" % chrom, verbose)
+        log("    counting nucs and dinucs...", verbose)
+        interval = int(len(chrom_rows) / 70)
+        row_i = 0
         for row in chrom_rows:
+            if row_i % interval == 0:
+                n_done = int(row_i / interval)
+                n_left = 70 - n_done
+                log("    %s%s" % ('=' * n_done, '-' * n_left), verbose)
+
             start = row['start']
             end = row['end']
             label = row['key']
 
+            lab_nuc_counts = nuc_counts[label]
+            lab_dinuc_counts = dinuc_counts[label]
             sequence = chrom_sequence[start:end]
+            # Count nucs
+            val_counts = bincount(sequence)
+            for val in val_counts.nonzero()[0]:
+                n = val_counts[val]
+                # Put in last bin if not found
+                index = quick_nuc_categories.get(val, len(lab_nuc_counts) - 1)
+                lab_nuc_counts[index] += n
 
-            # XXXopt: could be optimized to use matrix operations
-            # to determine number of occurances of each (di)nuc
-            # Inch through iteration to look at pairs efficiently
-            cur_nuc = None
-            prev_nuc = None
-            for nuc in sequence:
-                prev_nuc = cur_nuc
-                cur_nuc = nuc
+            # Count dinucs efficiently
+            if len(sequence) > 1:
+                val_counts = bincount(zip_nucs(sequence[:-1], sequence[1:]))
+                for val in val_counts.nonzero()[0]:
+                    n = val_counts[val]
+                    index = quick_dinuc_categories.get(val, len(lab_dinuc_counts) - 1)
+                    dinuc_counts[label][index] += n
 
-                # Record nucleotide
-                nuc_cat = quick_nuc_categories[cur_nuc]
-                if nuc_cat == {}:  # Didn't find; put in last bin
-                    #print >>sys.stderr, "Unknown nuc: %s" % (cur_nuc)
-                    nuc_cat = len(nuc_counts[label]) - 1
-
-                nuc_counts[label][nuc_cat] += 1
-
-                # Record dinucleotide (last and current)
-                if prev_nuc is not None:
-                    dinuc_cat = quick_dinuc_categories[(prev_nuc, cur_nuc)]
-                    if dinuc_cat == {}:  # Didn't find; put in last bin
-                        dinuc_cat = len(dinuc_counts[label]) - 1
-
-                    dinuc_counts[label][dinuc_cat] += 1
+            row_i += 1
 
         # Only look at first chromosome if quick
         if quick: break
@@ -164,8 +191,8 @@ def save_tab(labels, nuc_counts, dinuc_counts, dirpath,
             saver.writerow(row)
 
 def save_plot(dirpath, clobber=False, verbose=True,
-              mnemonic_file="", namebase=NAMEBASE):
-    R.start(verbose=verbose)
+              mnemonic_file="", namebase=NAMEBASE, transcriptfile=None):
+    R.start(verbose=verbose, transcriptfile=transcriptfile)
 
     tabfilename = make_tabfilename(dirpath, NAMEBASE)
     if not os.path.isfile(tabfilename):
@@ -196,8 +223,9 @@ def validate(filename, genomedatadir, dirpath, clobber=False, quick=False,
                  clobber=clobber, verbose=verbose)
 
     if not noplot:
-        save_plot(dirpath, clobber=clobber, verbose=verbose,
-                  mnemonic_file=mnemonic_file)
+        with open_transcript(dirpath, MODULE) as transcriptfile:
+            save_plot(dirpath, clobber=clobber, verbose=verbose,
+                      mnemonic_file=mnemonic_file, transcriptfile=transcriptfile)
 
     save_html(dirpath, clobber=clobber, mnemonicfile=mnemonic_file,
               verbose=verbose)

@@ -382,23 +382,28 @@ Overlap_analysis_tool_specification"
                           description=description)
 
     group = OptionGroup(parser, "Flags")
-    group.add_option("--clobber", action="store_true", default=False,
+    group.add_option("--clobber", action="store_true",
+                     dest="clobber", default=False,
                      help="Overwrite existing output files if the specified"
                      " directory already exists.")
     group.add_option("-q", "--quiet", action="store_false",
                      dest="verbose", default=True,
                      help="Do not print diagnostic messages.")
-    group.add_option("--quick", action="store_true", default=False,
+    group.add_option("--quick", action="store_true",
+                     dest="quick", default=False,
                      help="Compute values only for one chromosome.")
-    group.add_option("--replot", action="store_true", default=False,
+    group.add_option("--replot", action="store_true",
+                     dest="replot", default=False,
                      help="Load data from output tab files and"
                      " regenerate plots instead of recomputing data")
-    group.add_option("--noplot", action="store_true", default=False,
+    group.add_option("--noplot", action="store_true",
+                     dest="noplot", default=False,
                      help="Do not generate plots")
-    group.add_option("--cluster", action="store_true", default=False,
+    group.add_option("--cluster", action="store_true",
+                     dest="cluster", default=False,
                      help="Cluster rows and columns in heat map plot")
     group.add_option("-p", "--print-segments", action="store_true",
-                     default=False,
+                     dest="print_segments", default=False,
                      help=("For each group"
                      " in the SEGMENTATION, a separate output file will be"
                      " created that contains a list of all the segments that"
@@ -407,6 +412,7 @@ Overlap_analysis_tool_specification"
                      " of the SEGMENTATION group.")
                      % OVERLAPPING_SEGMENTS_NAMEBASE)
     group.add_option("--max-contrast", action="store_true",
+                     dest="max_contrast", default=False,
                      help="Saturate color range instead of having it go from"
                      " 0 to 1")
     parser.add_option_group(group)
@@ -463,19 +469,8 @@ Overlap_analysis_tool_specification"
 ## Command-line entry point
 def main(args=sys.argv[1:]):
     (options, args) = parse_options(args)
-    args = [args[0], args[1], options.outdir]
-    kwargs = {"clobber": options.clobber,
-              "quick": options.quick,
-              "replot": options.replot,
-              "noplot": options.noplot,
-              "cluster": options.cluster,
-              "print_segments": options.print_segments,
-              "mode": options.mode,
-              "min_overlap": options.min_overlap,
-              "max_contrast": options.max_contrast,
-              "mnemonic_filename": options.mnemonic_filename,
-              "feature_mnemonic_filename": options.feature_mnemonic_filename,
-              "verbose": options.verbose}
+    kwargs = dict(options.__dict__)
+    args.append(kwargs.pop('outdir'))
     overlap(*args, **kwargs)
 
 if __name__ == "__main__":

@@ -34,7 +34,7 @@ import sys
 from numpy import empty, loadtxt, where, zeros
 from subprocess import call
 
-from . import log, Segmentation, die, RInterface
+from . import log, Segmentation, die, RInterface, open_transcript
 from .common import check_clobber, get_ordered_labels, make_dotfilename, \
      make_pdffilename, make_pngfilename, make_namebase_summary, \
      make_tabfilename, map_mnemonics, setup_directory, tab_saver
@@ -127,11 +127,12 @@ def save_html(dirpath, p_thresh, q_thresh, clobber=False, verbose=True):
                   title=HTML_TITLE, thresh=thresh, verbose=verbose)
 
 def save_plot(dirpath, namebase=NAMEBASE, filename=None, ddgram=False,
-              clobber=False, mnemonic_file=None, verbose=False, gmtk=False):
+              clobber=False, mnemonic_file=None, verbose=False, gmtk=False,
+              transcriptfile=None):
     """
     if filename is specified, it is used instead of dirpath/namebase.tab
     """
-    R.start(verbose=verbose)
+    R.start(verbose=verbose, transcriptfile=transcriptfile)
 
     if filename is None:
         filename = make_tabfilename(dirpath, namebase)
@@ -263,8 +264,10 @@ def validate(bedfilename, dirpath, ddgram=False, p_thresh=P_THRESH,
         save_tab(labels, probs, dirpath, clobber=clobber, verbose=verbose)
 
     if not noplot:
-        save_plot(dirpath, ddgram=ddgram, verbose=verbose,
-                  clobber=clobber, mnemonic_file=mnemonic_file)
+        with open_transcript(dirpath, MODULE) as transcriptfile:
+            save_plot(dirpath, ddgram=ddgram, verbose=verbose,
+                      clobber=clobber, mnemonic_file=mnemonic_file,
+                      transcriptfile=transcriptfile)
 
     if not nograph:
         save_graph(labels, probs, dirpath, clobber=clobber,

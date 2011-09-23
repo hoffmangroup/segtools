@@ -1,6 +1,8 @@
 1.1.8:
-
-
+* segtools-nucleotide-transition: significant (several-hundred-fold) speedup
+* segtools-transition: added R transcript
+* segtools-aggregation: added R transcript
+* segtools-overlap: Fixed bug in argument parsing that caused R plotting to fail
 
 1.1.7:
 

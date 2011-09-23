@@ -1,3 +1,5 @@
+Transition:
+* R raises an integer casting error if the --ddgram flag is specified
 
 Feature aggregation:
 * Update interface to use new load_features array-based structure

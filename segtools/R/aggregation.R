@@ -467,6 +467,10 @@ save.gene.aggregations <- function(dirpath, namebase1, namebase2, tabfilename,
                                    clobber = FALSE,
                                    panel.size = 200,  # px
                                    margin.size = 200,  #px
+                                   width = image.size,
+                                   height = image.size,
+                                   width.pdf = image.size / 72,
+                                   height.pdf = image.size / 72,
                                    comment.char = "#",
                                    ...) {
   mnemonics <- read.mnemonics(mnemonic_file)
@@ -485,8 +489,10 @@ save.gene.aggregations <- function(dirpath, namebase1, namebase2, tabfilename,
     save.images(dirpath, namebase,
                 xyplot.aggregation(data = data.sub, metadata = data$metadata,
                                    spacers = NULL, ...),
-                width = image.size,
-                height = image.size,
+                width = width,
+                height = height,
+                width.pdf = width.pdf,
+                height.pdf = height.pdf,
                 clobber = clobber)
   }
 

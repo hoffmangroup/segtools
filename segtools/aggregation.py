@@ -25,7 +25,7 @@ from numpy import arange, array, empty, linspace, round
 
 from . import (Annotations, log, Segmentation, DTYPE_SEGMENT_START,
                DTYPE_SEGMENT_END, DTYPE_SEGMENT_KEY, DTYPE_STRAND,
-               die, RInterface)
+               die, RInterface, open_transcript)
 from .common import (fill_array, get_ordered_labels, make_tabfilename,
                      map_segment_label, setup_directory, tab_saver)
 from .html import save_html_div
@@ -732,8 +732,9 @@ def save_tab(segmentation, features, counts, components, component_bins,
 
 ## Plots aggregation data from tab file
 def save_plot(dirpath, mode, namebase=NAMEBASE, clobber=False, verbose=True,
-              mnemonic_file=None, normalize=False, significance=False):
-    R.start(verbose=verbose)
+              mnemonic_file=None, normalize=False, significance=False,
+              transcriptfile=None):
+    R.start(verbose=verbose, transcriptfile=transcriptfile)
 
     tabfilename = make_tabfilename(dirpath, namebase)
     if not os.path.isfile(tabfilename):
@@ -865,9 +866,10 @@ def validate(bedfilename, featurefilename, dirpath,
                  verbose=verbose)
 
     if not noplot:
-        save_plot(dirpath, mode, clobber=clobber, verbose=verbose,
-                  mnemonic_file=mnemonic_file, normalize=normalize,
-                  significance=significance)
+        with open_transcript(dirpath, MODULE) as transcriptfile:
+            save_plot(dirpath, mode, clobber=clobber, verbose=verbose,
+                      mnemonic_file=mnemonic_file, normalize=normalize,
+                      significance=significance, transcriptfile=transcriptfile)
 
     save_html(dirpath, featurefilename, mode=mode, verbose=verbose,
               clobber=clobber, normalize=normalize)

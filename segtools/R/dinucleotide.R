@@ -39,6 +39,25 @@ levelplot.dinuc <-
            ..., 
            deselect = c("C|G", "A|T", "?", "??"),
            aspect = "fill",
+           cex.scales = .9,
+           cex.label = 1.3,
+           scales = list(cex=cex.scales, x=list(rot=90)),
+           lattice.options = list(
+             layout.heights = list(
+               top.padding = list(x = 1, units = "mm", data = NULL),
+               main.key.padding = list(x = 1, units = "mm", data = NULL),
+               key.axis.padding = list(x = 1, units = "mm", data = NULL),
+               axis.xlab.padding = list(x = 1, units = "mm", data = NULL),
+               xlab.key.padding = list(x = 1, units = "mm", data = NULL),
+               key.sub.padding = list(x = 1, units = "mm", data = NULL),
+               bottom.padding = list(x = 1, units = "mm", data = NULL)),
+             layout.widths = list(
+               left.padding = list(x = 1, units = "mm", data = NULL),
+               key.ylab.padding = list(x = 1, units = "mm", data = NULL),
+               ylab.axis.padding = list(x = 1, units = "mm", data = NULL),
+               axis.key.padding = list(x = 1, units = "mm", data = NULL),
+               right.padding = list(x = 1, units = "mm", data = NULL))
+             ),
            palette = colorRampPalette(rev(brewer.pal(11, "RdYlBu")),
              interpolate = "spline", space = "Lab")(100))
 {
@@ -51,11 +70,13 @@ levelplot.dinuc <-
 
   levelplot(x = x,
             data = data.subset,
+            scales = scales,
             aspect = aspect,
             cuts = 99,
             col.regions = palette,
-            xlab = "Dinucleotide",
-            ylab = "Segment label")
+            xlab = list(label="Dinucleotide", cex=cex.label),
+            ylab = list(label="Segment label", cex=cex.label),
+            lattice.options = lattice.options)
 }
 
 plot.dinuc <- function(tabfile, mnemonics = NULL) {
@@ -70,6 +91,10 @@ save.dinuc <- function(dirpath, namebase, tabfilename,
                        mnemonic_file = NULL,
                        clobber = FALSE,
                        image.size = 600,  # px
+                       height = image.size,
+                       width = image.size,
+                       height.pdf = height / 72,
+                       width.pdf = width / 72,
                        ...) {
   mnemonics <- read.mnemonics(mnemonic_file)
   nucs <- read.nuc(tabfilename, mnemonics = mnemonics)
@@ -77,8 +102,10 @@ save.dinuc <- function(dirpath, namebase, tabfilename,
   
   save.images(dirpath, namebase,
               levelplot.dinuc(data = dinuc, ...),
-              height = image.size,
-              width = image.size,
+              height = height,
+              width = width,
+              height.pdf = height.pdf,
+              width.pdf = width.pdf,
               clobber = clobber)
 }
   
