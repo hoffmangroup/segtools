@@ -4,6 +4,7 @@
 * segtools-aggregation: added R transcript
 * segtools-overlap: Fixed bug in argument parsing that caused R plotting to fail
 * docs: Added high-level structured summary of the output of each command
+* requirements: Genomedata package now only required to use segtools-nucleotide-transition and segtools-signal-distribution, not for unrelated commands
 
 1.1.7:
 
