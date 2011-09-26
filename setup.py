@@ -43,17 +43,18 @@ segtools-flatten = segtools.flatten:main
 segtools-gmtk-parameters = segtools.gmtk_parameters:main
 segtools-html-report = segtools.html:main
 segtools-length-distribution = segtools.length_distribution:main
-segtools-nucleotide-frequency = segtools.nucleotide_frequency:main
+segtools-nucleotide-frequency = segtools.nucleotide_frequency:main [genomedata]
 segtools-overlap = segtools.overlap:main
 segtools-preprocess = segtools.preprocess:main
 segtools-relabel = segtools.relabel:main
-segtools-signal-distribution = segtools.signal_distribution:main
+segtools-signal-distribution = segtools.signal_distribution:main [genomedata]
 segtools-transition = segtools.transition:main
 """
 #segtools = segtools.validate_all:main
 
-install_requires = ["genomedata", "numpy>=1.3", "rpy2"]
+install_requires = ["numpy>=1.3", "rpy2"]
 # XXX: add optional requirement for PyGraphviz
+extras_require = {'genomedata': "genomedata"}
 
 if __name__ == "__main__":
     setup(name=name,
@@ -68,6 +69,7 @@ if __name__ == "__main__":
           classifiers=classifiers,
           long_description=long_description,
           install_requires=install_requires,
+          extras_require=extras_require,
           zip_safe=False,  # For R files to source others, they can't be zip'd
           packages=find_packages("."),
           include_package_data=True,
