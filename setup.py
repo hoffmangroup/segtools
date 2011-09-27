@@ -11,7 +11,7 @@ interpret its biological relevance.
 __version__ = "1.1.8"
 
 # Copyright 2008-2011 Michael M. Hoffman <mmh1@uw.edu>
-# Copyright 2009-2010 Orion J. Buske <stasis@uw.edu>
+# Copyright 2009-2011 Orion J. Buske <stasis@uw.edu>
 
 import sys
 

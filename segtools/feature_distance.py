@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
 """
-Given a SEGMENTATION and ANNOTATIONS file, 1) prints the distance of each
-segment to the nearest feature in the ANNOTATIONS file
+Given a SEGMENTATION and ANNOTATION file, 1) prints the distance of each
+segment to the nearest feature in the ANNOTATION file
 (zero if the two overlap) and
 2) generates a histogram of these distances.
 Distance is the difference between the nearest bases of the segment and the
-annotation, so if there is one base pair between them, the distance is 2.
-Distances can be strand-corrected with respect to stranded annotations
+feature, so if there is one base pair between them, the distance is 2.
+Distances can be strand-corrected with respect to stranded features
 by specifying --stranded.
 """
 
@@ -22,7 +22,7 @@ from time import time
 
 from numpy import NaN, zeros
 
-from . import Annotations, log, Segmentation, RInterface, open_transcript
+from . import Annotation, log, Segmentation, RInterface, open_transcript
 from .common import FeatureScanner, die, get_ordered_labels, \
     make_tabfilename, setup_directory, tab_saver
 from .html import save_html_div
@@ -126,7 +126,7 @@ Failed test:
   correct:   %r
 """ % (n_bins, bin_width, distance, bins[index], index, answer)
 
-def print_distances(segmentation, annotations,
+def print_distances(segmentation, annotation,
                     n_bins=DEFAULT_BINS,
                     bin_width=DEFAULT_BIN_WIDTH,
                     verbose=True,
@@ -134,10 +134,10 @@ def print_distances(segmentation, annotations,
                     print_nearest=False,
                     all_overlapping=False):
     segment_data = segmentation.chromosomes
-    feature_data = annotations.chromosomes
+    feature_data = annotation.chromosomes
 
     labels = segmentation.labels
-    groups = annotations.labels
+    groups = annotation.labels
 
     print DELIM.join(PRINT_FIELDS)
 
@@ -212,7 +212,7 @@ def print_distances(segmentation, annotations,
     log("Distances calculated in %.1f seconds" % (time() - start_time), verbose)
     return counts, bin_distances
 
-def feature_distance(segment_file, annotations_file,
+def feature_distance(segment_file, annotation_file,
                      outdir, mnemonic_file=None,
                      n_bins=DEFAULT_BINS, bin_width=DEFAULT_BIN_WIDTH,
                      clobber=False,
@@ -222,10 +222,10 @@ def feature_distance(segment_file, annotations_file,
     if not replot:
         setup_directory(outdir)
         segmentation = Segmentation(segment_file, verbose=verbose)
-        annotations = Annotations(annotations_file, verbose=verbose)
+        annotation = Annotation(annotation_file, verbose=verbose)
         labels = segmentation.labels
-        groups = annotations.labels
-        counts, bins = print_distances(segmentation, annotations,
+        groups = annotation.labels
+        counts, bins = print_distances(segmentation, annotation,
                                        n_bins=n_bins, bin_width=bin_width,
                                        verbose=verbose,
                                        stranded=stranded,
@@ -240,13 +240,13 @@ def feature_distance(segment_file, annotations_file,
                       mnemonic_file=mnemonic_file,
                       transcriptfile=transcriptfile)
 
-    save_html(outdir, annotations_file, mnemonic_file=mnemonic_file,
+    save_html(outdir, annotation_file, mnemonic_file=mnemonic_file,
               clobber=clobber, verbose=verbose)
 
 def parse_options(args):
     from optparse import OptionParser, OptionGroup
 
-    usage = "%prog [OPTIONS] SEGMENTATION ANNOTATIONS"
+    usage = "%prog [OPTIONS] SEGMENTATION ANNOTATION"
     version = "%%prog %s" % __version__
 
     parser = OptionParser(usage=usage, version=version,
@@ -262,29 +262,29 @@ def parse_options(args):
                      help="Do not print diagnostic messages.")
     group.add_option("-s", "--stranded", dest="stranded",
                      default=False, action="store_true",
-                     help="Strand correct annotations in the ANNOTATIONS file."
-                     " If the annotations contains strand information,"
+                     help="Strand correct features in the ANNOTATION file."
+                     " If the feature contains strand information,"
                      " the sign of the distance value is used to portray the"
                      " relationship between the segment and the nearest"
-                     " stranded annotation. A negative distance value"
+                     " stranded feature. A negative distance value"
                      " indicates that the segment is nearest the 5' end of the"
-                     " annotation, whereas a positive value indicates the"
-                     " segment is nearest the 3' end of the annotation.")
+                     " feature, whereas a positive value indicates the"
+                     " segment is nearest the 3' end of the feature.")
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Print options")
     group.add_option("-p", "--print-nearest", dest="print_nearest",
                      default=False, action="store_true",
-                     help="The name of the nearest annotation will be printed"
+                     help="The name of the nearest feature will be printed"
                      " after each distance (with a space separating the"
-                     " two) for annotations from the ANNOTATIONS file."
+                     " two) for features from the ANNOTATION file."
                      " If multiple features are equally near (or overlap),"
                      " it is undefined which will be printed")
     group.add_option("-a", "--all-overlapping", dest="all_overlapping",
                      default=False, action="store_true",
-                     help="If multiple annotations in the ANNOTATIONS file"
+                     help="If multiple features in the ANNOTATION file"
                      " overlap a segment, a separate line is printed for each"
-                     " overlapping segment-annotation pair. This is most"
+                     " overlapping segment-feature pair. This is most"
                      " interesting with --print-nearest. Otherwise,"
                      " the first overlapping segment will be used for"
                      " printing.")

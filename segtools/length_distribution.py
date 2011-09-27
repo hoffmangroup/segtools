@@ -3,7 +3,7 @@ from __future__ import division, with_statement
 
 """
 Provides command-line and package entry points for analyzing the
-length distribution of entries in a provided segmentation or annotations file.
+length distribution of entries in a provided segmentation or annotation file.
 
 """
 
@@ -19,7 +19,7 @@ import sys
 from collections import defaultdict
 from numpy import concatenate, median
 
-from . import Annotations, die, RInterface, open_transcript
+from . import Annotation, die, RInterface, open_transcript
 from .common import get_ordered_labels, LABEL_ALL, make_tabfilename, \
      setup_directory, tab_saver
 
@@ -40,15 +40,15 @@ PNG_HEIGHT_PER_LABEL = 45
 
 R = RInterface(["common.R", "length.R"])
 
-## Given annotations, returns the length of each annotation
-def annotations_lengths(annotations):
+## Given an annotation file, returns the length of each entry
+def annotation_lengths(annotation):
     # key: label_key
     # val: list of numpy.ndarray
     lengths = defaultdict(list)
-    labels = annotations.labels
+    labels = annotation.labels
 
     # convert segment coords to lengths
-    for rows in annotations.chromosomes.itervalues():
+    for rows in annotation.chromosomes.itervalues():
         for label_key in labels.iterkeys():
             labeled_row_indexes = (rows['key'] == label_key)
             labeled_rows = rows[labeled_row_indexes]
@@ -166,11 +166,11 @@ def validate(filename, dirpath, clobber=False, replot=False, noplot=False,
              show_segments=True, show_bases=True):
     if not replot:
         setup_directory(dirpath)
-        annotations = Annotations(filename, verbose=verbose)
+        annotation = Annotation(filename, verbose=verbose)
 
-        labels = annotations.labels
+        labels = annotation.labels
 
-        lengths, num_bp = annotations_lengths(annotations)
+        lengths, num_bp = annotation_lengths(annotation)
         save_tab(lengths, labels, num_bp, dirpath,
                  clobber=clobber, verbose=verbose)
         save_size_tab(lengths, labels, num_bp, dirpath,
@@ -193,7 +193,7 @@ def validate(filename, dirpath, clobber=False, replot=False, noplot=False,
 def parse_options(args):
     from optparse import OptionGroup, OptionParser
 
-    usage = "%prog [OPTIONS] ANNOTATIONS"
+    usage = "%prog [OPTIONS] ANNOTATION"
     version = "%%prog %s" % __version__
     parser = OptionParser(usage=usage, version=version)
 

@@ -18,7 +18,7 @@ import sys
 from collections import defaultdict
 from numpy import bincount, cast, iinfo, invert, logical_or, zeros
 
-from . import Annotations, log, open_transcript, Segmentation, RInterface
+from . import Annotation, log, open_transcript, Segmentation, RInterface
 from .common import check_clobber, die, get_ordered_labels, make_tabfilename, \
      setup_directory, SUFFIX_GZ, tab_saver
 from .html import save_html_div
@@ -326,7 +326,7 @@ def overlap(bedfilename, featurefilename, dirpath, regionfilename=None,
         setup_directory(dirpath)
 
         segmentation = Segmentation(bedfilename, verbose=verbose)
-        features = Annotations(featurefilename, verbose=verbose)
+        features = Annotation(featurefilename, verbose=verbose)
 
         seg_labels = segmentation.labels
         feature_labels = features.labels
@@ -367,11 +367,11 @@ def overlap(bedfilename, featurefilename, dirpath, regionfilename=None,
 def parse_options(args):
     from optparse import OptionParser, OptionGroup
 
-    usage = "%prog [OPTIONS] SEGMENTATION ANNOTATIONS"
-    description = "SEGMENTATION and ANNOTATIONS files should be in BED, GFF, \
+    usage = "%prog [OPTIONS] SEGMENTATION ANNOTATION"
+    description = "SEGMENTATION and ANNOTATION files should be in BED, GFF, \
 or GTF format (grouped on 'name'/'feature' columns). \
 Results summarize the overlap \
-of SEGMENTATION groups with ANNOTATIONS groups. The symmetric analysis can \
+of SEGMENTATION groups with ANNOTATION groups. The symmetric analysis can \
 be performed by rerunning the program with the input file arguments swapped \
 (and a different output directory). A rough specification can be found here: \
 http://encodewiki.ucsc.edu/EncodeDCC/index.php/\
@@ -451,7 +451,7 @@ Overlap_analysis_tool_specification"
                      " using mnemonics found in FILE.")
     group.add_option("--feature-mnemonic-file", metavar="FILE",
                      dest="feature_mnemonic_filename", default=None,
-                     help="If specified, ANNOTATIONS groups will be shown"
+                     help="If specified, ANNOTATION groups will be shown"
                      " using mnemonics found in FILE.")
     group.add_option("-o", "--outdir",
                      dest="outdir", default="%s" % MODULE, metavar="DIR",

@@ -36,8 +36,8 @@ DTYPE_SEGMENT_END = int64
 DTYPE_SEGMENT_KEY = uint32
 DTYPE_STRAND = '|S1'
 
-class Annotations(object):
-    """Base class for representing annotations (BED/GFF/GTF files)
+class Annotation(object):
+    """Base class for representing annotation files (BED/GFF/GTF files)
 
     chromosomes: a dict
       key: chromosome name
@@ -51,7 +51,7 @@ class Annotations(object):
            This is the 4th column in a BED file and the 3rd column
            in GFF and GTF files.
 
-    filename: the filename from which the annotations were loaded
+    filename: the filename from which the annotation was loaded
 
     """
     class UnpickleError(Exception):
@@ -64,7 +64,7 @@ class Annotations(object):
         pass
 
     def __init__(self, filename, verbose=True):
-        """Returns an Annotations object derived from the given file
+        """Returns an Annotation object derived from the given file
 
         filename: path to a data file in one of the following formats:
           BED3+, GFF, GTF, or pickled Annotation. Format must be specified
@@ -95,7 +95,7 @@ class Annotations(object):
             if ext:
                 return ext[1:].lower()  # remove dot
 
-        raise Annotations.FilenameError("File missing appropriate extension:"
+        raise Annotation.FilenameError("File missing appropriate extension:"
                                         " %s" % filepath)
 
     def _load(self, filename, verbose=True):
@@ -254,7 +254,7 @@ class Annotations(object):
         self._inv_labels = label_dict
 
     def pickle(self, filename=None, verbose=True, clobber=False):
-        """Pickle the annotations into an output file"""
+        """Pickle the annotation into an output file"""
         import cPickle
         from .common import check_clobber, maybe_gzip_open
 
@@ -300,7 +300,7 @@ class Annotations(object):
         else:
             self._labels = labels
 
-class Segmentation(Annotations):
+class Segmentation(Annotation):
     """Representation of a segmentation
 
     Segments must be non-overlapping.

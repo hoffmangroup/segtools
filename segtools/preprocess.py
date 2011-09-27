@@ -7,7 +7,7 @@ and have it load much faster in the future.
 INFILE will be parsed to create a special binary file with
 a name of the form: "INFILE.pkl" or "OUTFILE.pkl".
 Then, you can substitute this
-new file for the corresponding SEGMENTATION or ANNOTATIONS
+new file for the corresponding SEGMENTATION or ANNOTATION
 argument in future Segtools calls and Segtools will parse
 it in much faster (but be sure to keep the ".pkl" extension intact)!
 """
@@ -18,11 +18,11 @@ __version__ = "$Revision$"
 
 import sys
 
-from . import Annotations, Segmentation
+from . import Annotation, Segmentation
 
 def preprocess(infilename, outfilename=None, annotation=False, verbose=False, clobber=False):
     if annotation:
-        file_type = Annotations
+        file_type = Annotation
     else:
         file_type = Segmentation
 
@@ -49,7 +49,7 @@ def parse_options(args):
                       help="Do not print diagnostic messages.")
     parser.add_option("--annotation", action="store_true",
                       dest="annotation", default=False,
-                      help="Read INFILE as a set of annotations, rather"
+                      help="Read INFILE as an annotation, rather"
                       " than as a segmentation (default).")
 
     (options, args) = parser.parse_args(args)
@@ -62,9 +62,7 @@ def parse_options(args):
 ## Command-line entry point
 def main(args=sys.argv[1:]):
     (options, args) = parse_options(args)
-    kwargs = {"verbose": options.verbose,
-              "clobber": options.clobber,
-              "annotation": options.annotation}
+    kwargs = dict(options.__dict__)
     preprocess(*args, **kwargs)
 
 if __name__ == "__main__":

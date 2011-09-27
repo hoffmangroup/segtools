@@ -5,7 +5,7 @@ __version__ = "$Revision$"
 
 """
 Provides command-line and package entry points for analyzing nucleotide
-and dinucleotide frequencies for each label in the segmentation or annotations
+and dinucleotide frequencies for each label in the segmentation or annotation
 file.
 
 """
@@ -19,7 +19,7 @@ from collections import defaultdict
 from genomedata import Genome
 from numpy import zeros, bincount, array
 
-from . import log, Annotations, die, RInterface, open_transcript
+from . import log, Annotation, die, RInterface, open_transcript
 from .common import make_tabfilename, setup_directory, tab_saver
 
 from .html import save_html_div
@@ -63,8 +63,8 @@ def zip_nucs(nuc1, nuc2):
     return nuc1 * 5 + nuc2
 
 ## Caclulates nucleotide and dinucleotide frequencies over the specified
-## annotations
-def calc_nucleotide_frequencies(annotations, genome,
+## annotation data
+def calc_nucleotide_frequencies(annotation, genome,
                                 nuc_categories=NUC_CATEGORIES,
                                 dinuc_categories=DINUC_CATEGORIES,
                                 quick=False, verbose=True):
@@ -99,18 +99,18 @@ def calc_nucleotide_frequencies(annotations, genome,
     nuc_counts = defaultdict(dict)
     dinuc_counts = defaultdict(dict)
 
-    labels = annotations.labels
+    labels = annotation.labels
     for label_key in labels.iterkeys():
         nuc_counts[label_key] = zeros(len(nuc_categories)+1, dtype=numpy.long)
         dinuc_counts[label_key] = zeros(len(dinuc_categories)+1,
                                         dtype=numpy.long)
 
-    # Count (di)nucleotides over annotations
+    # Count (di)nucleotides over annotation
     for chromosome in genome:
         chrom = chromosome.name
 
         try:
-            chrom_rows = annotations.chromosomes[chrom]
+            chrom_rows = annotation.chromosomes[chrom]
             # Store entire chromosome's sequence as string in memory for speed
             warnings.simplefilter("ignore")
             log("  %s" % chrom, verbose)
@@ -211,12 +211,12 @@ def validate(filename, genomedatadir, dirpath, clobber=False, quick=False,
              replot=False, noplot=False, mnemonic_file=None, verbose=True):
     setup_directory(dirpath)
     if not replot:
-        annotations = Annotations(filename, verbose=verbose)
-        labels = annotations.labels
+        annotation = Annotation(filename, verbose=verbose)
+        labels = annotation.labels
 
         with Genome(genomedatadir) as genome:
             nuc_counts, dinuc_counts = \
-                calc_nucleotide_frequencies(annotations, genome,
+                calc_nucleotide_frequencies(annotation, genome,
                                             quick=quick, verbose=verbose)
 
         save_tab(labels, nuc_counts, dinuc_counts, dirpath,
@@ -233,7 +233,7 @@ def validate(filename, genomedatadir, dirpath, clobber=False, quick=False,
 def parse_options(args):
     from optparse import OptionGroup, OptionParser
 
-    usage = "%prog [OPTIONS] ANNOTATIONS GENOMEDATAFILE"
+    usage = "%prog [OPTIONS] ANNOTATION GENOMEDATAFILE"
     version = "%%prog %s" % __version__
     parser = OptionParser(usage=usage, version=version)
 

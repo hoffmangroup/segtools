@@ -23,7 +23,7 @@ from collections import defaultdict
 from functools import partial
 from numpy import arange, array, empty, linspace, round
 
-from . import (Annotations, log, Segmentation, DTYPE_SEGMENT_START,
+from . import (Annotation, log, Segmentation, DTYPE_SEGMENT_START,
                DTYPE_SEGMENT_END, DTYPE_SEGMENT_KEY, DTYPE_STRAND,
                die, RInterface, open_transcript)
 from .common import (fill_array, get_ordered_labels, make_tabfilename,
@@ -94,8 +94,8 @@ EXON_BINS = 25
 
 R = RInterface(["common.R", "aggregation.R"])
 
-class GeneAnnotations(Annotations):
-    """Annotations class for gene-type annotations"""
+class GeneAnnotation(Annotation):
+    """Annotation class for gene-type annotation"""
 
     def _from_file(self, filename, verbose=True):
         """Load the gtf file in terms of idealized gene features.
@@ -118,7 +118,7 @@ class GeneAnnotations(Annotations):
         log("  Parsing GTF file...", verbose, end="")
         format = self._get_file_format(filename)
         if format != "gtf":
-            raise self.FormatError("ANNOTATIONS must be in GTF format to"
+            raise self.FormatError("ANNOTATION must be in GTF format to"
                                    " aggregate with --mode=gene")
 
         # Start with establishing a dict:
@@ -127,7 +127,7 @@ class GeneAnnotations(Annotations):
         gene_dict = defaultdict(partial(defaultdict, list))
         for row in self._iter_rows(filename, verbose=verbose):
             if row['strand'] not in set(["+", "-"]):
-                raise self.FormatError("ANNOTATIONS must specify a strand"
+                raise self.FormatError("ANNOTATION must specify a strand"
                                        " for every entry to aggregate with"
                                        " --mode=gene")
 
@@ -835,11 +835,11 @@ def validate(bedfilename, featurefilename, dirpath,
         segmentation = Segmentation(bedfilename, verbose=verbose)
 
         if mode == GENE_MODE:
-            features = GeneAnnotations(featurefilename, verbose=verbose)
+            features = GeneAnnotation(featurefilename, verbose=verbose)
             num_features = features.num_genes()
             groups = ["genes"]
         else:
-            features = Annotations(featurefilename, verbose=verbose)
+            features = Annotation(featurefilename, verbose=verbose)
             num_features = features.num_segments()
             if by_groups:
                 groups = features.labels.values()
@@ -877,9 +877,9 @@ def validate(bedfilename, featurefilename, dirpath,
 def parse_options(args):
     from optparse import OptionParser, OptionGroup
 
-    usage = "%prog [OPTIONS] SEGMENTATION ANNOTATIONS"
+    usage = "%prog [OPTIONS] SEGMENTATION ANNOTATION"
     description = ("Plot the enrichment of the SEGMENTATION labels relative"
-                   " to the position of features in ANNOTATIONS."
+                   " to the position of features in ANNOTATION."
                    " Features can be grouped by the"
                    " 'name'/'feature' column by supplying --groups.")
     version = "%%prog %s" % __version__
@@ -918,7 +918,7 @@ def parse_options(args):
     group.add_option("--groups", action="store_true",
                      dest="by_groups", default=False,
                      help="Separate data into different groups based upon"
-                     " ANNOTATIONS's 'name'/'feature' field"
+                     " ANNOTATION's 'name'/'feature' field"
                      " if --mode=region or --mode=point. Does"
                      " nothing if --mode=gene.")
     group.add_option("--normalize", action="store_true",
