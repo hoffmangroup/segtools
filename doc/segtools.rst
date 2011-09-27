@@ -35,15 +35,20 @@ Installation
 
 Segtools requires the following prerequisites:
 
-- Python 2.5.1-2.7, with Rpy2 2.1.3+ and Genomedata packages
+- Python 2.5.1-2.7, with Rpy2 2.1.3+
 - Zlib
 - Numpy 1.3+
 - R 2.10.0+, with latticeExtra and reshape packages
+
 
 Once these prerequisites are properly installed, Segtools can be
 installed with::
 
   easy_install segtools
+
+To use :ref:`segtools-signal-distribution <segtools-signal-distribution>` 
+or :ref:`segtools-nucleotide-frequency <segtools-nucleotide-frequency>`, 
+the Python packge, Genomedata, is also required.
 
 To help install these prerequisites and Segtools on any Linux platform,
 we developed a simple, interactive script_. To download and run the script::
