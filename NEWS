@@ -1,3 +1,7 @@
+1.1.9:
+
+
+
 1.1.8:
 * segtools-nucleotide-transition: significant (several-hundred-fold) speedup
 * segtools-transition: added R transcript

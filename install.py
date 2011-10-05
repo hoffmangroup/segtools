@@ -13,7 +13,7 @@ code.
 (c) 2009: Orion Buske <stasis {at} uw {dot} edu>
 
 """
-PKG_VERSION = "1.1.8"
+PKG_VERSION = "1.1.9"
 
 ####################### BEGIN COMMON CODE HEADER #####################
 
