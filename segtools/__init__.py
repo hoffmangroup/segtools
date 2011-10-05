@@ -443,6 +443,8 @@ class RInterface(object):
         """Safer way to call R functions (without importing all that junk)
 
         None values are substituted with empty string
+        'ropts' keyword argument is parsed separately and should be None
+          or a list of 'param=value' strings to be passed to R.
         """
         self.start()
 
@@ -455,9 +457,16 @@ class RInterface(object):
             if arg is None:
                 args[arg_i] = ""
 
+
         for key, val in kwargs.iteritems():
             if val is None:
                 kwargs[key] = ""
+
+        ropts = kwargs.pop('ropts')
+        for opt in ropts:
+            if opt:
+                key, value = opt.split('=')
+                kwargs[key] = value
 
         # Save call to transcript
         if self._transcript:
@@ -510,6 +519,46 @@ def open_transcript(dirpath, module, verified=False):
             print >>res
 
         yield res
+
+def add_common_options(parser, keys, **kwargs):
+    for key in keys:
+        if key == 'mnemonic_file':
+            parser.add_option("-m", "--mnemonic-file", dest="mnemonic_file",
+                              default=None, metavar="FILE",
+                              help="If specified, labels will be"
+                              " shown using mnemonics found in FILE")
+        elif key == 'outdir':
+            parser.add_option("-o", "--outdir", metavar="DIR",
+                              dest="outdir", default="%(MODULE)s" % kwargs,
+                              help="File output directory (will be created"
+                              " if it does not exist) [default: %default]")
+        elif key == 'clobber':
+            parser.add_option("--clobber", action="store_true",
+                              dest="clobber", default=False,
+                              help="Overwrite any existing output files.")
+        elif key == 'quiet':
+            parser.add_option("-q", "--quiet", action="store_false",
+                              dest="verbose", default=True,
+                              help="Do not print diagnostic messages.")
+        elif key == 'quick':
+            parser.add_option("--quick", action="store_true",
+                              dest="quick", default=False,
+                              help="Compute values only for one chromosome.")
+        elif key == 'replot':
+            parser.add_option("--replot", action="store_true",
+                              dest="replot", default=False,
+                              help="Load data from output tab files and"
+                              " regenerate plots instead of recomputing data.")
+        elif key == 'noplot':
+            parser.add_option("--noplot", action="store_true",
+                              dest="noplot", default=False,
+                              help="Do not generate any plots.")
+        elif key == 'ropts':
+            parser.add_option("-R", action="append", metavar="PARAM=VAL",
+                              dest="ropts", default=[],
+                              help="Pass VAL for PARAM when calling R"
+                              " functions. May be specified multiple times.")
+
 
 if __name__ == "__main__":
     pass

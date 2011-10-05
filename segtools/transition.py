@@ -34,7 +34,8 @@ import sys
 from numpy import empty, loadtxt, where, zeros
 from subprocess import call
 
-from . import log, Segmentation, die, RInterface, open_transcript
+from . import log, Segmentation, die, RInterface, open_transcript, \
+     add_common_options
 from .common import check_clobber, get_ordered_labels, make_dotfilename, \
      make_pdffilename, make_pngfilename, make_namebase_summary, \
      make_tabfilename, map_mnemonics, setup_directory, tab_saver
@@ -128,7 +129,7 @@ def save_html(dirpath, p_thresh, q_thresh, clobber=False, verbose=True):
 
 def save_plot(dirpath, namebase=NAMEBASE, filename=None, ddgram=False,
               clobber=False, mnemonic_file=None, verbose=False, gmtk=False,
-              transcriptfile=None):
+              transcriptfile=None, ropts=None):
     """
     if filename is specified, it is used instead of dirpath/namebase.tab
     """
@@ -142,7 +143,7 @@ def save_plot(dirpath, namebase=NAMEBASE, filename=None, ddgram=False,
 
     R.plot("save.transition", dirpath, namebase, filename, clobber=clobber,
            mnemonic_file=mnemonic_file, ddgram=ddgram,
-           gmtk=gmtk)
+           gmtk=gmtk, ropts=ropts)
 
 def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
                clobber=False, mnemonic_file=None, fontname="Helvetica",
@@ -238,7 +239,7 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
 def validate(bedfilename, dirpath, ddgram=False, p_thresh=P_THRESH,
              q_thresh=Q_THRESH, replot=False, noplot=False, nograph=False,
              gene_graph=False, clobber=False, gmtk=False, verbose=True,
-             mnemonic_file=None):
+             mnemonic_file=None, ropts=None):
     setup_directory(dirpath)
 
     if gmtk:
@@ -267,7 +268,7 @@ def validate(bedfilename, dirpath, ddgram=False, p_thresh=P_THRESH,
         with open_transcript(dirpath, MODULE) as transcriptfile:
             save_plot(dirpath, ddgram=ddgram, verbose=verbose,
                       clobber=clobber, mnemonic_file=mnemonic_file,
-                      transcriptfile=transcriptfile)
+                      transcriptfile=transcriptfile, ropts=ropts)
 
     if not nograph:
         save_graph(labels, probs, dirpath, clobber=clobber,
@@ -286,33 +287,14 @@ def parse_options(args):
     parser = OptionParser(usage=usage, version=version)
 
     group = OptionGroup(parser, "Flags")
-    group.add_option("--clobber", action="store_true",
-                     dest="clobber", default=False,
-                     help="Overwrite existing output files if the specified"
-                     " directory already exists.")
-    group.add_option("-q", "--quiet", action="store_false",
-                     dest="verbose", default=True,
-                     help="Do not print diagnostic messages.")
-    group.add_option("--replot", action="store_true",
-                     dest="replot", default=False,
-                     help="Regenerate graphs/plots from tab files")
-    group.add_option("--noplot", action="store_true",
-                     dest="noplot", default=False,
-                     help="Do not generate transition plots")
+    add_common_options(group, ['clobber', 'quiet', 'replot', 'noplot'])
     group.add_option("--nograph", action="store_true",
                      dest="nograph", default=False,
                      help="Do not generate transition graph")
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Output")
-    group.add_option("-m", "--mnemonic-file", dest="mnemonic_file",
-                     default=None, metavar="FILE",
-                     help="If specified, labels will be shown using"
-                     " mnemonics found in FILE.")
-    group.add_option("-o", "--outdir",
-                     dest="outdir", default="%s" % MODULE, metavar="DIR",
-                     help="File output directory (will be created"
-                     " if it does not exist) [default: %default]")
+    add_common_options(group, ['mnemonic_file', 'outdir'], MODULE=MODULE)
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Transition frequency plot options")
@@ -331,11 +313,6 @@ def parse_options(args):
                      type="float", default=Q_THRESH, metavar="VAL",
                      help="ignore transitions with probabilities below this"
                      " probability quantile [default: %default]")
-#     group.add_option("--gene-graph", dest="gene_graph",
-#                      default=False, action="store_true",
-#                      help="Make each node of the graph a reference to a .ps"
-#                      " image an \"image\" subdirectory. Currently, these .ps"
-#                      " files need to be made separately.")
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Non-segmentation files")
@@ -344,6 +321,10 @@ def parse_options(args):
                      help="The SEGMENTATION argument will instead be treated"
                      " as a GMTK parameter file. If a mnemonic file is not"
                      " specified, one will be created and used.")
+    parser.add_option_group(group)
+
+    group = OptionGroup(parser, "R options")
+    add_common_options(group, ['ropts'])
     parser.add_option_group(group)
 
     (options, args) = parser.parse_args(args)
@@ -364,18 +345,8 @@ def parse_options(args):
 def main(args=sys.argv[1:]):
     (options, args) = parse_options(args)
 
-    args = [args[0], options.outdir]
-    kwargs = {"ddgram": options.ddgram,
-              "p_thresh": options.p_thresh,
-              "q_thresh": options.q_thresh,
-              "clobber": options.clobber,
-              "verbose": options.verbose,
-              "replot": options.replot,
-              "noplot": options.noplot,
-              "nograph": options.nograph,
-#              "gene_graph": options.gene_graph,
-              "gmtk": options.gmtk,
-              "mnemonic_file": options.mnemonic_file}
+    kwargs = dict(options.__dict__)
+    args = [args[0], kwargs.pop('outdir')]
     validate(*args, **kwargs)
 
 if __name__ == "__main__":

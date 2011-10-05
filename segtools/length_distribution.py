@@ -19,7 +19,8 @@ import sys
 from collections import defaultdict
 from numpy import concatenate, median
 
-from . import Annotation, die, RInterface, open_transcript
+from . import Annotation, die, RInterface, open_transcript, \
+     add_common_options
 from .common import get_ordered_labels, LABEL_ALL, make_tabfilename, \
      setup_directory, tab_saver
 
@@ -126,7 +127,7 @@ def save_tab(lengths, labels, num_bp, dirpath, clobber=False, verbose=True):
 
 ## Generates and saves an R plot of the length distributions
 def save_plot(dirpath, namebase=NAMEBASE, clobber=False, verbose=True,
-              mnemonic_file=None, transcriptfile=None):
+              mnemonic_file=None, transcriptfile=None, ropts=None):
     R.start(transcriptfile=transcriptfile, verbose=verbose)
 
     # Load data from corresponding tab file
@@ -135,13 +136,13 @@ def save_plot(dirpath, namebase=NAMEBASE, clobber=False, verbose=True,
         die("Unable to find tab file: %s" % tabfilename)
 
     R.plot("save.length", dirpath, namebase, tabfilename,
-           mnemonic_file=mnemonic_file, clobber=clobber)
+           mnemonic_file=mnemonic_file, clobber=clobber, ropts=ropts)
 
 ## Generates and saves an R plot of the length distributions
 def save_size_plot(dirpath, namebase=NAMEBASE_SIZES, clobber=False,
                    verbose=True, mnemonic_file=None,
                    show_bases=True, show_segments=True,
-                   transcriptfile=None):
+                   transcriptfile=None, ropts=None):
     R.start(transcriptfile=transcriptfile, verbose=verbose)
 
     # Load data from corresponding tab file
@@ -151,7 +152,7 @@ def save_size_plot(dirpath, namebase=NAMEBASE_SIZES, clobber=False,
 
     R.plot("save.segment.sizes", dirpath, namebase, tabfilename,
            mnemonic_file=mnemonic_file, clobber=clobber,
-           show_segments=show_segments, show_bases=show_bases)
+           show_segments=show_segments, show_bases=show_bases, ropts=ropts)
 
 def save_html(dirpath, clobber=False, mnemonicfile=None, verbose=True):
     extra_namebases = {"sizes": NAMEBASE_SIZES}
@@ -162,7 +163,7 @@ def save_html(dirpath, clobber=False, mnemonicfile=None, verbose=True):
 
 ## Package entry point
 def validate(filename, dirpath, clobber=False, replot=False, noplot=False,
-             verbose=True, mnemonic_file=None,
+             verbose=True, mnemonic_file=None, ropts=None,
              show_segments=True, show_bases=True):
     if not replot:
         setup_directory(dirpath)
@@ -180,11 +181,11 @@ def validate(filename, dirpath, clobber=False, replot=False, noplot=False,
         with open_transcript(dirpath, MODULE) as transcriptfile:
             save_plot(dirpath, mnemonic_file=mnemonic_file,
                       clobber=clobber, verbose=verbose,
-                      transcriptfile=transcriptfile)
+                      transcriptfile=transcriptfile, ropts=ropts)
             save_size_plot(dirpath, clobber=clobber, verbose=verbose,
                            mnemonic_file=mnemonic_file,
                            show_segments=show_segments,
-                           show_bases=show_bases,
+                           show_bases=show_bases, ropts=ropts,
                            transcriptfile=transcriptfile)
 
     save_html(dirpath, clobber=clobber, mnemonicfile=mnemonic_file,
@@ -198,20 +199,7 @@ def parse_options(args):
     parser = OptionParser(usage=usage, version=version)
 
     group = OptionGroup(parser, "Flags")
-    group.add_option("--clobber", action="store_true",
-                     dest="clobber", default=False,
-                     help="Overwrite existing output files if the specified"
-                     " directory already exists.")
-    group.add_option("-q", "--quiet", action="store_false",
-                     dest="verbose", default=True,
-                     help="Do not print diagnostic messages.")
-    group.add_option("--replot", action="store_true",
-                     dest="replot", default=False,
-                     help="Load data from output tab files and"
-                     " regenerate plots instead of recomputing data")
-    group.add_option("--noplot", action="store_true",
-                     dest="noplot", default=False,
-                     help="Do not generate plots")
+    add_common_options(group, ['clobber', 'quiet', 'replot', 'noplot'])
     group.add_option("--no-segments", action="store_false",
                      dest="show_segments", default=True,
                      help="Do not show total segments covered by labels"
@@ -223,14 +211,11 @@ def parse_options(args):
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Output")
-    group.add_option("-m", "--mnemonic-file", dest="mnemonic_file",
-                     default=None, metavar="FILE",
-                     help="If specified, labels will be shown using"
-                     " mnemonics found in FILE.")
-    group.add_option("-o", "--outdir",
-                     dest="outdir", default="%s" % MODULE, metavar="DIR",
-                     help="File output directory (will be created"
-                     " if it does not exist) [default: %default]")
+    add_common_options(group, ['mnemonic_file', 'outdir'], MODULE=MODULE)
+    parser.add_option_group(group)
+
+    group = OptionGroup(parser, "R options")
+    add_common_options(group, ['ropts'])
     parser.add_option_group(group)
 
     (options, args) = parser.parse_args(args)

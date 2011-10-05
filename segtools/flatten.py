@@ -21,7 +21,7 @@ import sys
 
 from numpy import concatenate
 
-from . import log, Segmentation, die
+from . import log, Segmentation, die, add_common_options
 
 DEFAULT_HELPFILE = "flat.mnemonics"
 
@@ -306,9 +306,7 @@ def parse_args(args):
     parser = OptionParser(usage=usage, version=__version__,
                           description=__doc__.strip())
 
-    parser.add_option("-q", "--quiet", dest="verbose",
-                      default=True, action="store_false",
-                      help="Do not print diagnostic messages.")
+    add_common_options(parser, ['quiet'])
     parser.add_option("-m", "--mnemonic-file", dest="helpfile",
                       default=DEFAULT_HELPFILE, metavar="FILE",
                       help="Save mapping information to FILE instead of"

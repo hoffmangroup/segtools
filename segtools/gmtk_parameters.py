@@ -17,7 +17,7 @@ import sys
 
 from numpy import array
 
-from . import log, die, RInterface
+from . import log, die, RInterface, add_common_options
 from .common import setup_directory
 from .html import save_html_div
 from .transition import save_plot, save_graph
@@ -73,7 +73,7 @@ def save_html(dirpath, gmtk_file, p_thresh, q_thresh, clobber=False):
 def validate(gmtk_file, dirpath, p_thresh=P_THRESH, q_thresh=Q_THRESH,
              noplot=False, nograph=False, gene_graph=False, clobber=False,
              translation_file=None, allow_regex=False, mnemonic_file=None,
-             create_mnemonics=False, verbose=True):
+             create_mnemonics=False, verbose=True, ropts=None):
 
     setup_directory(dirpath)
 
@@ -96,9 +96,9 @@ def validate(gmtk_file, dirpath, p_thresh=P_THRESH, q_thresh=Q_THRESH,
     if not noplot:
         save_plot(dirpath, namebase=NAMEBASE, filename=gmtk_file,
                   verbose=verbose, clobber=clobber, gmtk=True,
-                  mnemonic_file=mnemonic_file)
+                  mnemonic_file=mnemonic_file, ropts=ropts)
         save_stats_plot(dirpath, namebase=NAMEBASE_STATS, filename=gmtk_file,
-                        clobber=clobber, gmtk=True,
+                        clobber=clobber, gmtk=True, ropts=ropts,
                         mnemonic_file=mnemonic_file,
                         translation_file=translation_file,
                         allow_regex=allow_regex, verbose=verbose)
@@ -121,19 +121,10 @@ def parse_options(args):
     parser = OptionParser(usage=usage, version=version)
 
     group = OptionGroup(parser, "Flags")
-    group.add_option("--clobber", action="store_true",
-                     dest="clobber", default=False,
-                     help="Overwrite existing output files if the specified"
-                     " directory already exists.")
-    group.add_option("-q", "--quiet", action="store_false",
-                     dest="verbose", default=True,
-                     help="Do not print diagnostic messages.")
-    group.add_option("--noplot", action="store_true",
-                     dest="noplot", default=False,
-                     help="Do not generate transition plots")
+    add_common_options(group, ['clobber', 'quiet', 'noplot'])
     group.add_option("--nograph", action="store_true",
                      dest="nograph", default=False,
-                     help="Do not generate transition graph")
+                     help="Do not generate transition graph.")
     group.add_option("--create-mnemonics", action="store_true",
                      dest="create_mnemonics", default=False,
                      help="If mnemonics are not specified, they will be"
@@ -151,10 +142,7 @@ def parse_options(args):
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Output")
-    group.add_option("-m", "--mnemonic-file", dest="mnemonic_file",
-                     default=None, metavar="FILE",
-                     help="If specified, labels will be shown using"
-                     " mnemonics found in this file")
+    add_common_options(group, ['mnemonic_file', 'outdir'], MODULE=MODULE)
     group.add_option("-t", "--trackname-translation", dest="translation_file",
                      default=None, metavar="FILE",
                      help="Should be a file with rows <old-trackname>"
@@ -163,10 +151,6 @@ def parse_options(args):
                      " By default, <old-trackname> must exactly match"
                      " the name of a track, but --allow-regex provides"
                      " more flexibility.")
-    group.add_option("-o", "--outdir",
-                     dest="outdir", default="%s" % MODULE, metavar="DIR",
-                     help="File output directory (will be created"
-                     " if it does not exist) [default: %default]")
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Transition graph options")
@@ -183,6 +167,10 @@ def parse_options(args):
                      help="Make each node of the graph a reference to a .ps"
                      " image an \"image\" subdirectory. Currently, these .ps"
                      " files need to be made separately.")
+    parser.add_option_group(group)
+
+    group = OptionGroup(parser, "R options")
+    add_common_options(group, ['ropts'])
     parser.add_option_group(group)
 
     (options, args) = parser.parse_args(args)
@@ -203,18 +191,9 @@ def parse_options(args):
 def main(args=sys.argv[1:]):
     (options, args) = parse_options(args)
 
-    args = [args[0], options.outdir]
-    kwargs = {"p_thresh": options.p_thresh,
-              "q_thresh": options.q_thresh,
-              "clobber": options.clobber,
-              "verbose": options.verbose,
-              "noplot": options.noplot,
-              "nograph": options.nograph,
-              "create_mnemonics": options.create_mnemonics,
-              "gene_graph": options.gene_graph,
-              "translation_file": options.translation_file,
-              "allow_regex": options.allow_regex,
-              "mnemonic_file": options.mnemonic_file}
+    kwargs = dict(options.__dict__)
+    outdir = kwargs.pop('outdir')
+    args = [args[0], outdir]
     validate(*args, **kwargs)
 
 if __name__ == "__main__":

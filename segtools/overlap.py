@@ -18,7 +18,8 @@ import sys
 from collections import defaultdict
 from numpy import bincount, cast, iinfo, invert, logical_or, zeros
 
-from . import Annotation, log, open_transcript, Segmentation, RInterface
+from . import Annotation, log, open_transcript, Segmentation, RInterface, \
+     add_common_options
 from .common import check_clobber, die, get_ordered_labels, make_tabfilename, \
      setup_directory, SUFFIX_GZ, tab_saver
 from .html import save_html_div
@@ -256,7 +257,7 @@ def save_tab(dirpath, row_labels, col_labels, counts, totals, nones, mode,
             count_saver.writerow(row)
 
 def save_plot(dirpath, namebase=NAMEBASE, clobber=False, verbose=True,
-              row_mnemonic_file=None, col_mnemonic_file=None,
+              row_mnemonic_file=None, col_mnemonic_file=None, ropts=None,
               cluster=False, max_contrast=False, transcriptfile=None):
     R.start(transcriptfile, verbose=verbose)
 
@@ -268,12 +269,12 @@ def save_plot(dirpath, namebase=NAMEBASE, clobber=False, verbose=True,
            mnemonic_file=row_mnemonic_file,
            col_mnemonic_file=col_mnemonic_file,
            clobber=clobber, cluster=cluster,
-           max_contrast=max_contrast)
+           max_contrast=max_contrast, ropts=ropts)
 
 def save_performance_plot(dirpath, namebase=PERFORMANCE_NAMEBASE,
                           clobber=False, verbose=True,
                           row_mnemonic_file=None, col_mnemonic_file=None,
-                          transcriptfile=None):
+                          transcriptfile=None, ropts=None):
     R.start(transcriptfile, verbose=verbose)
 
     tabfilename = make_tabfilename(dirpath, NAMEBASE)
@@ -283,7 +284,7 @@ def save_performance_plot(dirpath, namebase=PERFORMANCE_NAMEBASE,
     R.plot("save.overlap.performance", dirpath, namebase, tabfilename,
            mnemonic_file=row_mnemonic_file,
            col_mnemonic_file=col_mnemonic_file,
-           clobber=clobber)
+           clobber=clobber, ropts=ropts)
 
 
 def save_html(dirpath, bedfilename, featurefilename, mode,
@@ -319,9 +320,9 @@ def overlap(bedfilename, featurefilename, dirpath, regionfilename=None,
             mode=MODE_DEFAULT, samples=SAMPLES_DEFAULT,
             region_fraction=REGION_FRACTION_DEFAULT,
             subregion_fraction=SUBREGION_FRACTION_DEFAULT, min_overlap=1,
-            mnemonic_filename=None, feature_mnemonic_filename=None,
+            mnemonic_file=None, feature_mnemonic_file=None,
             replot=False, noplot=False, cluster=False, max_contrast=False,
-            verbose=True):
+            verbose=True, ropts=None):
     if not replot:
         setup_directory(dirpath)
 
@@ -350,19 +351,19 @@ def overlap(bedfilename, featurefilename, dirpath, regionfilename=None,
             if mode == "bases":
                 save_performance_plot(\
                     dirpath, clobber=clobber, verbose=verbose,
-                    row_mnemonic_file=mnemonic_filename,
-                    col_mnemonic_file=feature_mnemonic_filename,
+                    row_mnemonic_file=mnemonic_file, ropts=ropts,
+                    col_mnemonic_file=feature_mnemonic_file,
                     transcriptfile=transcriptfile)
             else:
                 log("Not in base-mode, so skipping performance plot", verbose)
 
             save_plot(dirpath, clobber=clobber, cluster=cluster,
-                      verbose=verbose, row_mnemonic_file=mnemonic_filename,
-                      col_mnemonic_file=feature_mnemonic_filename,
+                      verbose=verbose, row_mnemonic_file=mnemonic_file,
+                      col_mnemonic_file=feature_mnemonic_file, ropts=ropts,
                       max_contrast=max_contrast, transcriptfile=transcriptfile)
 
     save_html(dirpath, bedfilename, featurefilename, mode=mode,
-              mnemonicfile=mnemonic_filename, clobber=clobber, verbose=verbose)
+              mnemonicfile=mnemonic_file, clobber=clobber, verbose=verbose)
 
 def parse_options(args):
     from optparse import OptionParser, OptionGroup
@@ -382,23 +383,8 @@ Overlap_analysis_tool_specification"
                           description=description)
 
     group = OptionGroup(parser, "Flags")
-    group.add_option("--clobber", action="store_true",
-                     dest="clobber", default=False,
-                     help="Overwrite existing output files if the specified"
-                     " directory already exists.")
-    group.add_option("-q", "--quiet", action="store_false",
-                     dest="verbose", default=True,
-                     help="Do not print diagnostic messages.")
-    group.add_option("--quick", action="store_true",
-                     dest="quick", default=False,
-                     help="Compute values only for one chromosome.")
-    group.add_option("--replot", action="store_true",
-                     dest="replot", default=False,
-                     help="Load data from output tab files and"
-                     " regenerate plots instead of recomputing data")
-    group.add_option("--noplot", action="store_true",
-                     dest="noplot", default=False,
-                     help="Do not generate plots")
+    add_common_options(group, ['clobber', 'quiet', 'quick', 'replot',
+                               'noplot'])
     group.add_option("--cluster", action="store_true",
                      dest="cluster", default=False,
                      help="Cluster rows and columns in heat map plot")
@@ -427,11 +413,6 @@ Overlap_analysis_tool_specification"
                      " associated with two features overlapping will be"
                      " number of base pairs which they overlap."
                      " [default: %default]")
-#     group.add_option("--midpoint-only", choices=MIDPOINT_CHOICES,
-#                      dest="midpoint", type="choice", default=None,
-#                      help="For the specified file (1, 2, or both), use only"
-#                      "the midpoint of each feature instead of the entire"
-#                      " width.")
     group.add_option("--min-overlap", type="int",
                      dest="min_overlap", default=1, metavar="N",
                      help="The minimum number of base pairs that two"
@@ -445,18 +426,16 @@ Overlap_analysis_tool_specification"
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Files")
-    group.add_option("-m", "--mnemonic-file", dest="mnemonic_filename",
-                     default=None, metavar="FILE",
-                     help="If specified, SEGMENTATION groups will be shown"
-                     " using mnemonics found in FILE.")
+    add_common_options(group, ['mnemonic_file'])
     group.add_option("--feature-mnemonic-file", metavar="FILE",
-                     dest="feature_mnemonic_filename", default=None,
+                     dest="feature_mnemonic_file", default=None,
                      help="If specified, ANNOTATION groups will be shown"
                      " using mnemonics found in FILE.")
-    group.add_option("-o", "--outdir",
-                     dest="outdir", default="%s" % MODULE, metavar="DIR",
-                     help="File output directory (will be created"
-                     " if it does not exist) [default: %default]")
+    add_common_options(group, ['outdir'], MODULE=MODULE)
+    parser.add_option_group(group)
+
+    group = OptionGroup(parser, "R options")
+    add_common_options(group, ['ropts'])
     parser.add_option_group(group)
 
     (options, args) = parser.parse_args(args)

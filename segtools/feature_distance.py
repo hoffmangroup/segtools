@@ -22,7 +22,8 @@ from time import time
 
 from numpy import NaN, zeros
 
-from . import Annotation, log, Segmentation, RInterface, open_transcript
+from . import Annotation, log, Segmentation, RInterface, open_transcript, \
+     add_common_options
 from .common import FeatureScanner, die, get_ordered_labels, \
     make_tabfilename, setup_directory, tab_saver
 from .html import save_html_div
@@ -67,7 +68,7 @@ def save_tab(counts, bins, labels, groups, outdir,
                                     str(bin), str(count)]))
                     saver.writerow(row)
 
-def save_plot(outdir, namebase=NAMEBASE, clobber=False,
+def save_plot(outdir, namebase=NAMEBASE, clobber=False, ropts=None,
               verbose=True, mnemonic_file=None, transcriptfile=None):
     R.start(transcriptfile, verbose=verbose)
     # Load data from corresponding tab file
@@ -76,7 +77,7 @@ def save_plot(outdir, namebase=NAMEBASE, clobber=False,
         die("Unable to find tab file: %s" % tabfilename)
 
     R.plot("save.distances", outdir, namebase, tabfilename,
-           mnemonic_file=mnemonic_file, clobber=clobber)
+           mnemonic_file=mnemonic_file, clobber=clobber, ropts=ropts)
 
 def save_html(dirpath, feature_file, mnemonic_file=None,
               clobber=False, verbose=True):
@@ -215,7 +216,7 @@ def print_distances(segmentation, annotation,
 def feature_distance(segment_file, annotation_file,
                      outdir, mnemonic_file=None,
                      n_bins=DEFAULT_BINS, bin_width=DEFAULT_BIN_WIDTH,
-                     clobber=False,
+                     clobber=False, ropts=None,
                      stranded=False, print_nearest=False,
                      all_overlapping=False,
                      verbose=True, replot=False, noplot=False):
@@ -237,7 +238,7 @@ def feature_distance(segment_file, annotation_file,
     if not noplot:
         with open_transcript(outdir, MODULE) as transcriptfile:
             save_plot(outdir, clobber=clobber, verbose=verbose,
-                      mnemonic_file=mnemonic_file,
+                      mnemonic_file=mnemonic_file, ropts=ropts,
                       transcriptfile=transcriptfile)
 
     save_html(outdir, annotation_file, mnemonic_file=mnemonic_file,
@@ -253,13 +254,7 @@ def parse_options(args):
                           description=__doc__.strip())
 
     group = OptionGroup(parser, "Basic options")
-    group.add_option("--clobber", action="store_true",
-                     dest="clobber", default=False,
-                     help="Overwrite existing output files if the specified"
-                     " directory already exists.")
-    group.add_option("-q", "--quiet", dest="verbose",
-                     default=True, action="store_false",
-                     help="Do not print diagnostic messages.")
+    add_common_options(group, ['clobber', 'quiet'])
     group.add_option("-s", "--stranded", dest="stranded",
                      default=False, action="store_true",
                      help="Strand correct features in the ANNOTATION file."
@@ -291,13 +286,7 @@ def parse_options(args):
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Plotting options")
-    group.add_option("--noplot", action="store_true",
-                     dest="noplot", default=False,
-                     help="Do not generate plots")
-    group.add_option("--replot", action="store_true",
-                     dest="replot", default=False,
-                     help="Load data from output tab files and"
-                     " regenerate plots instead of recomputing data")
+    add_common_options(group, ['noplot', 'replot'])
     group.add_option("-n", "--n-bins", metavar="N", type="int",
                      dest="n_bins", default=DEFAULT_BINS,
                      help="Number of bins to use in histogram for distances"
@@ -316,14 +305,11 @@ def parse_options(args):
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Output options")
-    group.add_option("-m", "--mnemonic-file", dest="mnemonic_file",
-                     default=None, metavar="FILE",
-                     help="If specified, labels will be shown using"
-                     " mnemonics found in FILE")
-    group.add_option("-o", "--outdir", metavar="DIR",
-                     dest="outdir", default="%s" % MODULE,
-                     help="File output directory (will be created"
-                     " if it does not exist) [default: %default]")
+    add_common_options(group, ['mnemonic_file', 'outdir'], MODULE=MODULE)
+    parser.add_option_group(group)
+
+    group = OptionGroup(parser, "R options")
+    add_common_options(group, ['ropts'])
     parser.add_option_group(group)
 
     (options, args) = parser.parse_args(args)

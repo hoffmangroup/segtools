@@ -17,7 +17,7 @@ __version__ = "$Revision$"
 import os
 import sys
 
-from . import log, Segmentation, die
+from . import log, Segmentation, die, add_common_options
 from .common import map_mnemonics, get_ordered_labels
 
 
@@ -95,10 +95,7 @@ def parse_args(args):
     usage = "%prog [OPTIONS] SEGMENTATION MNEMONICFILE"
     parser = OptionParser(usage=usage, version=__version__,
                           description=__doc__.strip())
-
-    parser.add_option("-q", "--quiet", dest="verbose",
-                      default=True, action="store_false",
-                      help="Do not print diagnostic messages.")
+    add_common_options(parser, ['quiet'])
     parser.add_option("-o", "--outfile", dest="outfile",
                       default=None, metavar="FILE",
                       help="Save relabeled bed file to FILE instead of"

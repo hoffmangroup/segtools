@@ -18,7 +18,7 @@ __version__ = "$Revision$"
 
 import sys
 
-from . import Annotation, Segmentation
+from . import Annotation, Segmentation, add_common_options
 
 def preprocess(infilename, outfilename=None, annotation=False, verbose=False, clobber=False):
     if annotation:
@@ -41,12 +41,7 @@ def parse_options(args):
     parser = OptionParser(usage=usage, version=version,
                           description=description)
 
-    parser.add_option("--clobber", dest="clobber",
-                      default=False, action="store_true",
-                      help="Overwrite existing output files without warning")
-    parser.add_option("-q", "--quiet", action="store_false",
-                      dest="verbose", default=True,
-                      help="Do not print diagnostic messages.")
+    add_common_options(parser, ['clobber', 'quiet'])
     parser.add_option("--annotation", action="store_true",
                       dest="annotation", default=False,
                       help="Read INFILE as an annotation, rather"

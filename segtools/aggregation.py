@@ -25,7 +25,7 @@ from numpy import arange, array, empty, linspace, round
 
 from . import (Annotation, log, Segmentation, DTYPE_SEGMENT_START,
                DTYPE_SEGMENT_END, DTYPE_SEGMENT_KEY, DTYPE_STRAND,
-               die, RInterface, open_transcript)
+               die, RInterface, open_transcript, add_common_options)
 from .common import (fill_array, get_ordered_labels, make_tabfilename,
                      map_segment_label, setup_directory, tab_saver)
 from .html import save_html_div
@@ -733,7 +733,7 @@ def save_tab(segmentation, features, counts, components, component_bins,
 ## Plots aggregation data from tab file
 def save_plot(dirpath, mode, namebase=NAMEBASE, clobber=False, verbose=True,
               mnemonic_file=None, normalize=False, significance=False,
-              transcriptfile=None):
+              transcriptfile=None, ropts=None):
     R.start(verbose=verbose, transcriptfile=transcriptfile)
 
     tabfilename = make_tabfilename(dirpath, namebase)
@@ -747,11 +747,12 @@ def save_plot(dirpath, mode, namebase=NAMEBASE, clobber=False, verbose=True,
     if mode == GENE_MODE:
         R.plot("save.gene.aggregations", dirpath, NAMEBASE_SPLICING,
                NAMEBASE_TRANSLATION, tabfilename, mnemonic_file=mnemonic_file,
-               normalize=normalize, clobber=clobber, significance=significance)
+               normalize=normalize, clobber=clobber, significance=significance,
+               ropts=ropts)
     else:
         R.plot("save.aggregation", dirpath, namebase, tabfilename,
                mnemonic_file=mnemonic_file, normalize=normalize,
-               clobber=clobber, significance=significance)
+               clobber=clobber, significance=significance, ropts=ropts)
 
 def save_html(dirpath, featurefilename, mode, clobber=False,
               verbose=True, normalize=False):
@@ -828,7 +829,8 @@ def validate(bedfilename, featurefilename, dirpath,
              intron_bins=INTRON_BINS, exon_bins=EXON_BINS,
              by_groups=False, mode=DEFAULT_MODE, clobber=False,
              quick=False, replot=False, noplot=False, normalize=False,
-             significance=False, mnemonic_file=None, verbose=True):
+             significance=False, mnemonic_file=None, verbose=True,
+             ropts=None):
 
     if not replot:
         setup_directory(dirpath)
@@ -869,7 +871,8 @@ def validate(bedfilename, featurefilename, dirpath,
         with open_transcript(dirpath, MODULE) as transcriptfile:
             save_plot(dirpath, mode, clobber=clobber, verbose=verbose,
                       mnemonic_file=mnemonic_file, normalize=normalize,
-                      significance=significance, transcriptfile=transcriptfile)
+                      significance=significance, transcriptfile=transcriptfile,
+                      ropts=ropts)
 
     save_html(dirpath, featurefilename, mode=mode, verbose=verbose,
               clobber=clobber, normalize=normalize)
@@ -887,34 +890,13 @@ def parse_options(args):
                           description=description)
 
     group = OptionGroup(parser, "Output options")
-    group.add_option("-m", "--mnemonic-file", dest="mnemonic_file",
-                      default=None, metavar="FILE",
-                      help="If specified, labels will be shown using"
-                      " mnemonics found in FILE")
-    group.add_option("-o", "--outdir", metavar="DIR",
-                      dest="outdir", default="%s" % MODULE,
-                      help="File output directory (will be created"
-                      " if it does not exist) [default: %default]")
+    add_common_options(group, ['mnemonic_file', 'outdir'], MODULE=MODULE)
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Flags")
-    group.add_option("--clobber", action="store_true",
-                     dest="clobber", default=False,
-                     help="Overwrite existing output files if the specified"
-                     " directory already exists.")
-    group.add_option("-q", "--quiet", action="store_false",
-                     dest="verbose", default=True,
-                     help="Do not print diagnostic messages.")
-    group.add_option("--quick", action="store_true",
-                     dest="quick", default=False,
-                     help="Compute values only for one chromosome.")
-    group.add_option("--replot", action="store_true",
-                     dest="replot", default=False,
-                     help="Load data from output tab files and"
-                     " regenerate plots instead of recomputing data")
-    group.add_option("--noplot", action="store_true",
-                     dest="noplot", default=False,
-                     help="Do not generate plots")
+    add_common_options(group, ['clobber', 'quiet', 'quick', 'replot',
+                               'noplot'])
+
     group.add_option("--groups", action="store_true",
                      dest="by_groups", default=False,
                      help="Separate data into different groups based upon"
@@ -927,15 +909,6 @@ def parse_options(args):
                      " normalized by the number of segments in that group"
                      " instead of the raw counts"
                      " (normalize over SEGMENTATION labels)")
-#     group.add_option("--significance", action="store_true",
-#                      dest="significance", default=False,
-#                      help="Include the significance of the aggregation"
-#                      " at each base in the plot. Warning: significance"
-#                      " is approximated using a binomial distribution"
-#                      " adjusted to a q-value threshold. Uses the QVALUE"
-#                      " package which must be installed. This method does"
-#                      " not always yield reasonable results, so use with"
-#                      " extreme caution.")
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Main aggregation options")
@@ -944,11 +917,11 @@ def parse_options(args):
                      help="one of: %s. [default: %%default]" % \
                      ", ".join(MODES))
     group.add_option("-f", "--flank-bases", metavar="N",
-                     dest="flankbases", type="int", default=FLANK_BASES,
+                     dest="flank_bases", type="int", default=FLANK_BASES,
                      help="Aggregate this many base pairs off each"
                      " end of feature or gene [default: %default]")
     group.add_option("-r", "--region-samples", type="int", metavar="N",
-                     dest="regionbins", default=REGION_BINS,
+                     dest="region_bins", default=REGION_BINS,
                      help="If --mode=region, aggregate over each internal"
                      " feature by taking this many evenly-spaced samples."
                      " Warning: features with a length < N will be excluded"
@@ -957,15 +930,19 @@ def parse_options(args):
 
     group = OptionGroup(parser, "Gene aggregation options")
     group.add_option("-i", "--intron-samples", type="int", metavar="N",
-                     dest="intronbins", default=INTRON_BINS,
+                     dest="intron_bins", default=INTRON_BINS,
                      help="Aggregate over each intron"
                      " by taking this many evenly-spaced samples"
                      " [default: %default]")
     group.add_option("-e", "--exon-samples", type="int", metavar="N",
-                     dest="exonbins", default=EXON_BINS,
+                     dest="exon_bins", default=EXON_BINS,
                      help="Aggregate over each exon"
                      " by taking this many evenly-spaced samples"
                      " [default: %default]")
+    parser.add_option_group(group)
+
+    group = OptionGroup(parser, "R options")
+    add_common_options(group, ['ropts'])
     parser.add_option_group(group)
 
     (options, args) = parser.parse_args(args)
@@ -980,21 +957,10 @@ def main(args=sys.argv[1:]):
     (options, args) = parse_options(args)
     bedfilename = args[0]
     featurefilename = args[1]
-    kwargs = {"flank_bases": options.flankbases,
-              "region_bins": options.regionbins,
-              "intron_bins": options.intronbins,
-              "exon_bins": options.exonbins,
-              "clobber": options.clobber,
-              "verbose": options.verbose,
-              "quick": options.quick,
-              "replot": options.replot,
-              "noplot": options.noplot,
-              "by_groups": options.by_groups,
-              "normalize": options.normalize,
-              "mode": options.mode,
-#               "significance": options.significance,
-              "mnemonic_file": options.mnemonic_file}
-    validate(bedfilename, featurefilename, options.outdir, **kwargs)
+    kwargs = dict(options.__dict__)
+    outdir = kwargs.pop('outdir')
+
+    validate(bedfilename, featurefilename, outdir, **kwargs)
 
 if __name__ == "__main__":
     sys.exit(main())

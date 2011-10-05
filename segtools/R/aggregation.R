@@ -270,6 +270,8 @@ get.rug.start <- function(group.number, rug.height = 0.03, rug.spacing = 0.015,
 panel.aggregation <- function(x, y, ngroups, signif = NULL, groups = NULL,
                               subscripts = NULL, font = NULL, col = NULL,
                               col.line = NULL, pch = NULL,
+                              col.high = rgb(.773,.098,.133),
+                              col.low = rgb(.224,.365,.655),
                               group.number = NULL, rug.height = 0.03, ...) {
   ## hide 'font' from panel.segments, since it doesn't like having
   ## font and fontface
@@ -300,9 +302,19 @@ panel.aggregation <- function(x, y, ngroups, signif = NULL, groups = NULL,
       }
     }
   }
-##  panel.xyplot(x, y, groups = groups, subscripts = subscripts, ...)
-  panel.xyplot(x, y, font = font, col = col, col.line = col.line,
-               pch = pch, ...)
+
+  y.fill <- y
+  y.fill[y < 0] <- 0
+  panel.polygon(cbind(c(min(x), x, max(x)), c(0, y.fill, 0)),
+                col=col.high, border=NA)
+  y.fill <- y
+  y.fill[y > 0] <- 0
+  panel.polygon(cbind(c(min(x), x, max(x)), c(0, y.fill, 0)),
+                col=col.low, border=NA)
+
+  ##  panel.xyplot(x, y, groups = groups, subscripts = subscripts, ...)
+  #panel.xyplot(x, y, font = font, col = NULL, col.line = NULL,
+  #             pch = pch, ...)
 }
 
 get.label.sizes <- function(data, metadata) {
@@ -351,8 +363,8 @@ xyplot.aggregation <- function(agg.data = NULL,
     auto.key = if (ngroups < 2) FALSE
                else list(points = FALSE, lines = TRUE),
     strip = strip.custom(horizontal = FALSE),
-    strip.height = 10,
-    par.strip.text = list(cex = 0.7),
+    strip.height = 11,
+    par.strip.text = list(cex = 0.85),
     xlab = NULL,
     ylab = if (normalize)
               expression(paste("Enrichment: ",
@@ -424,7 +436,8 @@ xyplot.aggregation <- function(agg.data = NULL,
                xlab = xlab, ylab = ylab, sub = sub,
                signif = data$signif, ngroups = ngroups,
                panel = "panel.superpose", panel.groups = panel,
-               par.strip.text = par.strip.text, ...)
+               par.strip.text = par.strip.text,
+               ...)
 
   trellis.raw <- do.call(xyplot, args)
 

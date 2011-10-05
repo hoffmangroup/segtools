@@ -19,7 +19,8 @@ from collections import defaultdict
 from genomedata import Genome
 from numpy import zeros, bincount, array
 
-from . import log, Annotation, die, RInterface, open_transcript
+from . import log, Annotation, die, RInterface, open_transcript, \
+     add_common_options
 from .common import make_tabfilename, setup_directory, tab_saver
 
 from .html import save_html_div
@@ -190,7 +191,7 @@ def save_tab(labels, nuc_counts, dinuc_counts, dirpath,
                            dinuc_counts[label_key])
             saver.writerow(row)
 
-def save_plot(dirpath, clobber=False, verbose=True,
+def save_plot(dirpath, clobber=False, verbose=True, ropts=None,
               mnemonic_file="", namebase=NAMEBASE, transcriptfile=None):
     R.start(verbose=verbose, transcriptfile=transcriptfile)
 
@@ -199,7 +200,7 @@ def save_plot(dirpath, clobber=False, verbose=True,
         die("Unable to find tab file: %s" % tabfilename)
 
     R.plot("save.dinuc", dirpath, namebase, tabfilename,
-           mnemonic_file=mnemonic_file, clobber=clobber)
+           mnemonic_file=mnemonic_file, clobber=clobber, ropts=ropts)
 
 def save_html(dirpath, clobber=False, verbose=True, mnemonicfile=None):
     save_html_div(HTML_TEMPLATE_FILENAME, dirpath, NAMEBASE, clobber=clobber,
@@ -208,7 +209,8 @@ def save_html(dirpath, clobber=False, verbose=True, mnemonicfile=None):
 
 ## Package entry point
 def validate(filename, genomedatadir, dirpath, clobber=False, quick=False,
-             replot=False, noplot=False, mnemonic_file=None, verbose=True):
+             replot=False, noplot=False, mnemonic_file=None, verbose=True,
+             ropts=None):
     setup_directory(dirpath)
     if not replot:
         annotation = Annotation(filename, verbose=verbose)
@@ -225,7 +227,8 @@ def validate(filename, genomedatadir, dirpath, clobber=False, quick=False,
     if not noplot:
         with open_transcript(dirpath, MODULE) as transcriptfile:
             save_plot(dirpath, clobber=clobber, verbose=verbose,
-                      mnemonic_file=mnemonic_file, transcriptfile=transcriptfile)
+                      mnemonic_file=mnemonic_file, ropts=ropts,
+                      transcriptfile=transcriptfile)
 
     save_html(dirpath, clobber=clobber, mnemonicfile=mnemonic_file,
               verbose=verbose)
@@ -238,34 +241,16 @@ def parse_options(args):
     parser = OptionParser(usage=usage, version=version)
 
     group = OptionGroup(parser, "Flags")
-    group.add_option("--clobber", action="store_true",
-                     dest="clobber", default=False,
-                     help="Overwrite existing output files if the specified"
-                     " directory already exists.")
-    group.add_option("-q", "--quiet", action="store_false",
-                     dest="verbose", default=True,
-                     help="Do not print diagnostic messages.")
-    group.add_option("--quick", action="store_true",
-                     dest="quick", default=False,
-                     help="Compute values only for one chromosome.")
-    group.add_option("--replot", action="store_true",
-                     dest="replot", default=False,
-                     help="Load data from output tab files and"
-                     " regenerate plots instead of recomputing data")
-    group.add_option("--noplot", action="store_true",
-                     dest="noplot", default=False,
-                     help="Do not generate plots")
+    add_common_options(group, ['clobber', 'quiet', 'quick', 'replot',
+                               'noplot'])
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Output")
-    group.add_option("-m", "--mnemonic-file", dest="mnemonic_file",
-                     default=None, metavar="FILE",
-                     help="If specified, labels will be shown using"
-                     " mnemonics found in FILE.")
-    group.add_option("-o", "--outdir",
-                     dest="outdir", default="%s" % MODULE, metavar="DIR",
-                     help="File output directory (will be created"
-                     " if it does not exist) [default: %default]")
+    add_common_options(group, ['mnemonic_file', 'outdir'], MODULE=MODULE)
+    parser.add_option_group(group)
+
+    group = OptionGroup(parser, "R options")
+    add_common_options(group, ['ropts'])
     parser.add_option_group(group)
 
     (options, args) = parser.parse_args(args)

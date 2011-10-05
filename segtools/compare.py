@@ -10,7 +10,7 @@ __version__ = "$Revision$"
 
 import sys
 
-from . import log, Segmentation
+from . import log, Segmentation, add_common_options
 
 def bases_in_segments(segments):
     """Return the number of bases in a segment array"""
@@ -144,13 +144,7 @@ def parse_options(args):
                       default=False, action="store_true",
                       help="Measure the base-wise edit distance between"
                       " the two specified segmentations")
-    parser.add_option("--quick", dest="quick",
-                      default=False, action="store_true",
-                      help="Output results after only one chromosome")
-    parser.add_option("-q", "--quiet", dest="verbose",
-                      default=True, action="store_false",
-                      help="Don't print diagnostic messages")
-
+    add_common_options(parser, ['quick', 'quiet'])
     (options, args) = parser.parse_args(args)
 
     if len(args) < 2:
@@ -174,8 +168,7 @@ def main(args=sys.argv[1:]):
     (options, args) = parse_options(args)
     bedfiles = args[0:2]
     if options.edit_distance:
-        kwargs = {"quick": options.quick,
-                  "verbose": options.verbose}
+        kwargs = dict(options.__dict__)
         results = edit_distance(*bedfiles, **kwargs)
         print_edit_distance(*results)
     else:

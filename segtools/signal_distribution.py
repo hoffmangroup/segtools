@@ -24,7 +24,7 @@ from functools import partial
 from numpy import apply_along_axis, array, ceil, compress, floor, fromiter, \
     histogram, isfinite, NAN, nanmax, nanmin, nansum, NINF, PINF, square, zeros
 
-from . import log, Segmentation, die, RInterface
+from . import log, Segmentation, die, RInterface, add_common_options
 from .common import iter_segments_continuous, iter_supercontig_segments, \
      make_tabfilename, setup_directory, tab_reader, tab_saver
 from .html import save_html_div
@@ -701,7 +701,7 @@ def load_track_ranges(genome, segmentation=None):
 def save_stats_plot(dirpath, namebase=NAMEBASE_STATS, filename=None,
                     clobber=False, mnemonic_file=None, translation_file=None,
                     allow_regex=False, gmtk=False, verbose=True,
-                    label_order=[], track_order=[]):
+                    label_order=[], track_order=[], ropts=None):
     """
     if filename is specified, it overrides dirpath/namebase.tab as
     the data file for plotting.
@@ -719,7 +719,7 @@ def save_stats_plot(dirpath, namebase=NAMEBASE_STATS, filename=None,
 
     R.plot("save.track.stats", dirpath, namebase, filename,
            mnemonic_file=mnemonic_file,
-           translation_file=translation_file,
+           translation_file=translation_file, ropts=ropts,
            as_regex=allow_regex, gmtk=gmtk, clobber=clobber,
            label_order=label_order, track_order=track_order)
 
@@ -762,7 +762,7 @@ def validate(bedfilename, genomedatadir, dirpath,
              quick=False, replot=False, noplot=False, verbose=True,
              nbins=NBINS, value_range=(None, None),
              ecdf=False, mnemonic_file=None, genhist=False,
-             create_mnemonics=False, chroms=None,
+             create_mnemonics=False, chroms=None, ropts=None,
              label_order_file=None, track_order_file=None):
 
     if not genhist or not replot:
@@ -836,7 +836,8 @@ def validate(bedfilename, genomedatadir, dirpath,
 
         save_stats_plot(dirpath, namebase=NAMEBASE_STATS, clobber=clobber,
                         mnemonic_file=mnemonic_file, verbose=verbose,
-                        label_order=label_order, track_order=track_order)
+                        label_order=label_order, track_order=track_order,
+                        ropts=ropts)
 
     if genhist and histogram:
         try:
@@ -857,23 +858,8 @@ def parse_options(args):
     parser = OptionParser(usage=usage, version=version)
 
     group = OptionGroup(parser, "Flags")
-    group.add_option("--clobber", action="store_true",
-                     dest="clobber", default=False,
-                     help="Overwrite existing output files if the specified"
-                     " directory already exists.")
-    group.add_option("-q", "--quiet", action="store_false",
-                     dest="verbose", default=True,
-                     help="Do not print diagnostic messages.")
-    group.add_option("--quick", action="store_true",
-                     dest="quick", default=False,
-                     help="Compute values only for one chromosome.")
-    group.add_option("--noplot", action="store_true",
-                     dest="noplot", default=False,
-                     help="Do not generate plots")
-    group.add_option("--replot", action="store_true",
-                     dest="replot", default=False,
-                     help="Load data from output tab files and"
-                     " regenerate plots instead of recomputing data")
+    add_common_options(group, ['clobber', 'quiet', 'quick', 'noplot',
+                               'replot'])
     group.add_option("--genhist", action="store_true",
                      dest="genhist", default=False,
                      help="Generate histogram for each track")
@@ -903,23 +889,9 @@ def parse_options(args):
                      " where CHROM is a chromosome name such as chr21 or"
                      " chrX (option can be used multiple times to allow"
                      " multiple chromosomes)")
-#     group.add_option("--min-value", type="float", metavar="N",
-#                      dest="min_value", default=None,
-#                      help="Minimum signal track value used in binning"
-#                      " (overrides min from --calc-ranges)"
-#                      " (values below will be ignored)")
-#     group.add_option("--max-value", type="float", metavar="N",
-#                      dest="max_value", default=None,
-#                      help="Maximum signal track value used in binning"
-#                      " (overrides max from --calc-ranges)"
-#                      " (values above will be ignored)")
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "I/O options")
-    group.add_option("-m", "--mnemonic-file", dest="mnemonic_file",
-                     default=None, metavar="FILE",
-                     help="If specified, labels will be shown using"
-                     " mnemonics found in FILE")
     group.add_option("--order-tracks", dest="track_order_file",
                      default=None, metavar="FILE",
                      help="If specified, tracks will be displayed"
@@ -940,10 +912,11 @@ def parse_options(args):
                      " directory of a previous run of this module."
                      " This option can be specified multiple times to"
                      " merge previous results together.")
-    group.add_option("-o", "--outdir", metavar="DIR",
-                     dest="outdir", default="%s" % MODULE,
-                     help="File output directory (will be created"
-                     " if it does not exist) [default: %default]")
+    add_common_options(group, ['mnemonic_file', 'outdir'], MODULE=MODULE)
+    parser.add_option_group(group)
+
+    group = OptionGroup(parser, "R options")
+    add_common_options(group, ['ropts'])
     parser.add_option_group(group)
 
     (options, args) = parser.parse_args(args)

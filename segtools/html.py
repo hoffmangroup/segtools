@@ -19,9 +19,10 @@ from pkg_resources import resource_string
 from shutil import copy
 from string import Template
 
-from . import log, Segmentation, die
+from . import log, Segmentation, die, add_common_options
 from .common import check_clobber, get_ordered_labels, make_divfilename, \
-     make_id, make_filename, make_tabfilename, map_mnemonics, NICE_EXTS, PKG_RESOURCE
+     make_id, make_filename, make_tabfilename, map_mnemonics, NICE_EXTS, \
+     PKG_RESOURCE
 
 MNEMONIC_TEMPLATE_FILENAME = "mnemonic_div.tmpl"
 HEADER_TEMPLATE_FILENAME = "html_header.tmpl"
@@ -388,13 +389,7 @@ def parse_args(args):
     parser = OptionParser(usage=usage, version=version)
 
     group = OptionGroup(parser, "Flags")
-    group.add_option("--clobber", action="store_true",
-                     dest="clobber", default=False,
-                     help="Overwrite existing output files if the specified"
-                     " directory already exists.")
-    group.add_option("-q", "--quiet", action="store_false",
-                     dest="verbose", default=True,
-                     help="Do not print diagnostic messages.")
+    add_common_options(group, ['clobber', 'quiet'])
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Linking")
@@ -443,13 +438,10 @@ def parse_args(args):
 def main(args=sys.argv[1:]):
     options, args = parse_args(args)
     bedfilename = args[0]
-    outfile = options.outfile
-    results_dir = options.resultsdir
-    kwargs = {"mnemonicfile": options.mnemonicfile,
-              "clobber": options.clobber,
-              "verbose": options.verbose,
-              "layeredbed": options.layeredbed,
-              "bigbed": options.bigbed}
+    kwargs = dict(options.__dict__)
+
+    outfile = kwargs.pop('outfile')
+    results_dir = kwargs.pop('resultsdir')
     make_html_report(bedfilename, results_dir, outfile, **kwargs)
 
 if __name__ == "__main__":

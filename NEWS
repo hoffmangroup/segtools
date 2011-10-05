@@ -6,6 +6,8 @@
 * docs: Added high-level structured summary of the output of each command
 * requirements: Genomedata package now only required to use segtools-nucleotide-transition and segtools-signal-distribution, not for unrelated commands
 * docs: Unified usage terminology to use "annotation" and "feature" (instead of "annotations" and "entries", for example)
+* segtools-*: Added -R option to allow command-line specification of R
+  options to segtools commands that plot using R.
 
 1.1.7:
 
