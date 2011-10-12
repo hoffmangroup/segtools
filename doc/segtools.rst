@@ -598,14 +598,8 @@ segments of each label.
 
 :Visualization: A heatmap of the mean value for each label-track pair, 
   augmented with a bar representing the standard deviation of that value.
-:Summary file: A table of the mean and standard deviation for each
-  label-track pair.
-
-
-.. note::
-   Mean and standard deviation values are approximated from a histogram
-   (binned) representation of the data. The effect should be minimal, but
-   it is important to keep this in mind as a potential source of error.
+:Summary file: A table of the mean, standard deviation, and number of
+  data points for each label-track pair.
 
 
 **Parallelization**:

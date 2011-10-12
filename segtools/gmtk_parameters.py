@@ -22,7 +22,7 @@ from .common import setup_directory
 from .html import save_html_div
 from .transition import save_plot, save_graph
 from .mnemonics import create_mnemonic_file
-from .signal_distribution import save_stats_plot
+from .signal_distribution import SignalStats
 
 NAMEBASE = "%s" % MODULE
 NAMEBASE_GRAPH = os.extsep.join([NAMEBASE, "graph"])
@@ -97,11 +97,12 @@ def validate(gmtk_file, dirpath, p_thresh=P_THRESH, q_thresh=Q_THRESH,
         save_plot(dirpath, namebase=NAMEBASE, filename=gmtk_file,
                   verbose=verbose, clobber=clobber, gmtk=True,
                   mnemonic_file=mnemonic_file, ropts=ropts)
-        save_stats_plot(dirpath, namebase=NAMEBASE_STATS, filename=gmtk_file,
-                        clobber=clobber, gmtk=True, ropts=ropts,
-                        mnemonic_file=mnemonic_file,
-                        translation_file=translation_file,
-                        allow_regex=allow_regex, verbose=verbose)
+        SignalStats.save_plot(dirpath, namebase=NAMEBASE_STATS,
+                              filename=gmtk_file,
+                              clobber=clobber, gmtk=True, ropts=ropts,
+                              mnemonic_file=mnemonic_file,
+                              translation_file=translation_file,
+                              allow_regex=allow_regex, verbose=verbose)
 
     if not nograph:
         save_graph(labels, probs, dirpath, clobber=clobber,

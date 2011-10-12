@@ -18,7 +18,7 @@ import sys
 from collections import defaultdict
 from genomedata import Genome
 from functools import partial
-from numpy import apply_along_axis, isfinite, square, zeros
+from numpy import isfinite, square, zeros
 
 from . import log, Segmentation, die, RInterface, add_common_options, \
      open_transcript, ProgressBar
@@ -87,13 +87,14 @@ class SignalStats(object):
                 chromosomes = genome
 
             for chromosome in chromosomes:
+                chrom = chromosome.name
                 if verbose:
                     try:
                         segments = segmentation.chromosomes[chrom]
                     except KeyError:
                         continue
                     progress = ProgressBar(len(segments) * len(tracks),
-                                           label="  %s: " % chromosome.name)
+                                           label="  %s: " % chrom)
 
                 for track_i, track in enumerate(tracks):
                     col_index = chromosome.index_continuous(track)
