@@ -13,7 +13,7 @@ read.track.stats <- function(filename, mnemonics = NULL,
                                sd = "numeric"))
 {
   stats <- read.delim(filename, colClasses = colClasses)
-  if (!all(names(stats) == COLNAMES)) {
+  if (!all(COLNAMES %in% names(stats))) {
     stop("Unrecognized track statistic file format")
   }
   stats$label <- relevel.mnemonics(stats$label, mnemonics)
@@ -37,7 +37,7 @@ read.gmtk.track.stats <- function(filename, mnemonics = NULL,
 
 merge.gmtk.track.stats <- function(means, covars) {
   if (!all(means$trackname[1:nrow(covars)] == covars$trackname)) {
-    stop("Track ordering different between means and covars!")
+    stop("Track ordering different between means and covars.")
   } else {
     ## Implicit replication across all segs and subsegs
     stats <- subset(means, select=-value)
@@ -254,12 +254,12 @@ covar2sd <- function(stats) {
 
 normalize.track.stats <- function(stats, cov = FALSE, sd.scale = TRUE) {
   if (!is.array(stats)) {
-    stop("normalize.track.stats expected stats in array format!")
+    stop("normalize.track.stats expected stats in array format.")
   }
 
   ## Normalize mean
   means <- stats[, , "mean"]
-  means.range <- t(apply(means, 1, range))
+  means.range <- t(apply(means, 1, range, finite = TRUE))
   means.min <- means.range[, 1]
   means.max <- means.range[, 2]
   stats[, , "mean"] <- (means - means.min) / (means.max - means.min)
@@ -273,7 +273,7 @@ normalize.track.stats <- function(stats, cov = FALSE, sd.scale = TRUE) {
       sds <- sds / (means.max - means.min)
       ## If any are over 1, scale all down
       if (sd.scale && any(is.finite(sds)) && any(sds > 1)) {
-        sds <- sds / max(sds, na.rm = TRUE)
+        sds <- sds / max(sds, finite = TRUE)
       }
     }
     stats[, , "sd"] <- sds
@@ -284,16 +284,16 @@ normalize.track.stats <- function(stats, cov = FALSE, sd.scale = TRUE) {
 
 normalize.binary.track.stats <- function(stats, cov = FALSE) {
   if (!is.array(stats)) {
-    stop("normalize.binary.track.stats expected stats in array format!")
+    stop("normalize.binary.track.stats expected stats in array format.")
   }
   if (! "sd" %in% dimnames(stats)[[3]]) {
-    stop("normalize.binary.track.stats expected standard deviations!")
+    stop("normalize.binary.track.stats expected standard deviations.")
   }
   ## Compute normalization statistic
   means <- stats[, , "mean"]
   sds <- stats[, , "sd"]
   if (dim(means)[2] != 2) {
-    stop("normalize.binary.track.stats expected 2-label segmentation results!")
+    stop("normalize.binary.track.stats expected 2-label segmentation results.")
   }
 
   means.diff <- apply(means, 1, diff)
@@ -507,22 +507,36 @@ levelplot.track.stats <-
   sds <- stats.norm[, , "sd"]
 
   if (!any(is.finite(means))) {
-    warning("No finite mean values found. Nothing to plot!")
+    warning("No finite mean values found. Nothing to plot.")
     return(NULL)
   } else if (!any(is.finite(sds))) {
     ## Pretent no sds were specified
     sds <- NULL
   }
 
-  mask.rows <- apply(!is.finite(means), 1, any)  # Any row with an NaN
-  if (any(mask.rows)) {
-    warning("Found infinite or NaN mean values. Ignoring those signal tracks")
-    means <- means[!mask.rows,]
-    sds <- sds[!mask.rows,]
+  keep.rows <- apply(is.finite(means), 1, sum) > 1
+  if (any(!keep.rows)) {
+    warning("Ignoring tracks without at least two finite mean values.")
+    means <- means[keep.rows,]
+    sds <- sds[keep.rows,]
   }
-
+  keep.cols <- apply(is.finite(means), 2, sum) > 1
+  if (any(!keep.cols)) {
+    warning("Ignoring labels without at least two finite mean values")
+    means <- means[,keep.cols]
+    sds <- sds[,keep.cols]
+  }
+  if (!is.matrix(means)) {
+    stop("After removing non-finite values, there was not enough data to plot.")
+  }
+  if (any(!is.finite(means))) {
+    warning("Cells with missing mean values are being set to mean and sd of 0")
+    means[!is.finite(means)] <- 0
+    sds[!is.finite(means)] <- 0
+  }
+  
   if (threshold || is.null(sds) || sd.shape == "line") {
-    z.range <- range(means, na.rm = TRUE)
+    z.range <- range(means, finite = TRUE)
   } else {
     z.range <- c(min(means, means - sds), max(means + sds))
   }

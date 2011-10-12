@@ -23,7 +23,7 @@ from time import time
 from numpy import array, empty, iinfo, ndarray, searchsorted
 from tabdelim import DictReader, DictWriter, ListReader, ListWriter
 
-from . import log, EXT_GZ, PKG, die
+from . import log, EXT_GZ, PKG, die, ProgressBar
 
 PKG_RESOURCE = os.extsep.join([PKG, "resources"])
 
@@ -64,63 +64,6 @@ class OutputMasker(object):
         pass  # Mask output
     def restore(self):
         return self._stream
-
-class ProgressBar(object):
-    def __init__(self, total=67, width=67, chr_done="#", chr_undone="-",
-                 format_str="Progress: [%(done)s%(undone)s]",
-                 out=sys.stdout):
-        """Create a progress bar for num_items that is width characters wide
-
-        total: the number of items in the task (calls to next before 100%)
-        width: the width of the bar itself, not including labels
-        chr_done: character for displaying completed work
-        chr_undone: character for displaying uncompleted work
-        format_str: format string for displaying progress bar. Must contain
-          a reference to %(done)s and %(undone)s, which will be substituted
-        out: an object that supports calls to write() and flush()
-        """
-        assert int(width) > 0
-        assert int(total) > 0
-
-        self._width = int(width)
-        self._n = int(total)
-        self._quantum = float(self._n / self._width)
-        self._chr_done = str(chr_done)
-        self._chr_undone = str(chr_undone)
-        self._format_str = str(format_str)
-        self._out = out
-
-        self._i = 0
-        self._progress = 0
-        self.refresh()
-
-    def next(self):
-        """Advance to the next item in the task
-
-        Might or might not refresh the progress bar
-        """
-        self._i += 1
-        if self._i > self._n:
-            raise StopIteration("End of progress bar reached.")
-
-        progress = int(self._i / self._quantum)
-        if progress != self._progress:
-            self._progress = progress
-            self.refresh()
-
-    def refresh(self):
-        """Refresh the progress bar display"""
-        fields = {"done": self._chr_done * self._progress,
-                  "undone": self._chr_undone * (self._width - self._progress)}
-        self._out.write("\r%s" % (self._format_str % fields))
-        self._out.flush()
-
-    def end(self):
-        """Complete the job progress, regardless of current state"""
-        self._progress = self._width
-        self.refresh()
-        self._out.write("\n")
-        self._out.flush()
 
 
 class FeatureScanner(object):
@@ -392,9 +335,12 @@ def map_segment_label(segments, range):
 
     return res, sentinel
 
-## Yields segment and the continuous corresponding to it, for each segment
-##   in the chromosome inside of a supercontig
-def iter_segments_continuous(chromosome, segmentation, verbose=True):
+def iter_segments_continuous(chromosome, segmentation, column=None,
+                             verbose=True):
+    """Yields segment and the continuous corresponding to it, for each segment
+    in the chromosome inside of a supercontig
+    column: only report continuous from the specified column (or None for all)
+    """
     chrom = chromosome.name
     try:
         segments = segmentation.chromosomes[chrom]
@@ -406,11 +352,6 @@ def iter_segments_continuous(chromosome, segmentation, verbose=True):
     supercontig_last_start = 0
     nsegments = len(segments)
 
-    if verbose:
-        format_str = "".join([chrom, ":\t[%(done)s%(undone)s]"])
-        progress = ProgressBar(nsegments, out=sys.stderr,
-                               format_str=format_str)
-
     for segment in segments:
         start = segment['start']
         end = segment['end']
@@ -420,31 +361,25 @@ def iter_segments_continuous(chromosome, segmentation, verbose=True):
                 # Raises StopIteration if out of supercontigs
                 supercontig, continuous = supercontig_iter.next()
             except StopIteration:
-                if verbose:
-                    progress.end()
                 raise
 
             # Enforce increasing supercontig indices
             assert supercontig.start >= supercontig_last_start
             supercontig_last_start = supercontig.start
 
-        if verbose:
-            progress.next()
+            # If only pulling specific column, load entire supercontig
+            # of data into memory
+            if start < supercontig.end and column is not None:
+                continuous = continuous[:, column]
 
         if end <= supercontig.start:
-            continue  # Get next segment
+            # Jump forward to next segment
+            continue
 
-        try:
-            sc_start = supercontig.project(max(start, supercontig.start))
-            sc_end = supercontig.project(min(end, supercontig.end))
-            yield segment, continuous[sc_start:sc_end]
-        except:
-            for k, v in locals():
-                print >>sys.stderr, "%r: %r" % (k, v)
-            raise
+        sc_start = supercontig.project(start)
+        sc_end = supercontig.project(end)
+        yield segment, continuous[sc_start:sc_end]
 
-    if verbose:
-        progress.end()
 
 ## Yields supercontig and the subset of segments which overlap it.
 def iter_supercontig_segments(chromosome, segmentation, verbose=True):

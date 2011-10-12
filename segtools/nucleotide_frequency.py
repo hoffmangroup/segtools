@@ -20,7 +20,7 @@ from genomedata import Genome
 from numpy import zeros, bincount, array
 
 from . import log, Annotation, die, RInterface, open_transcript, \
-     add_common_options
+     add_common_options, ProgressBar
 from .common import make_tabfilename, setup_directory, tab_saver
 
 from .html import save_html_div
@@ -126,13 +126,12 @@ def calc_nucleotide_frequencies(annotation, genome,
             continue
 
         log("    counting nucs and dinucs...", verbose)
-        interval = int(len(chrom_rows) / 70)
-        row_i = 0
+        if verbose:
+            progress = ProgressBar(len(chrom_rows), label="    ")
+
         for row in chrom_rows:
-            if row_i % interval == 0:
-                n_done = int(row_i / interval)
-                n_left = 70 - n_done
-                log("    %s%s" % ('=' * n_done, '-' * n_left), verbose)
+            if verbose:
+                progress.next()
 
             start = row['start']
             end = row['end']
@@ -141,6 +140,8 @@ def calc_nucleotide_frequencies(annotation, genome,
             lab_nuc_counts = nuc_counts[label]
             lab_dinuc_counts = dinuc_counts[label]
             sequence = chrom_sequence[start:end]
+            if len(sequence) == 0: continue
+
             # Count nucs
             val_counts = bincount(sequence)
             for val in val_counts.nonzero()[0]:
@@ -157,8 +158,9 @@ def calc_nucleotide_frequencies(annotation, genome,
                     index = quick_dinuc_categories.get(val, len(lab_dinuc_counts) - 1)
                     dinuc_counts[label][index] += n
 
-            row_i += 1
 
+        if verbose:
+            progress.end()
         # Only look at first chromosome if quick
         if quick: break
 

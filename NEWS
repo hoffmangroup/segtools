@@ -1,6 +1,9 @@
 1.1.9:
-
-
+* segtools-signal-distribution: cleaned up code and arguments to only support
+  accurate computation of statistics (and not histogram approximation)
+* segtools-signal-distribution: rewrote calculation loop to improve speed
+  (now takes ~ 2hrs for chr1 with 93 tracks)
+* progress bars now include ETA.
 
 1.1.8:
 * segtools-nucleotide-transition: significant (several-hundred-fold) speedup

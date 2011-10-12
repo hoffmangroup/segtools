@@ -462,7 +462,7 @@ class RInterface(object):
             if val is None:
                 kwargs[key] = ""
 
-        ropts = kwargs.pop('ropts')
+        ropts = kwargs.pop('ropts', [])
         for opt in ropts:
             if opt:
                 key, value = opt.split('=')
@@ -507,6 +507,78 @@ class RInterface(object):
         log("Plotting completed in %.1f seconds" % (time() - start),
             self.verbose)
         return result
+
+
+class ProgressBar(object):
+    def __init__(self, total=None, width=60, chr_done="=", chr_undone=" ",
+                 label="", out=sys.stderr, status=True):
+        """Create a progress bar that is width - len(label) characters wide
+
+        total: the number of items in the task (calls to next before 100%)
+          defaults to width of progress bar
+        width: the width of the bar itself, including labels
+        chr_done: character for displaying completed work
+        chr_undone: character for displaying uncompleted work
+        out: an object that supports calls to write() and flush()
+        status: print current completion status?
+        """
+        assert int(width) > 0
+        assert int(total) > 0
+
+        self._label = str(label)
+        self._width = int(width) - len(self._label)
+        self._n = self._width if total is None else int(total)
+        self._quantum = float(self._n / self._width)
+        self._chr_done = str(chr_done)
+        self._chr_undone = str(chr_undone)
+        self._out = out
+        self._status = status
+        if status:
+            self._start = time()
+            self._last = time()
+
+        self._i = 0
+        self._progress = 0
+        self.refresh()
+
+    def next(self, n=1):
+        """Advance by n items
+
+        Might or might not refresh the progress bar
+        """
+        self._i += n
+        if self._i > self._n:
+            raise StopIteration("End of progress bar reached.")
+
+        progress = int(self._i / self._quantum)
+        if progress != self._progress:
+            self._progress = progress
+            self.refresh()
+        elif self._status and (time() - self._last) > 10:
+            self.refresh()
+
+    def refresh(self):
+        """Refresh the progress bar display"""
+        done = self._chr_done * self._progress
+        undone = self._chr_undone * (self._width - self._progress)
+        self._out.write("\r%s[%s%s]" % (self._label, done, undone))
+        if self._status and self._i > 0:
+            now = time()
+            time_left = int((self._n - self._i) * \
+                            (now - self._start) / self._i)
+            self._last = now
+            self._out.write(" %02d:%02d:%02d" %
+                            (time_left / 3600,
+                             (time_left % 3600) / 60,
+                             time_left % 60))
+        self._out.flush()
+
+    def end(self):
+        """Complete the job progress, regardless of current state"""
+        self._progress = self._width
+        self.refresh()
+        self._out.write("\n")
+        self._out.flush()
 
 
 @contextmanager
