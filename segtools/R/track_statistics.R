@@ -567,7 +567,7 @@ levelplot.track.stats <-
     col.ord <- match(label_order, colnames(means))
     stopifnot(col.ord > 0, length(col.ord) == ncol(means))
   }
-  par(oma = c(1, 1, 1, 1))  # Add a margin
+  #par(oma = c(1, 1, 1, 1))  # Add a margin
 
   sds.ordered = NULL
   if (! is.null(sds)) {
@@ -627,6 +627,10 @@ save.track.stats <- function(dirpath, namebase, filename,
                              symmetric = FALSE,
                              clobber = FALSE,
                              square.size = 15,  # px
+                             height = 200 + square.size * ntracks,
+                             width = 450 + square.size * nlabels,
+                             height.pdf = height / 72,
+                             width.pdf = width / 72,
                              ...) {
   mnemonics <- read.mnemonics(mnemonic_file)
   translations <- read.mnemonics(translation_file)
@@ -637,13 +641,13 @@ save.track.stats <- function(dirpath, namebase, filename,
 
   ntracks <- nlevels(res$stats$trackname)
   nlabels <- nlevels(res$stats$label)
-  height <- 200 + square.size * ntracks
-  width <- 450 + square.size * nlabels
-
+  
   save.images(dirpath, namebase,
               levelplot.track.stats(res, symmetric = symmetric, ...),
               height = height,
               width = width,
+              height.pdf = height.pdf,
+              width.pdf = width.pdf,
               clobber = clobber)
 }
 
