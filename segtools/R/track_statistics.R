@@ -267,13 +267,13 @@ normalize.track.stats <- function(stats, cov = FALSE, sd.scale = TRUE) {
   if ("sd" %in% dimnames(stats)[[3]]) {
     sds <- stats[, , "sd"]
     if (cov) {  # Make sd into coefficient of variation (capped at 1)
-      sds <- sds / rowMeans(means)
+      sds <- sds / rowMeans(means, na.rm = TRUE)
       sds[sds > 1] <- 1
     } else {  # Normalize same as mean
       sds <- sds / (means.max - means.min)
       ## If any are over 1, scale all down
       if (sd.scale && any(is.finite(sds)) && any(sds > 1)) {
-        sds <- sds / max(sds, finite = TRUE)
+        sds <- sds / max(sds, na.rm = TRUE)
       }
     }
     stats[, , "sd"] <- sds
@@ -511,6 +511,7 @@ levelplot.track.stats <-
     return(NULL)
   } else if (!any(is.finite(sds))) {
     ## Pretent no sds were specified
+    warning("No finite sds values found. Not plotting sd bars.")
     sds <- NULL
   }
 
@@ -520,9 +521,9 @@ levelplot.track.stats <-
     means <- means[keep.rows,]
     sds <- sds[keep.rows,]
   }
-  keep.cols <- apply(is.finite(means), 2, sum) > 1
+  keep.cols <- apply(is.finite(means), 2, sum) > 0
   if (any(!keep.cols)) {
-    warning("Ignoring labels without at least two finite mean values")
+    warning("Ignoring labels without any finite mean values")
     means <- means[,keep.cols]
     sds <- sds[,keep.cols]
   }
@@ -627,11 +628,17 @@ save.track.stats <- function(dirpath, namebase, filename,
                              symmetric = FALSE,
                              clobber = FALSE,
                              square.size = 15,  # px
-                             height = 200 + square.size * ntracks,
                              width = 450 + square.size * nlabels,
-                             height.pdf = height / 72,
+                             height = 200 + square.size * ntracks,
                              width.pdf = width / 72,
+                             height.pdf = height / 72,
                              ...) {
+  square.size <- as.numeric(square.size)
+  width <- as.integer(width)
+  height <- as.integer(height)
+  width.pdf <- as.numeric(width.pdf)
+  height.pdf <- as.numeric(height.pdf)
+  
   mnemonics <- read.mnemonics(mnemonic_file)
   translations <- read.mnemonics(translation_file)
   res <- load.track.stats(filename,
