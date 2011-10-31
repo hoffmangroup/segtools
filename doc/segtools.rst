@@ -6,7 +6,7 @@ Segtools |version| documentation
 :Organization: University of Washington
 :Address: Department of Genome Sciences, PO Box 355065,
           Seattle, WA 98195-5065, United States of America
-:Copyright: 2009-2010, Orion Buske; 2010-2011 Michael M. Hoffman
+:Copyright: 2009-2011, Orion Buske; 2010-2011 Michael M. Hoffman
 :Last updated: |today|
 
 .. currentmodule:: segtools
@@ -20,10 +20,10 @@ hypotheses.
 
 For an overview of the toolkit, please see the manuscript:
 
-  Buske OJ, Hoffman MM, Ponts N, Le Roch KG, Noble WS, "Exploratory
-  analysis of genomic segmentations with Segtools." Submitted.
+  Buske OJ, Hoffman MM, Ponts N, Le Roch KG, Noble WS. Oct 2011.
+  `Exploratory analysis of genomic segmentations with Segtools <http://www.biomedcentral.com/1471-2105/12/415>`_.
+  *BMC Bioinformatics*, **12**:415; doi:10.1186/1471-2105-12-415
 
-Orion <stasis at uw dot edu> can send you the latest copy of the manuscript.
 Please cite the manuscript if you use Segtools.
 
 .. note:: For questions, comments, or troubleshooting, please refer to
