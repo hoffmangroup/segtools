@@ -24,8 +24,8 @@ from numpy import NaN, zeros
 
 from . import Annotation, log, Segmentation, RInterface, open_transcript, \
      add_common_options
-from .common import FeatureScanner, die, get_ordered_labels, \
-    make_tabfilename, setup_directory, tab_saver
+from .common import FeatureScanner, die, make_tabfilename, \
+     setup_directory, tab_saver
 from .html import save_html_div
 
 MODULE = "feature_distance"
@@ -95,7 +95,6 @@ def calc_distance_bin(n_bins, bin_width, distance, stranded):
 
     sign = (distance > 0) * 2 - 1
     bin = int((distance - sign) / bin_width) + sign
-    limit = n_bins * bin_width
     return min(max(bin, -n_bins - 1), n_bins + 1)
 
 def test_calc_distance_bin():

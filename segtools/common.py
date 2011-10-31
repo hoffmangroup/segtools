@@ -23,7 +23,7 @@ from time import time
 from numpy import array, empty, iinfo, ndarray, searchsorted
 from tabdelim import DictReader, DictWriter, ListReader, ListWriter
 
-from . import log, EXT_GZ, PKG, die, ProgressBar
+from . import log, EXT_GZ, PKG, die
 
 PKG_RESOURCE = os.extsep.join([PKG, "resources"])
 
@@ -350,7 +350,6 @@ def iter_segments_continuous(chromosome, segmentation, column=None,
     supercontig_iter = chromosome.itercontinuous()
     supercontig = None
     supercontig_last_start = 0
-    nsegments = len(segments)
 
     for segment in segments:
         start = segment['start']
