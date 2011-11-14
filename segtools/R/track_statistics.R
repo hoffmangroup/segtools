@@ -474,13 +474,14 @@ levelplot.track.stats <-
            hclust.label = length(label_order) == 0,
            hclust.track = length(track_order) == 0,
            clust.func = hclust,
-           aspect = "fill",
+           aspect = "fill",  # 'iso' for square boxes, 'fill' for rectangular
            sd.shape = "line",
            box.fill = NULL,
-           symmetric = FALSE,
+           symmetric = FALSE,  # Make mean range symmetric about 0
            scales = list(x = list(rot = 90), cex = scale.cex),
            panel = panel.track.stats,
            threshold = FALSE,
+           cov = FALSE,  # Use covariance
            legend = ddgram.legend(dd.row,  row.ord, dd.col,col.ord),
            colorkey = list(space = "left", at = colorkey.at),
            palette = colorRampPalette(rev(brewer.pal(11, "RdYlBu")),
@@ -501,7 +502,7 @@ levelplot.track.stats <-
   } else {
     norm.func <- normalize.track.stats
   }
-  stats.norm <- norm.func(track.stats)
+  stats.norm <- norm.func(track.stats, cov=cov)
 
   means <- stats.norm[, , "mean"]
   sds <- stats.norm[, , "sd"]
