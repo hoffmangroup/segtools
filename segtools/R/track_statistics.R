@@ -633,11 +633,6 @@ save.track.stats <- function(dirpath, namebase, filename,
                              width.pdf = width / 72,
                              height.pdf = height / 72,
                              ...) {
-  square.size <- as.numeric(square.size)
-  width <- as.integer(width)
-  height <- as.integer(height)
-  width.pdf <- as.numeric(width.pdf)
-  height.pdf <- as.numeric(height.pdf)
   
   mnemonics <- read.mnemonics(mnemonic_file)
   translations <- read.mnemonics(translation_file)
@@ -648,6 +643,11 @@ save.track.stats <- function(dirpath, namebase, filename,
 
   ntracks <- nlevels(res$stats$trackname)
   nlabels <- nlevels(res$stats$label)
+  square.size <- as.numeric(square.size)
+  width <- as.integer(width)
+  height <- as.integer(height)
+  width.pdf <- as.numeric(width.pdf)
+  height.pdf <- as.numeric(height.pdf)
   
   save.images(dirpath, namebase,
               levelplot.track.stats(res, symmetric = symmetric, ...),
