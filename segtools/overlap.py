@@ -77,9 +77,9 @@ def calc_overlap(subseg, qryseg, quick=False, clobber=False, mode=MODE_DEFAULT,
             outfiles[sub_label_key] = open(outfilepath, "w")
             outfiles[sub_label_key].write("%s\n" % header)
 
-    counts = zeros((len(sub_labels), len(qry_labels)), dtype="int")
-    totals = zeros(len(sub_labels), dtype="int")
-    nones = zeros(len(sub_labels), dtype="int")
+    counts = zeros((len(sub_labels), len(qry_labels)), dtype="int64")
+    totals = zeros(len(sub_labels), dtype="int64")
+    nones = zeros(len(sub_labels), dtype="int64")
 
     for chrom in subseg.chromosomes:
         log("\t%s" % chrom, verbose)
