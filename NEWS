@@ -1,6 +1,6 @@
 1.1.10:
 
-
+* R transcripts: add #!/usr/bin/env Rscript at top
 
 1.1.9:
 * segtools-signal-distribution: cleaned up code and arguments to only support

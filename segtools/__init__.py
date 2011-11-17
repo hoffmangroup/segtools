@@ -411,6 +411,8 @@ class RInterface(object):
         # Set up transcript
         self._transcript = transcriptfile
         if self._transcript:
+            print >>self._transcript, "#!/usr/bin/env Rscript"
+            print >>self._transcript, "## produced by Segtools %s" % __version__
             print >>self._transcript
             log("Saving transcript to file: %s" % self._transcript.name,
                 self.verbose)
@@ -456,7 +458,6 @@ class RInterface(object):
         for arg_i, arg in enumerate(args):
             if arg is None:
                 args[arg_i] = ""
-
 
         for key, val in kwargs.iteritems():
             if val is None:
