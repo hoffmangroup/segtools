@@ -153,16 +153,16 @@ class SignalStats(object):
             for label, label_stats in self._data.iteritems():
                 for trackname, track_stats in label_stats.iteritems():
                     o_track_stats = o_stats.data[label][trackname]
-                    n_1 = track_stats['n']
-                    n_2 = o_track_stats['n']
+                    n_1 = int(track_stats['n'])
+                    n_2 = int(o_track_stats['n'])
                     n = n_1 + n_2
 
-                    s_1 = track_stats['mean'] * n_1
-                    s_2 = o_track_stats['mean'] * n_2
+                    s_1 = float(track_stats['mean']) * n_1
+                    s_2 = float(o_track_stats['mean']) * n_2
                     s = s_1 + s_2
 
-                    s2_1 = (s_1 - track_stats['sd'] * (n_1 - 1)) * n_1
-                    s2_2 = (s_2 - o_track_stats['sd'] * (n_2 - 1)) * n_2
+                    s2_1 = (s_1 - float(track_stats['sd']) * (n_1 - 1)) * n_1
+                    s2_2 = (s_2 - float(o_track_stats['sd']) * (n_2 - 1)) * n_2
                     s2 = s2_1 + s2_2
 
                     track_stats['mean'] = s / n
@@ -175,6 +175,7 @@ class SignalStats(object):
                        clobber=clobber) as saver:
             for label, label_stats in self._data.iteritems():
                 for trackname, track_stats in label_stats.iteritems():
+                    # assignments used for locals()
                     mean = track_stats["mean"]
                     sd = track_stats["sd"]
                     n = track_stats["n"]
