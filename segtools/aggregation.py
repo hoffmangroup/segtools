@@ -587,8 +587,8 @@ def calc_aggregation(segmentation, features, mode, groups, components,
 
         # Map entire chromosome's segments into an array of label_keys
         # XXXopt: this line takes up to 3.2 GB of memory
-        segment_map, sentinel = map_segment_label(
-            segments, (segmentation_start, segmentation_end))
+        segment_map, sentinel = \
+            map_segment_label(segments, (segmentation_start, segmentation_end))
 
         # For each feature, tally segments in window
         for feature in chrom_features:
