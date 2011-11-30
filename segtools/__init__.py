@@ -414,9 +414,6 @@ class RInterface(object):
         # Set up transcript
         self._transcript = transcriptfile
         if self._transcript:
-            print >>self._transcript, "#!/usr/bin/env Rscript"
-            print >>self._transcript, "## produced by Segtools %s" % __version__
-            print >>self._transcript
             log("Saving transcript to file: %s" % self._transcript.name,
                 self.verbose)
 
@@ -589,6 +586,10 @@ class ProgressBar(object):
 def open_transcript(dirpath, module, verified=False):
     filename = os.path.join(dirpath, os.extsep.join([module, EXT_R]))
     with open(filename, "w") as res:
+        print >>self._transcript, "#!/usr/bin/env Rscript"
+        print >>self._transcript, "## produced by Segtools %s" % __version__
+        print >>self._transcript
+
         if not verified:
             print >>res, "## Experimental R transcript"
             print >>res, "## You may not be able to run the R code in this file exactly as written."
