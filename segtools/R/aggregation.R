@@ -478,7 +478,8 @@ save.aggregation <- function(dirpath, namebase, tabfilename,
               clobber = clobber)
 }
 
-save.gene.aggregations <- function(dirpath, namebase1, namebase2, tabfilename,
+save.gene.aggregations <- function(dirpath, namebase1 = NULL, namebase2 = NULL,
+                                   tabfilename,
                                    mnemonic_file = NULL,
                                    clobber = FALSE,
                                    panel.size = 200,  # px
@@ -500,6 +501,9 @@ save.gene.aggregations <- function(dirpath, namebase1, namebase2, tabfilename,
     stop("Invalid metadata for gene aggregation plots")
 
   plot.one <- function(namebase, components.sub, ...) {
+    if (is.null(namebase))
+        return()
+
     data.sub <- subset(data$data, component %in% components.sub, drop = TRUE)
     data.sub$component <- factor(data.sub$component, levels=components.sub)
     save.images(dirpath, namebase,

@@ -596,7 +596,7 @@ def open_transcript(dirpath, module, verified=False):
     filename = os.path.join(dirpath, os.extsep.join([module, EXT_R]))
     with open(filename, "w") as res:
         print >>res, "#!/usr/bin/env Rscript"
-        print >>res, "## produced by Segtools %s" % __version__
+        print >>res, "## transcript produced by Segtools %s" % __version__
         print >>res
 
         if not verified:
