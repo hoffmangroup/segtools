@@ -45,6 +45,9 @@ _READERS=dict(bed=read_bed, narrowpeak=read_bed,
 GFF_FORMATS = frozenset(["gff", "gtf"])
 BED_FORMATS = frozenset(["bed", "narrowpeak"])
 
+def get_r_dirname():
+    return resource_filename(PKG_R, "")
+
 class Annotation(object):
     """Base class for representing annotation files (BED/GFF/GTF files)
 
@@ -417,6 +420,11 @@ class RInterface(object):
             log("Saving transcript to file: %s" % self._transcript.name,
                 self.verbose)
 
+        # write segtools.r.dirname code
+        print >>self._transcript, \
+            "segtools.r.dirname <- system2(\"python\", c(\"-c\", \"'import segtools; print segtools.get_r_dirname()'\"), stdout = TRUE)"
+        print >>self._transcript
+
         # Source any R files
         for file in self._files:
             self.source(file)
@@ -427,7 +435,8 @@ class RInterface(object):
 
         filename_full = self._get_filename(filename)
         if self._transcript:
-            print >>self._transcript, "source(%r)" % filename_full
+            print >>self._transcript, \
+                "source(file.path(segtools.r.dirname, %r)" % filename
 
         try:
             self._r.source(filename_full)
@@ -586,9 +595,9 @@ class ProgressBar(object):
 def open_transcript(dirpath, module, verified=False):
     filename = os.path.join(dirpath, os.extsep.join([module, EXT_R]))
     with open(filename, "w") as res:
-        print >>self._transcript, "#!/usr/bin/env Rscript"
-        print >>self._transcript, "## produced by Segtools %s" % __version__
-        print >>self._transcript
+        print >>res, "#!/usr/bin/env Rscript"
+        print >>res, "## produced by Segtools %s" % __version__
+        print >>res
 
         if not verified:
             print >>res, "## Experimental R transcript"
