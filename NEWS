@@ -1,5 +1,6 @@
 1.1.10:
 
+* add "narrowPeak" as synonym format for "bed"
 * segtools-overlap: fix bug where totals above 2**31 could not be
   calculated on 32-bit machine
 * segtools-signal-distribution: fix bug: --indir option resulted in "can't multiply sequence by non-int of type 'str'" error

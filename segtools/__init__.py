@@ -20,6 +20,9 @@ from time import time
 
 from pkg_resources import resource_filename
 
+from .bed import read_native as read_bed
+from .gff import read_native as read_gff
+
 try:
     PKG = __package__  # Python 2.6
 except NameError:
@@ -35,6 +38,12 @@ DTYPE_SEGMENT_START = int64
 DTYPE_SEGMENT_END = int64
 DTYPE_SEGMENT_KEY = uint32
 DTYPE_STRAND = '|S1'
+
+_READERS=dict(bed=read_bed, narrowPeak=read_bed,
+              gff=read_gff, gtf=partial(read_gff, gtf=True))
+
+GFF_FORMATS = frozenset(["gff", "gtf"])
+BED_FORMATS = frozenset(["bed", "narrowPeak"])
 
 class Annotation(object):
     """Base class for representing annotation files (BED/GFF/GTF files)
@@ -103,26 +112,20 @@ class Annotation(object):
         if format == EXT_PICKLE:
             # Read pickled object file
             self._from_pickle(filename, verbose=verbose)
-        elif format in set(["bed", "gff", "gtf"]):
+        elif format in _READERS.keys():
             self._from_file(filename, verbose=verbose)
         else:
             raise self.FormatError("Unrecognized extension (%s) on file: %s"
                                    % (format, filename))
 
     def _iter_rows(self, filename, verbose=True):
-        from .bed import read_native as read_bed
-        from .gff import read_native as read_gff
         from .common import maybe_gzip_open
 
         format = self._get_file_format(filename)
 
-        if format == "bed":
-            reader = read_bed
-        elif format == "gff":
-            reader = read_gff
-        elif format == "gtf":
-            reader = partial(read_gff, gtf=True)
-        else:
+        try:
+            reader = _READERS[format]
+        except KeyError:
             raise self.FormatError("Cannot iterate segments in file format:"
                                    " %s" % format)
 
@@ -132,13 +135,13 @@ class Annotation(object):
             for datum in reader(infile):
                 row = {}
                 d = datum.__dict__
-                if format == "bed":
+                if format in BED_FORMATS:
                     row['chrom'] = d['chrom']
                     row['start'] = d['chromStart']
                     row['end'] = d['chromEnd']
                     row['name'] = d.get('name', "")
                     row['strand'] = d.get('strand', ".")
-                elif format == "gff" or format == "gtf":
+                elif format in GFF_FORMATS:
                     row['chrom'] = d['seqname']
                     row['start'] = d['start']
                     row['end'] = d['end']
