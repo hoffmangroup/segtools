@@ -39,11 +39,11 @@ DTYPE_SEGMENT_END = int64
 DTYPE_SEGMENT_KEY = uint32
 DTYPE_STRAND = '|S1'
 
-_READERS=dict(bed=read_bed, narrowPeak=read_bed,
+_READERS=dict(bed=read_bed, narrowpeak=read_bed,
               gff=read_gff, gtf=partial(read_gff, gtf=True))
 
 GFF_FORMATS = frozenset(["gff", "gtf"])
-BED_FORMATS = frozenset(["bed", "narrowPeak"])
+BED_FORMATS = frozenset(["bed", "narrowpeak"])
 
 class Annotation(object):
     """Base class for representing annotation files (BED/GFF/GTF files)
@@ -454,7 +454,6 @@ class RInterface(object):
         self.start()
 
         from rpy2.robjects import numpy2ri
-        # numpy2ri imported for side-effect
 
         # Make sure there are no None values in args or kwargs
         # rpy2 currently doesn't support passing Nones, so replace them with ""
@@ -482,6 +481,7 @@ class RInterface(object):
             print >>self._transcript, "%s(%s)" % (func, all_args)
 
         return self._r[func](*args, **kwargs)
+        numpy2ri # was imported for side-effect
 
     def plot(self, func, *args, **kwargs):
         """Call R function but print timing information
