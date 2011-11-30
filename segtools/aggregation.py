@@ -543,10 +543,10 @@ def calc_feature_windows(feature, labels, mode, component_bins):
 def calc_aggregation(segmentation, features, mode, groups, components,
                      component_bins, quick=False, by_groups=False,
                      verbose=True):
-    if not by_groups:
-        assert len(groups) == 1
-    else:
+    if by_groups:
         assert len(groups) > 0
+    else:
+        assert len(groups) == 1
 
     labels = segmentation.labels
 
