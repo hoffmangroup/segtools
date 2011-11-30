@@ -215,10 +215,10 @@ process.counts <- function(data, label.sizes, pseudocount = 1,
 ##    if (label == "NONE") print(cur.data[1:1,])
     data$pval[cur.rows] <- apply(subset(cur.data, select = c(count, sum)), 1,
                                  calc.row.pvals)
-    
+
     if (normalize) {
-      cur.enrichments <- log2((cur.data$count / cur.data$sum + 1) /
-                              (random.prob + 1))
+      cur.enrichments <- log2((cur.data$count / cur.data$sum + pseudocount) /
+                              (random.prob + pseudocount))
       ## Any NaN regions (from 0/0) are masked
       cur.enrichments[is.nan(cur.enrichments)] <- 0
       if (any(cur.enrichments < -1) || any(cur.enrichments > 1)) {
@@ -343,48 +343,51 @@ calculate.signif <- function(data, fdr.level = 0.05) {
 ##   spacers should be a vector of indices, where a spacer will be placed after
 ##     that component (e.g. c(1, 3) will place spacers after the first and third
 ##     components
-xyplot.aggregation <- function(agg.data = NULL,
-    data = agg.data$data,
-    x = overlap ~ offset | component * label,
-    metadata = agg.data$metadata,
-    spacers = metadata$spacers,
-    normalize = TRUE,
-    significance = FALSE,
-    x.axis = FALSE,  # Show x axis
-    fdr.level = 0.05,
-    text.cex = 1,
-    spacing.x = 0.4,
-    spacing.y = 0.4,
-    ngroups = nlevels(data$group),      
-    panel = panel.aggregation,
-    par.settings = list(add.text = list(cex = text.cex),
-                        layout.heights = list(axis.panel = axis.panel,
-                                              strip = strips.heights)),
-    auto.key = if (ngroups < 2) FALSE
-               else list(points = FALSE, lines = TRUE),
-    strip = strip.custom(horizontal = FALSE),
-    strip.height = 11,
-    par.strip.text = list(cex = 0.85),
-    xlab = NULL,
-    ylab = if (normalize)
-              expression(paste("Enrichment: ",
-                  log[2], group("[", (f[plain(obs)] + 1)/(f[plain(rand)] + 1),
-                                 "]")))
+xyplot.aggregation <-
+  function(agg.data = NULL,
+           data = agg.data$data,
+           x = overlap ~ offset | component * label,
+           metadata = agg.data$metadata,
+           spacers = metadata$spacers,
+           normalize = TRUE,
+           significance = FALSE,
+           pseudocount = 1,
+           x.axis = FALSE,  # Show x axis
+           fdr.level = 0.05,
+           text.cex = 1,
+           spacing.x = 0.4,
+           spacing.y = 0.4,
+           ngroups = nlevels(data$group),
+           panel = panel.aggregation,
+           par.settings = list(add.text = list(cex = text.cex),
+             layout.heights = list(axis.panel = axis.panel,
+               strip = strips.heights)),
+           auto.key = if (ngroups < 2) FALSE
+           else list(points = FALSE, lines = TRUE),
+           strip = strip.custom(horizontal = FALSE),
+           strip.height = 11,
+           par.strip.text = list(cex = 0.85),
+           xlab = NULL,
+           ylab = if (normalize)
+           substitute(expression(paste("Enrichment: ",
+               log[2], group("[", (f[plain(obs)] + PSEUDOCOUNT)/(f[plain(rand)] + PSEUDOCOUNT),
+                             "]"))),
+                      list(PSEUDOCOUNT = pseudocount)
+                      )
            else "Count",
-    sub = if (significance) {
-            substitute(
-              expression(paste(FORMAT, " regions are significant with ",
-                               italic(q) <= FDR)),
-              list(FORMAT = if (ngroups > 1) "Rug" else "Black",
-                   FDR = fdr.level))
-          } else {
-            NULL
+           sub = if (significance) {
+             substitute(expression(paste(FORMAT, " regions are significant with ",
+                 italic(q) <= FDR)),
+                        list(FORMAT = if (ngroups > 1) "Rug" else "Black",
+                             FDR = fdr.level))
+           } else {
+             NULL
           },
     ...)
 {
   label.sizes <- get.label.sizes(data, metadata)
   ## Normalize and/or calculate significance if metadata exists
-  data <- process.counts(data, label.sizes, normalize = normalize)
+  data <- process.counts(data, label.sizes, pseudocount = pseudocount, normalize = normalize)
   if (significance) {
     data$signif <- calculate.signif(data, fdr.level)
   }
