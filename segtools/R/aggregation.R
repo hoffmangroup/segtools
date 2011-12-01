@@ -221,17 +221,7 @@ process.counts <- function(data, label.sizes, pseudocount = 1,
                               (random.prob + pseudocount))
       ## Any NaN regions (from 0/0) are masked
       cur.enrichments[is.nan(cur.enrichments)] <- 0
-      if (any(cur.enrichments < -1) || any(cur.enrichments > 1)) {
-        cat(paste("Enrichment value out of range: [-1, 1]",
-                  paste("label:", label),
-                  sep = "\n"))
-        stop()
-      }
-##       if (label == "NONE") {
-##         cat("\ncur.enrichments:")
-##         cat(cur.enrichments[1:3])
-##       }
-      
+
       data$count[cur.rows] = cur.enrichments
     }
   }
