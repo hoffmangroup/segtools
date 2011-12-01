@@ -33,7 +33,7 @@ read.aggregation <- function(filename, mnemonics = NULL, ...,
   ## Read metadata and mnemonic-ize it as well
   metadata <- read.metadata(filename, comment.char = comment.char)
   names(metadata) <- map.mnemonics(names(metadata), mnemonics)$labels
-  
+
   list(data = data, metadata = metadata)
 }
 
@@ -358,12 +358,16 @@ xyplot.aggregation <-
            strip.height = 11,
            par.strip.text = list(cex = 0.85),
            xlab = NULL,
-           ylab = if (normalize)
-           substitute(expression(paste("Enrichment: ",
-               log[2], group("[", (f[plain(obs)] + PSEUDOCOUNT)/(f[plain(rand)] + PSEUDOCOUNT),
-                             "]"))),
-                      list(PSEUDOCOUNT = pseudocount)
-                      )
+           ylab = if (normalize) {
+             if (pseudocount != 0)
+               substitute(expression(paste("Enrichment: ",
+                   log[2], group("[", (f[plain(obs)] + PSEUDOCOUNT)/(f[plain(rand)] + PSEUDOCOUNT),
+                                 "]"))),
+                          list(PSEUDOCOUNT = pseudocount)
+                          )
+             else expression(paste("Enrichment: ", log[2],
+                 group("[", f[plain(obs)]/f[plain(rand)], "]")))
+           }
            else "Count",
            sub = if (significance) {
              substitute(expression(paste(FORMAT, " regions are significant with ",
@@ -381,7 +385,7 @@ xyplot.aggregation <-
   if (significance) {
     data$signif <- calculate.signif(data, fdr.level)
   }
-  
+
   names(data) <- gsub("^count$", "overlap", names(data))
   data$overlap[!is.finite(data$overlap)] <- 0
 
@@ -414,7 +418,7 @@ xyplot.aggregation <-
     }
     spaces.x[spacers] <- spacing.x
   }
-  between <- list(x = c(spaces.x, spacing.x), 
+  between <- list(x = c(spaces.x, spacing.x),
                   y = spacing.y)
 
   scales <- panel.scales(data, layout, num_panels, x.axis = x.axis,
@@ -458,7 +462,7 @@ save.aggregation <- function(dirpath, namebase, tabfilename,
   mnemonics <- read.mnemonics(mnemonic_file)
   data <- read.aggregation(tabfilename, mnemonics = mnemonics,
                            comment.char = comment.char)
-  
+
   image.size <- margin.size +
     panel.size * ceiling(sqrt(nlevels(data$data$label) / 2))
   save.images(dirpath, namebase,
@@ -468,22 +472,14 @@ save.aggregation <- function(dirpath, namebase, tabfilename,
               clobber = clobber)
 }
 
-save.gene.aggregations <- function(dirpath, namebase1 = NULL, namebase2 = NULL,
-                                   tabfilename,
-                                   mnemonic_file = NULL,
-                                   clobber = FALSE,
-                                   panel.size = 200,  # px
-                                   margin.size = 200,  #px
-                                   width = image.size,
-                                   height = image.size,
-                                   width.pdf = image.size / 72,
-                                   height.pdf = image.size / 72,
-                                   comment.char = "#",
-                                   ...) {
-  mnemonics <- read.mnemonics(mnemonic_file)
-  data <- read.aggregation(tabfilename, mnemonics = mnemonics,
-                           comment.char = comment.char)
-
+save.gene.aggregations.data <-
+  function(data, dirpath, namebase1 = NULL, namebase2 = NULL, clobber = FALSE,
+           panel.size = 200,  # px
+           margin.size = 200,  #px
+           width = image.size, height = image.size,
+           width.pdf = image.size / 72, height.pdf = image.size / 72,
+           ...)
+{
   image.size <- margin.size +
     panel.size * ceiling(sqrt(nlevels(data$data$label) / 2))
   ngroup1 <- as.integer(data$metadata[["spacers"]])
@@ -513,4 +509,15 @@ save.gene.aggregations <- function(dirpath, namebase1 = NULL, namebase2 = NULL,
   plot.one(namebase2, c(components[1],
                         tail(components, -ngroup1),
                         components[ngroup1]), ...)
+}
+
+save.gene.aggregations <-
+  function(dirpath, namebase1 = NULL, namebase2 = NULL, tabfilename, mnemonic_file = NULL,
+           comment.char = "#", ...)
+{
+  mnemonics <- read.mnemonics(mnemonic_file)
+  data <- read.aggregation(tabfilename, mnemonics = mnemonics,
+                           comment.char = comment.char)
+
+  save.gene.aggregations.data(data, dirpath, namebase1, namebase2, ...)
 }

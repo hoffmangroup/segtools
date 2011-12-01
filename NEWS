@@ -4,6 +4,7 @@
 * segtools-overlap: fix bug where totals above 2**31 could not be
   calculated on 32-bit machine
 * segtools-signal-distribution: fix bug: --indir option resulted in "can't multiply sequence by non-int of type 'str'" error
+* segtools-gmtk-parameters: add R transcripts
 * add segtools.get_r_dirname() function
 * R transcripts: add #!/usr/bin/env Rscript at top
 * R transcripts now get source files using get_r_dirname()

@@ -17,7 +17,7 @@ import sys
 
 from numpy import array
 
-from . import log, die, RInterface, add_common_options
+from . import log, die, RInterface, add_common_options, open_transcript
 from .common import setup_directory
 from .html import save_html_div
 from .transition import save_plot, save_graph
@@ -94,15 +94,20 @@ def validate(gmtk_file, dirpath, p_thresh=P_THRESH, q_thresh=Q_THRESH,
                                  clobber=clobber, gmtk=True)
 
     if not noplot:
-        save_plot(dirpath, namebase=NAMEBASE, filename=gmtk_file,
-                  verbose=verbose, clobber=clobber, gmtk=True,
-                  mnemonic_file=mnemonic_file, ropts=ropts)
-        SignalStats.save_plot(dirpath, namebase=NAMEBASE_STATS,
-                              filename=gmtk_file,
-                              clobber=clobber, gmtk=True, ropts=ropts,
-                              mnemonic_file=mnemonic_file,
-                              translation_file=translation_file,
-                              allow_regex=allow_regex, verbose=verbose)
+        with open_transcript(dirpath, MODULE + ".graph") as transcriptfile:
+            save_plot(dirpath, namebase=NAMEBASE, filename=gmtk_file,
+                      verbose=verbose, clobber=clobber, gmtk=True,
+                      mnemonic_file=mnemonic_file,
+                      transcriptfile=transcriptfile, ropts=ropts)
+
+        with open_transcript(dirpath, MODULE  + ".stats") as transcriptfile:
+            SignalStats.save_plot(dirpath, namebase=NAMEBASE_STATS,
+                                  filename=gmtk_file,
+                                  clobber=clobber, gmtk=True,
+                                  transcriptfile=transcriptfile, ropts=ropts,
+                                  mnemonic_file=mnemonic_file,
+                                  translation_file=translation_file,
+                                  allow_regex=allow_regex, verbose=verbose)
 
     if not nograph:
         save_graph(labels, probs, dirpath, clobber=clobber,
