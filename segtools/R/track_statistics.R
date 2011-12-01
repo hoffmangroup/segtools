@@ -59,9 +59,9 @@ is.hierarchical.gmtk <- function(filename) {
 ##' hierarchy (has more than 1 subseg)
 ##'
 ##' <details>
-##' @title 
-##' @param filename 
-##' @return boolean 
+##' @title
+##' @param filename
+##' @return boolean
 ##' @author MICHAEL M. HOFFMAN
 is.truly.hierarchical.gmtk <- function(filename) {
   lines <- readLines(filename)
@@ -217,7 +217,7 @@ rename.tracks <- function(stats, patterns = NULL, replacements = NULL,
     }
   }
 
-  # sometimes replacements can cause the number of unique tracks to change 
+  # sometimes replacements can cause the number of unique tracks to change
   if (length(levels(stats$trackname)) != length(unique(tracknames))) {
     print(levels(stats$trackname))
     print(unique(tracknames))
@@ -536,7 +536,7 @@ levelplot.track.stats <-
     means[!is.finite(means)] <- 0
     sds[!is.finite(means)] <- 0
   }
-  
+
   if (threshold || is.null(sds) || sd.shape == "line") {
     z.range <- range(means, finite = TRUE)
   } else {
@@ -634,7 +634,7 @@ save.track.stats <- function(dirpath, namebase, filename,
                              width.pdf = width / 72,
                              height.pdf = height / 72,
                              ...) {
-  
+
   mnemonics <- read.mnemonics(mnemonic_file)
   translations <- read.mnemonics(translation_file)
   res <- load.track.stats(filename,
@@ -649,7 +649,7 @@ save.track.stats <- function(dirpath, namebase, filename,
   height <- as.integer(height)
   width.pdf <- as.numeric(width.pdf)
   height.pdf <- as.numeric(height.pdf)
-  
+
   save.images(dirpath, namebase,
               levelplot.track.stats(res, symmetric = symmetric, ...),
               height = height,
