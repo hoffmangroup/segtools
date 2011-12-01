@@ -481,12 +481,15 @@ levelplot.track.stats <-
            scales = list(x = list(rot = 90), cex = scale.cex),
            panel = panel.track.stats,
            threshold = FALSE,
+           use.sd = TRUE,
            cov = FALSE,  # Use covariance
            legend = ddgram.legend(dd.row,  row.ord, dd.col,col.ord),
+           colorkey.quantiles <- c(0, 1),
            colorkey = list(space = "left", at = colorkey.at),
            palette = colorRampPalette(rev(brewer.pal(11, "RdYlBu")),
                                       interpolate = "spline",
                                       space = "Lab")(100),
+           normalize = TRUE,
            ...)
 {
   if (!is.array(track.stats)) {
@@ -502,7 +505,10 @@ levelplot.track.stats <-
   } else {
     norm.func <- normalize.track.stats
   }
-  stats.norm <- norm.func(track.stats, cov=cov)
+  if (normalize)
+    stats.norm <- norm.func(track.stats, cov=cov)
+  else
+    stats.norm <- track.stats
 
   means <- stats.norm[, , "mean"]
   sds <- stats.norm[, , "sd"]
@@ -510,11 +516,16 @@ levelplot.track.stats <-
   if (!any(is.finite(means))) {
     warning("No finite mean values found. Nothing to plot.")
     return(NULL)
-  } else if (!any(is.finite(sds))) {
+  }
+
+  if (!use.sd)
+    sds <- NULL
+  else if (!any(is.finite(sds))) {
     ## Pretent no sds were specified
     warning("No finite sds values found. Not plotting sd bars.")
     sds <- NULL
   }
+
 
   keep.rows <- apply(is.finite(means), 1, sum) > 1
   if (any(!keep.rows)) {
@@ -537,16 +548,19 @@ levelplot.track.stats <-
     sds[!is.finite(means)] <- 0
   }
 
-  if (threshold || is.null(sds) || sd.shape == "line") {
-    z.range <- range(means, finite = TRUE)
-  } else {
-    z.range <- c(min(means, means - sds), max(means + sds))
-  }
+  z.range <-
+    if (threshold || is.null(sds) || sd.shape == "line") {
+      range(means, finite = TRUE)
+    } else {
+      c(min(means, means - sds), max(means, means + sds))
+    }
 
   if (symmetric) {
     z.max <- max(abs(z.range))
     z.range <- c(-z.max, z.max)
   }
+
+  # levelplot(..., at=colorkey.at)
   colorkey.at <- seq(from = z.range[1], to = z.range[2], length = 101)
 
   # Set up dendrogram
@@ -623,40 +637,40 @@ plot.track.stats <- function(filename, symmetric = FALSE, ...) {
   levelplot.track.stats(res, symmetric = symmetric, ...)
 }
 
-save.track.stats <- function(dirpath, namebase, filename,
-                             mnemonic_file = NULL,
-                             translation_file = NULL,
-                             symmetric = FALSE,
-                             clobber = FALSE,
-                             square.size = 15,  # px
-                             width = 450 + square.size * nlabels,
-                             height = 200 + square.size * ntracks,
-                             width.pdf = width / 72,
-                             height.pdf = height / 72,
-                             ...) {
-
-  mnemonics <- read.mnemonics(mnemonic_file)
-  translations <- read.mnemonics(translation_file)
-  res <- load.track.stats(filename,
-                          mnemonics = mnemonics,
-                          translations = translations,
-                          ...)
-
-  ntracks <- nlevels(res$stats$trackname)
-  nlabels <- nlevels(res$stats$label)
+save.track.stats.data <-
+  function(data, dirpath, namebase, symmetric = FALSE, clobber = FALSE,
+           square.size = 15,  # px
+           width = 450 + square.size * nlabels,
+           height = 200 + square.size * ntracks,
+           width.pdf = width / 72, height.pdf = height / 72, ...)
+{
+  ntracks <- nlevels(data$stats$trackname)
+  nlabels <- nlevels(data$stats$label)
   square.size <- as.numeric(square.size)
   width <- as.integer(width)
   height <- as.integer(height)
   width.pdf <- as.numeric(width.pdf)
   height.pdf <- as.numeric(height.pdf)
 
+  levelplot.track.stats(data, symmetric = symmetric, ...)
   save.images(dirpath, namebase,
-              levelplot.track.stats(res, symmetric = symmetric, ...),
+              levelplot.track.stats(data, symmetric = symmetric, ...),
               height = height,
               width = width,
               height.pdf = height.pdf,
               width.pdf = width.pdf,
               clobber = clobber)
+}
+
+save.track.stats <-
+  function(dirpath, namebase, filename, mnemonic_file = NULL,
+           translation_file = NULL, ...)
+{
+  mnemonics <- read.mnemonics(mnemonic_file)
+  translations <- read.mnemonics(translation_file)
+  data <- load.track.stats(filename, mnemonics = mnemonics,
+                           translations = translations, ...)
+  save.track.stats.data(data, dirpath, namebase, ...)
 }
 
 ## infilename: stats data.frame tab file

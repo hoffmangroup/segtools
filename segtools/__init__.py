@@ -421,8 +421,10 @@ class RInterface(object):
                 self.verbose)
 
         # write segtools.r.dirname code
-        print >>self._transcript, \
-            "segtools.r.dirname <- system2(\"python\", c(\"-c\", \"'import segtools; print segtools.get_r_dirname()'\"), stdout = TRUE)"
+        print >>self._transcript, """segtools.r.dirname <-
+  system2("python",
+          c("-c", "'import segtools; print segtools.get_r_dirname()'"),
+          stdout = TRUE)"""
         print >>self._transcript
 
         # Source any R files
@@ -436,19 +438,27 @@ class RInterface(object):
         filename_full = self._get_filename(filename)
         if self._transcript:
             print >>self._transcript, \
-                "source(file.path(segtools.r.dirname, %r)" % filename
+                "source(file.path(segtools.r.dirname, %r))" % filename
 
         try:
             self._r.source(filename_full)
         except self.RError:
             die("Failed to load R package: %s\n" % filename_full)
 
-    @classmethod
-    def arg_to_text(cls, arg):
+    def arg_to_text(self, arg):
         if isinstance(arg, bool):
             return repr(arg).upper() # True -> TRUE, False -> FALSE
+        elif isinstance(arg, (tuple, list)):
+            return "list(%s)" % ", ".join(self.arg_to_text(item)
+                                          for item in arg)
+        elif isinstance(arg, dict):
+            return "list(%s)" % ", ".join(self.dict_to_text(arg))
         else:
             return repr(arg)
+
+    def dict_to_text(self, d):
+        return ["%s = %s" % (key, self.arg_to_text(value))
+                for key, value in d.iteritems()]
 
     def call(self, func, *args, **kwargs):
         """Safer way to call R functions (without importing all that junk)
@@ -480,8 +490,7 @@ class RInterface(object):
         # Save call to transcript
         if self._transcript:
             args_text = [self.arg_to_text(arg) for arg in args]
-            kwargs_text = ["%s = %s" % (key, self.arg_to_text(value))
-                           for key, value in kwargs.iteritems()]
+            kwargs_text = self.dict_to_text(kwargs)
             all_args = ", ".join(args_text + kwargs_text)
 
             print >>self._transcript, "%s(%s)" % (func, all_args)
