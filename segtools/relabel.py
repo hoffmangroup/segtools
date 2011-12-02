@@ -20,7 +20,6 @@ import sys
 from . import log, Segmentation, die, add_common_options
 from .common import map_mnemonics, get_ordered_labels
 
-
 def print_bed(segments, filename=None):
     """Print segments in BED format to file (or stdout if None)"""
     if filename is None:
@@ -42,11 +41,21 @@ def relabel(segfile, mnemonicfile, outfile=None, verbose=True):
     segmentation = Segmentation(segfile, verbose=verbose)
 
     labels = segmentation.labels
+
+    # common.map_mnemonics() does not return color information
+    label_mnemonics = load_mnemonics(mnemonicfilename)[1]
+
+    colors = {}
+    if all("color" in value
+           for value in label_mnemonics.itervalues()):
+        colors = dict((key, value["color"]) for key, value
+                      in label_mnemonics.iteritems())
+
+    # XXX: running load_mnemonics() again
     mnemonics = map_mnemonics(labels, mnemonicfile)
     ordered_labels, mnemonics = get_ordered_labels(labels, mnemonics)
 
     print >>sys.stderr, "Found labels:\n%s" % labels
-
     print >>sys.stderr, "Found mnemonics:\n%s" % mnemonics
 
     if outfile is None:
@@ -54,40 +63,48 @@ def relabel(segfile, mnemonicfile, outfile=None, verbose=True):
     else:
         out = open(outfile, "w")
 
-
-    for chrom, segments in segmentation.chromosomes.iteritems():
-        def print_segment(segment, label):
-            tokens = [chrom, segment['start'], segment['end'],
-                      mnemonics[segment['key']]]
-            try:
-                tokens.extend([0, segment['strand']])
-            except IndexError:
-                pass
-            out.write('\t'.join([str(token) for token in tokens]))
-            out.write('\n')
-
-        prev_segment = segments[0]
-        prev_label = mnemonics[prev_segment['key']]
-        for segment in segments[1:]:
-            # Merge adjacent segments of same label
-            label = mnemonics[segment['key']]
-            if label == prev_label and \
-                    segment['start'] == prev_segment['end']:
+    try:
+        for chrom, segments in segmentation.chromosomes.iteritems():
+            def print_segment(segment, label):
+                start = segment['start']
+                end = segment['end']
+                old = segment['key']
+                tokens = [chrom, start, end, mnemonics[old]]
                 try:
-                    strands_match = (segment['strand'] == prev_segment['strand'])
-                except IndexError:
-                    strands_match = True
+                    tokens.extend([0, segment['strand']])
+                except KeyError:
+                    # extend it anyway
+                    if colors:
+                        tokens.extend([0, "."])
 
-                if strands_match:
-                    prev_segment['end'] = segment['end']
-                    continue
+                if colors:
+                    tokens.extend([start, end, colors[old]])
+                print >>out, "\t".join(map(str, tokens))
 
+            prev_segment = segments[0]
+            prev_label = mnemonics[prev_segment['key']]
+            for segment in segments[1:]:
+                # Merge adjacent segments of same label
+                label = mnemonics[segment['key']]
+                if (label == prev_label and
+                    segment['start'] == prev_segment['end']):
+                    try:
+                        strands_match = \
+                            (segment['strand'] == prev_segment['strand'])
+                    except KeyError:
+                        strands_match = True
+
+                    if strands_match:
+                        prev_segment['end'] = segment['end']
+                        continue
+
+                print_segment(prev_segment, prev_label)
+                prev_segment, prev_label = segment, label
             print_segment(prev_segment, prev_label)
-            prev_segment, prev_label = segment, label
-        print_segment(prev_segment, prev_label)
-
-    if out is not sys.stdout:
-        out.close()
+    # XXX: this would be cleaner as a context manager
+    finally:
+        if out is not sys.stdout:
+            out.close()
 
 def parse_args(args):
     from optparse import OptionParser

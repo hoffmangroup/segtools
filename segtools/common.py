@@ -481,8 +481,8 @@ def make_comment_ignoring_dictreader(iterable, *args, **kwargs):
 def load_mnemonics(filename):
     """
     Input file should have a tab-delimited row for each label, of the form:
-               old    new    description
-      e.g.     4    IS   initiation (strong)
+               old    new    description      color
+      e.g.     4    IS   initiation (strong)  255,0,0
     Returns a tuple of (label_order, label_mnemonics)
 
     label_order: an ordered list of old labels,
@@ -490,9 +490,10 @@ def load_mnemonics(filename):
 
     label_mnemonics: dict
       key: a string corresponding to an "old" label
-      value: a dict with fields including "new" and "description",
-        where description is a several-word description of the label
-        and new is a few-character identifier
+      value: a dict with fields including potentially "new", "description",
+        and "color" where description is a several-word description of the
+        label, new is a few-character identifier, and color is a UCSC Genome
+        Browser integer RGB color triplet
     """
     if filename is None:
         return []

@@ -350,6 +350,7 @@ class Segmentation(Annotation):
 
     @staticmethod
     def get_bed_metadata(filename):
+        # importing within function prevents import loop
         from .common import maybe_gzip_open
 
         regexp = re.compile('description="(.*) segmentation of (.*)"')

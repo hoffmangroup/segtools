@@ -461,6 +461,37 @@ panel.track.stats <-
   }
 }
 
+# omit things that are not is.finite()
+# different from is.infinite() because it also excludes NaN, NA
+# copied from stats:::na.omit.default
+nonfinite.omit <- function (object, ...)
+{
+    if (!is.atomic(object))
+        return(object)
+    d <- dim(object)
+    if (length(d) > 2L)
+        return(object)
+    omit <- seq_along(object)[!is.finite(object)]
+    if (length(omit) == 0L)
+        return(object)
+    if (length(d)) {
+        omit <- unique(((omit - 1)%%d[1L]) + 1L)
+        nm <- rownames(object)
+        object <- object[-omit, , drop = FALSE]
+    }
+    else {
+        nm <- names(object)
+        object <- object[-omit]
+    }
+    if (any(omit > 0L)) {
+        names(omit) <- nm[omit]
+        attr(omit, "class") <- "omit"
+        attr(object, "na.action") <- omit
+        attr(object, "nonfinite.action") <- omit
+    }
+    object
+}
+
 levelplot.track.stats <-
   function(stats.obj = NULL,
            track.stats = stats.obj[["stats"]],
@@ -471,8 +502,8 @@ levelplot.track.stats <-
            ylab = list("Signal track", cex = axis.cex),
            track_order = list(),
            label_order = list(),
-           hclust.label = length(label_order) == 0,
-           hclust.track = length(track_order) == 0,
+           hclust.label = length(label_order) == 0L,
+           hclust.track = length(track_order) == 0L,
            clust.func = hclust,
            aspect = "fill",  # 'iso' for square boxes, 'fill' for rectangular
            sd.shape = "line",
@@ -484,11 +515,12 @@ levelplot.track.stats <-
            use.sd = TRUE,
            cov = FALSE,  # Use covariance
            legend = ddgram.legend(dd.row,  row.ord, dd.col,col.ord),
-           colorkey.quantiles <- c(0, 1),
+           colorkey.quantiles = c(0, 1),
            colorkey = list(space = "left", at = colorkey.at),
+           color.levels = 100L,
            palette = colorRampPalette(rev(brewer.pal(11, "RdYlBu")),
                                       interpolate = "spline",
-                                      space = "Lab")(100),
+                                      space = "Lab")(color.levels),
            normalize = TRUE,
            ...)
 {
@@ -499,7 +531,7 @@ levelplot.track.stats <-
     hierarchical <- FALSE
   }
 
-  if (dim(track.stats[, , "mean"])[2] == 2) {
+  if (dim(track.stats[, , "mean"])[2L] == 2L) {
     norm.func <- normalize.binary.track.stats
     symmetric <- TRUE
   } else {
@@ -548,40 +580,46 @@ levelplot.track.stats <-
     sds[!is.finite(means)] <- 0
   }
 
-  z.range <-
-    if (threshold || is.null(sds) || sd.shape == "line") {
-      range(means, finite = TRUE)
-    } else {
-      c(min(means, means - sds), max(means, means + sds))
-    }
+  stopifnot(length(colorkey.quantiles) == 2L)
+  if (threshold || is.null(sds) || sd.shape == "line") {
+    z.range <- quantile(nonfinite.omit(means), colorkey.quantiles)
+    z.max <- max(means)
+  } else {
+    z.range <- c(min(means, means - sds), max(means, means + sds))
+    z.max <- z.range[2L]
+  }
 
   if (symmetric) {
     z.max <- max(abs(z.range))
     z.range <- c(-z.max, z.max)
   }
 
-  # levelplot(..., at=colorkey.at)
-  colorkey.at <- seq(from = z.range[1], to = z.range[2], length = 101)
+  # for use with levelplot(..., at=colorkey.at)
+  colorkey.at <-
+  if (z.max == z.range[2L]) # need to expand or we will have white squares
+    seq(from = z.range[1L], to = z.max, length = color.levels + 1L)
+  else
+    c(seq(from = z.range[1L], to = z.range[2L], length = color.levels), z.max)
 
   # Set up dendrogram
   dd.row <- NULL
   dd.col <- NULL
-  row.ord <- 1:nrow(means)
-  col.ord <- 1:ncol(means)
+  row.ord <- 1L:nrow(means)
+  col.ord <- 1L:ncol(means)
   if (hclust.track) {
     dd.row <- as.dendrogram(clust.func(dist(means)))
     row.ord <- order.dendrogram(dd.row)
-  } else if (length(track_order) > 0) {
+  } else if (length(track_order) > 0L) {
     row.ord <- match(track_order, rownames(means))
-    stopifnot(row.ord > 0, length(row.ord) == nrow(means))
+    stopifnot(row.ord > 0L, length(row.ord) == nrow(means))
   }
   if (hclust.label) {
     dist.func <- if (hierarchical) hierarchical.dist else dist
     dd.col <- as.dendrogram(clust.func(dist.func(t(means))))
     col.ord <- order.dendrogram(dd.col)
-  } else if (length(label_order) > 0) {
+  } else if (length(label_order) > 0L) {
     col.ord <- match(label_order, colnames(means))
-    stopifnot(col.ord > 0, length(col.ord) == ncol(means))
+    stopifnot(col.ord > 0L, length(col.ord) == ncol(means))
   }
   #par(oma = c(1, 1, 1, 1))  # Add a margin
 
