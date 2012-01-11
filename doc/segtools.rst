@@ -6,7 +6,7 @@ Segtools |version| documentation
 :Organization: University of Washington
 :Address: Department of Genome Sciences, PO Box 355065,
           Seattle, WA 98195-5065, United States of America
-:Copyright: 2009-2011, Orion Buske; 2010-2011 Michael M. Hoffman
+:Copyright: 2009-2011, Orion Buske; 2010-2012 Michael M. Hoffman
 :Last updated: |today|
 
 .. currentmodule:: segtools
@@ -46,8 +46,8 @@ installed with::
 
   easy_install segtools
 
-To use :ref:`segtools-signal-distribution <segtools-signal-distribution>` 
-or :ref:`segtools-nucleotide-frequency <segtools-nucleotide-frequency>`, 
+To use :ref:`segtools-signal-distribution <segtools-signal-distribution>`
+or :ref:`segtools-nucleotide-frequency <segtools-nucleotide-frequency>`,
 the Python packge, Genomedata, is also required.
 
 To help install these prerequisites and Segtools on any Linux platform,
@@ -97,7 +97,7 @@ Annotations (i.e., segmentations in which overlapping segments are
 allowed) may be specified in `BED format`_, `GFF format`_, or `GTF format`_.
 
 If you want to change the order in which labels appear or if you want
-to change the text displayed in plots, 
+to change the text displayed in plots,
 a :ref:`mnemonic file <mnemonic file>` can be
 created.  Segtools commands can then be re-run with the ``--replot``
 flag and the ``--mnemonic-file=<FILE>`` option to regenerate the plots
@@ -127,42 +127,42 @@ Command-line interface
 
 Commands that analyze a single segmentation:
 
-- :ref:`segtools-length-distribution <segtools-length-distribution>`: 
-  Analyzes the distribution 
+- :ref:`segtools-length-distribution <segtools-length-distribution>`:
+  Analyzes the distribution
   of segment lengths and their coverage of the genome for each segment label.
-- :ref:`segtools-nucleotide-frequency <segtools-nucleotide-frequency>`: 
-  Analyzes the frequencies 
+- :ref:`segtools-nucleotide-frequency <segtools-nucleotide-frequency>`:
+  Analyzes the frequencies
   of nucleotides and dinucleotides in segments of each label.
-- :ref:`segtools-transition <segtools-transition>`: 
-  Analyzes the transitions 
+- :ref:`segtools-transition <segtools-transition>`:
+  Analyzes the transitions
   between segment labels and the structure of their interaction.
 
 Commands that compare a segmentation to an annotation:
 
-- :ref:`segtools-aggregation <segtools-aggregation>`: 
-  Analyzes the relative 
+- :ref:`segtools-aggregation <segtools-aggregation>`:
+  Analyzes the relative
   occurrence of each segment label around the provided genomic features.
-- :ref:`segtools-feature-distance <segtools-feature-distance>`: 
-  Reports the distance from 
+- :ref:`segtools-feature-distance <segtools-feature-distance>`:
+  Reports the distance from
   each segment to the nearest feature in each of a list of feature files.
-- :ref:`segtools-overlap <segtools-overlap>`: 
-  Analyzes the frequency with which 
+- :ref:`segtools-overlap <segtools-overlap>`:
+  Analyzes the frequency with which
   each segment label overlaps features of various types.
 - :ref:`segtools-signal-distribution <segtools-signal-distribution>`:
-  Analyzes the distribution 
+  Analyzes the distribution
   of genomic signal tracks for each segment label.
 
 Segtools utilities:
 
-- :ref:`segtools-compare <segtools-compare>`: 
-  Measure base-wise edit distance 
+- :ref:`segtools-compare <segtools-compare>`:
+  Measure base-wise edit distance
   between two segmentations.
-- :ref:`segtools-flatten <segtools-flatten>`: 
-  General tool for flattening 
-  overlapping segments, but flattens them into segments defined 
-  by the set of segment labels that overlap the region. 
-- :ref:`segtools-html-report <segtools-html-report>`: 
-  Combines the output of the 
+- :ref:`segtools-flatten <segtools-flatten>`:
+  General tool for flattening
+  overlapping segments, but flattens them into segments defined
+  by the set of segment labels that overlap the region.
+- :ref:`segtools-html-report <segtools-html-report>`:
+  Combines the output of the
   other commands and generates an html report for easier viewing.
 - :ref:`segtools-preprocess <segtools-preprocess>`:
   Preprocess segmentation and annotation files into a binary format
@@ -180,8 +180,8 @@ through the ``--mnemonic-file`` option.
 Each core command generates:
 
 - tab-delimited (``tab``) data files
-- image files (in ``png`` and ``pdf`` format and in 
-  normal, thumbnail, and slide layouts), and 
+- image files (in ``png`` and ``pdf`` format and in
+  normal, thumbnail, and slide layouts), and
 - partial HTML (``div``) files, which are used by
   :ref:`segtools-html-report`.
 
@@ -206,7 +206,7 @@ The following options are supported by all (or most) Segtools commands:
 .. cmdoption:: --mnemonic-file <file>, -m <file>
 
    Specify a mnemonic file to control the label display and ordering.
-   See :ref:`mnemonic file details <mnemonic file>`. 
+   See :ref:`mnemonic file details <mnemonic file>`.
 
 .. cmdoption:: --outdir <dir>, -o <dir>
 
@@ -331,7 +331,7 @@ a segmentation of groups in an annotations file. The nucleotide sequence
 is specified by providing a Genomedata_ archive which allows efficient, low-memory
 operations on genomic sequences.
 
-:Visualization: A heatmap of the normalized dinucleotide frequencies 
+:Visualization: A heatmap of the normalized dinucleotide frequencies
   across segment labels.
 :Summary file: A table of all nucleotide and dinucleotide frequencies.
 
@@ -349,18 +349,18 @@ segtools-transition
 .. program:: segtools-transition
 
 This command takes a segmentation and computes the frequencies all all
-possible transitions between segment labels.  
+possible transitions between segment labels.
 
 :Visualization: A heatmap of transition frequencies between segment labels.
-:Visualization: A graph of the transitions between labels with frequencies exceeding 
+:Visualization: A graph of the transitions between labels with frequencies exceeding
   a given threshold. The weight of an edge is a linear function of the transition
   frequency.
 :Output file: The transition graph in .dot format.
 :Summary file: A table of transition frequencies.
 
 
-If a segment with label A is immediately followed by a segment with 
-label B, then this is counted as one A->B transition.  
+If a segment with label A is immediately followed by a segment with
+label B, then this is counted as one A->B transition.
 This command is thus most useful for
 segmentations that are a partition of large regions or the whole
 genome. If your segmentation consists of a collection of peak calls or
@@ -394,12 +394,12 @@ segtools-aggregation
 .. program:: segtools-aggregation
 
 This command looks at the aggregate occurrence of segment labels around
-and within a set of annotations. 
+and within a set of annotations.
 
 
 :Visualization: A graph showing the count or enrichment of each segment label
   on the y-axis and the position relative to the annotation on the x-axis.
-:Output file: A table of the aggregate count of each segment label at 
+:Output file: A table of the aggregate count of each segment label at
   each interrogated position around the annotations.
 
 A typical example of this would be to
@@ -413,10 +413,10 @@ If you have two different classes of TSSs that you were interested in
 GFF file as a grouping variable and then specify the
 :option:`--groups` flag.
 
-By default, the y-axis of the aggregation plot is the number of 
-segments of a given label that overlap a region. This is useful 
+By default, the y-axis of the aggregation plot is the number of
+segments of a given label that overlap a region. This is useful
 in some applications, but more often you are interested in the
-enrichment or depletion of various labels relative to what you 
+enrichment or depletion of various labels relative to what you
 might expect by chance. This is especially true if the segments in
 one label are significantly longer than those in another label.
 In these cases, the :option:`--normalize` flag should be used.
@@ -427,7 +427,7 @@ In these cases, the :option:`--normalize` flag should be used.
 
 .. cmdoption:: --mode <mode>
 
-   Specify the aggregation mode. The following options are available: 
+   Specify the aggregation mode. The following options are available:
    ``point``, ``region``, and ``gene``. The default is ``point``.
 
    ``point``: This mode aggregates around point-like features such as
@@ -454,11 +454,11 @@ In these cases, the :option:`--normalize` flag should be used.
    This is a special mode for aggregating with respect to an idealized
    gene model. Rather than specifying a normal GFF file, the annotation file
    must be in `GTF format`_ and have features with names ``exon`` and ``CDS``,
-   as provided by exporting data from the `UCSC Table Browser`_ in 
+   as provided by exporting data from the `UCSC Table Browser`_ in
    `GTF format`_. This mode is similar to ``region``, but with many regions
    that correspond to idealized transcriptional and translational models of
    genes. For the transcriptional model, there are regions
-   corresponding to initial, internal, and terminal exons and introns. 
+   corresponding to initial, internal, and terminal exons and introns.
    For the translational model, there are initial, internal, and terminal
    5' and 3' UTR regions, and initial and terminal CDSs.  In the
    visualization output, each type of model
@@ -481,10 +481,10 @@ In these cases, the :option:`--normalize` flag should be used.
    .. math:: enrichment(l, p) = \log_2 \dfrac{f_{obs} + 1}{f_{rand} + 1}
 
    where :math:`f_{obs}` is the observed overlap frequency and
-   :math:`f_{obs}` is the overlap frequency expected at random, 
+   :math:`f_{obs}` is the overlap frequency expected at random,
    defined by:
-   
-   .. math:: 
+
+   .. math::
 
       f_{obs} = \dfrac{count(l, p)}{\sum_{labels} count(p)}
 
@@ -542,14 +542,14 @@ segtools-overlap
 **segtools-overlap [OPTIONS] SEGMENTATION ANNOTATIONS**
 
 This command measures the base-wise or segment-wise overlap between
-segments in a segmentation and in an annotation. 
+segments in a segmentation and in an annotation.
 
 :Visualization: A heatmap of the frequency of overlap between segment
   labels and annotation groups, with each row normalized to sum to 1.
 :Visualization: If ``--by=bases``, a cumulative precision-recall plot for the
   ability of segment labels to predict annotation groups, where
   labels are accumulated in order of decreasing precision.
-:Output file: A confusion matrix of the number of overlaps between 
+:Output file: A confusion matrix of the number of overlaps between
   segment labels and annotation groups.
 :Summary file: A table of the precision and recall of each segment label
   with respect to each annotation group.
@@ -594,9 +594,9 @@ segtools-signal-distribution
 
 This command takes a segmentation and a Genomedata_ archive and summarizes
 the distribution of values for each Genomedata track that fall within
-segments of each label. 
+segments of each label.
 
-:Visualization: A heatmap of the mean value for each label-track pair, 
+:Visualization: A heatmap of the mean value for each label-track pair,
   augmented with a bar representing the standard deviation of that value.
 :Summary file: A table of the mean, standard deviation, and number of
   data points for each label-track pair.
@@ -684,7 +684,7 @@ each new segment is a concatenation of the labels for segments that
 overlap this segment. We hope to expand this to support annotations files
 in the near future.
 
-For example, given two files of regions of high transcription factor binding, 
+For example, given two files of regions of high transcription factor binding,
 one with peak calls and one with a lower threshold, you could create a single
 segmentation from the two files with::
 
@@ -718,7 +718,7 @@ provided with ``--results-dir``), the command finds files produced by
 the other Segtools commands (files matching ``*/*.div``) and compiles
 the results into an HTML report for review.
 
-The ``SEGMENTATION`` argument and ``--mnemonic-file`` option 
+The ``SEGMENTATION`` argument and ``--mnemonic-file`` option
 should be the same as used to run the other Segtools commands.
 
 .. include:: _build/cmdline-help/segtools-html-report.help.txt
@@ -778,8 +778,8 @@ Mnemonics
 
 Mnemonic files are supported by most of the Segtools commands and provide
 a way to rename and reorder the displayed labels without repeating
-the full analysis. Mnemonic files must contain two or three tab-separated 
-columns and must contain start with the following header 
+the full analysis. Mnemonic files must contain two or three tab-separated
+columns and must contain start with the following header
 (the description column is optional)::
 
   old{TAB}new[{TAB}description]
@@ -817,7 +817,7 @@ saved as something like ``second_try.mnemonics`` and should be passed
 into Segtools commands with ``--mnemonic-file=/path/to/second_try.mnemonics``.
 
 If you had previously run Segtools commands on the segmentation before
-creating these mnemonics, you could speed up the plot corrections by 
+creating these mnemonics, you could speed up the plot corrections by
 using the commands' ``--replot`` option (all other options and
 arguments should still be specified to ensure correctness).
 
