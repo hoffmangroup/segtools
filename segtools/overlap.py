@@ -374,9 +374,9 @@ or GTF format (grouped on 'name'/'feature' columns). \
 Results summarize the overlap \
 of SEGMENTATION groups with ANNOTATION groups. The symmetric analysis can \
 be performed by rerunning the program with the input file arguments swapped \
-(and a different output directory). A rough specification can be found here: \
-http://encodewiki.ucsc.edu/EncodeDCC/index.php/\
-Overlap_analysis_tool_specification"
+(and a different output directory)."
+
+    # A rough specification can be found here: http://encodewiki.ucsc.edu/EncodeDCC/index.php/Overlap_analysis_tool_specification
 
     version = "%%prog %s" % __version__
     parser = OptionParser(usage=usage, version=version,
