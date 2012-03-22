@@ -36,27 +36,24 @@ def print_bed(segments, filename=None):
     if outfile is not sys.stdout:
         outfile.close()
 
-def relabel(segfile, mnemonicfile, outfile=None, verbose=True):
-    assert os.path.isfile(segfile)
-    segmentation = Segmentation(segfile, verbose=verbose)
+def relabel(segfilename, mnemonicfilename, outfile=None, verbose=True):
+    assert os.path.isfile(segfilename)
+    segmentation = Segmentation(segfilename, verbose=verbose)
 
     labels = segmentation.labels
 
-    # common.map_mnemonics() does not return color information
-    label_mnemonics = load_mnemonics(mnemonicfilename)[1]
-
-    colors = {}
-    if all("color" in value
-           for value in label_mnemonics.itervalues()):
-        colors = dict((key, value["color"]) for key, value
-                      in label_mnemonics.iteritems())
-
-    # XXX: running load_mnemonics() again
-    mnemonics = map_mnemonics(labels, mnemonicfile)
+    mnemonics = map_mnemonics(labels, mnemonicfilename)
     ordered_labels, mnemonics = get_ordered_labels(labels, mnemonics)
+
+    try:
+        colors = map_mnemonics(labels, mnemonicfilename, "color")
+        ordered_colors, colors = get_ordered_labels(labels, colors)
+    except KeyError:
+        colors = None
 
     print >>sys.stderr, "Found labels:\n%s" % labels
     print >>sys.stderr, "Found mnemonics:\n%s" % mnemonics
+    print >>sys.stderr, "Found colors:\n%s" % colors
 
     if outfile is None:
         out = sys.stdout
@@ -72,7 +69,9 @@ def relabel(segfile, mnemonicfile, outfile=None, verbose=True):
                 tokens = [chrom, start, end, mnemonics[old]]
                 try:
                     tokens.extend([0, segment['strand']])
-                except KeyError:
+
+                # IndexError, not KeyError, because segment is a NumPy struct
+                except IndexError:
                     # extend it anyway
                     if colors:
                         tokens.extend([0, "."])
@@ -91,7 +90,7 @@ def relabel(segfile, mnemonicfile, outfile=None, verbose=True):
                     try:
                         strands_match = \
                             (segment['strand'] == prev_segment['strand'])
-                    except KeyError:
+                    except IndexError:
                         strands_match = True
 
                     if strands_match:

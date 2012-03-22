@@ -325,7 +325,7 @@ def parse_options(args):
                      " matches only.")
     group.add_option("-i", "--indir", dest="inputdirs",
                      default=None, action="append", metavar="DIR",
-                     help="Load data from this directory"
+                     help="Load data from this directory."
                      " This directory should be the output"
                      " directory of a previous run of this module."
                      " This option can be specified multiple times to"

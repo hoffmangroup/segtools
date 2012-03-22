@@ -455,10 +455,11 @@ def map_mnemonics(labels, mnemonicfilename, field="new"):
     mnemonics = []
     # Add mapping for labels in mnemonic file
     for old_label in label_order:
-        try:
-            new_label = label_mnemonics[old_label][field]
-        except KeyError:
-            die("Mnemonic file missing expected column: %s" % field)
+        #try:
+        new_label = label_mnemonics[old_label][field]
+        # XXX: need KeyError for relabel.relabel()
+        #except KeyError:
+        #die("Mnemonic file missing expected column: %s" % field)
 
         if old_label in str_labels:
             mnemonics.append([old_label, new_label])
