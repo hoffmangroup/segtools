@@ -8,7 +8,7 @@ import unittest
 from numpy import array
 from tempfile import NamedTemporaryFile
 
-from segtools import Annotations, Segmentation
+from segtools import Annotation
 from segtools.overlap import calc_overlap
 
 def data2bed(lines):
@@ -51,7 +51,7 @@ class OverlapTester(unittest.TestCase):
 
             new_file.flush()
             self._open_files.append(new_file)
-            features = Annotations(new_file.name, verbose=False)
+            features = Annotation(new_file.name, verbose=False)
 
             if features:
                 self.features.append(features)

@@ -1,8 +1,6 @@
 ## requires common.R
 ## requires track_statistics.R
 
-library(plyr)
-library(reshape)
 library(cluster)
 library(lattice)
 library(RColorBrewer)

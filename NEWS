@@ -5,6 +5,7 @@
   calculated on 32-bit machine
 * segtools-signal-distribution: fix bug: --indir option resulted in "can't multiply sequence by non-int of type 'str'" error
 * segtools-gmtk-parameters: add R transcripts
+* segtools-gmtk-parameters: unescape escaped tracknames from newer versions of Segway
 * segtools-relabel: add color support
 * add segtools.get_r_dirname() function
 * R transcripts: add #!/usr/bin/env Rscript at top

@@ -1,5 +1,5 @@
 library(plyr)
-library(reshape)
+library(reshape2)
 library(cluster)
 
 COLNAMES <- c("label", "trackname", "mean", "sd")
@@ -102,11 +102,43 @@ simplify.labels <- function(labels) {
   labels
 }
 
-parse.gmtk.means <- function(filename, hierarchical =
-                             is.hierarchical.gmtk(filename)) {
+chr <- function(int) {
+  rawToChar(as.raw(int))
+}
+
+unescape.trackname <- function(string) {
+  aaply(strtoi(substring(string, 2L), 16L), 1, chr)
+}
+
+##' de-escape GMTK tracknames escaped by segway.run.quote_trackname
+##'
+##' _xx turns into character represented by hex xx
+##' @title rename.gmtk.tracknames
+##' @param tracknames (factor)
+##' @return factor
+##' @author Michael M. Hoffman
+rename.gmtk.tracknames <- function(tracknames) {
+  tracknames.levels <- levels(tracknames)
+  tracknames.levels <- sub("^x__", "", tracknames.levels)
+
+  match <- gregexpr("_[0-9a-f]{2}", tracknames.levels)
+  regmatches(tracknames.levels, match) <-
+    lapply(regmatches(tracknames.levels, match), unescape.trackname)
+
+  levels(tracknames) <- tracknames.levels
+  tracknames
+}
+
+##' @title parse.gmtk.means
+##' @param filename 
+##' @param hierarchical TRUE: parse the params file expecting a hierarchical format
+##'        FALSE: parse the params file as a normal format
+##' @return means
+##' @author Michael M. Hoffman
+parse.gmtk.means <- function(filename,
+                             hierarchical = is.hierarchical.gmtk(filename))
+{
   ## hierarchical:
-  ##   TRUE: parse the params file expecting a hierarchical format
-  ##   FALSE: parse the params file as a normal format
 
   lines <- readLines(filename)
 
@@ -134,6 +166,7 @@ parse.gmtk.means <- function(filename, hierarchical =
   close(anonfile)
 
   means$label <- simplify.labels(means$label)
+  means$trackname <- rename.gmtk.tracknames(means$trackname)
   means
 }
 
@@ -155,6 +188,7 @@ parse.gmtk.covars <- function(filename) {
                        colClasses = c("factor", "numeric"))
   close(anonfile)
 
+  covars$trackname <- rename.gmtk.tracknames(covars$trackname)
   covars
 }
 
@@ -233,7 +267,7 @@ as.stats.array <- function(data) {
     stop("as.stats.array expected data as data.frame")
   }
   data.melted <- melt(data, id.vars = c("label", "trackname"))
-  cast(data.melted, trackname ~ label ~ variable)
+  acast(data.melted, trackname ~ label ~ variable)
 }
 
 as.stats.data.frame <- function(stats) {
@@ -241,7 +275,7 @@ as.stats.data.frame <- function(stats) {
     stop("as.stats.data.frame expected data as array")
   }
   stats.melted <- melt(stats)
-  cast(stats.melted, label + trackname ~ variable)
+  dcast(stats.melted, label + trackname ~ variable)
 }
 
 covar2sd <- function(stats) {

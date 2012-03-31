@@ -6,11 +6,9 @@ import re
 import sys
 import unittest
 
-from pkg_resources import resource_listdir
-
 def main(verbose=True):
     # Move to test directory to allow imports
-    os.chdir(os.path.dirname(__file__))
+    os.chdir(os.path.dirname(__file__) or ".")
 
     # Gather a list of unittest modules
     filenames = os.listdir(os.getcwd())

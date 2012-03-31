@@ -3,7 +3,7 @@ from __future__ import division, with_statement
 
 """Segtools: tools for exploratory analysis of genomic segmentations
 
-Copyright 2011: Michael Hoffman <mmh1@uw.edu>
+Copyright 2011, 2012: Michael Hoffman <mmh1@uw.edu>
 Copyright 2009: Orion Buske <stasis@uw.edu>
 """
 __version__ = "$Revision$"
@@ -421,12 +421,12 @@ class RInterface(object):
             log("Saving transcript to file: %s" % self._transcript.name,
                 self.verbose)
 
-        # write segtools.r.dirname code
-        print >>self._transcript, """segtools.r.dirname <-
+            # write segtools.r.dirname code
+            print >>self._transcript, """segtools.r.dirname <-
   system2("python",
           c("-c", "'import segtools; print segtools.get_r_dirname()'"),
           stdout = TRUE)"""
-        print >>self._transcript
+            print >>self._transcript
 
         # Source any R files
         for file in self._files:
