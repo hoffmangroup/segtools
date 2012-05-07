@@ -121,7 +121,7 @@ rename.gmtk.tracknames <- function(tracknames) {
   tracknames.levels <- levels(tracknames)
   tracknames.levels <- sub("^x__", "", tracknames.levels)
 
-  match <- gregexpr("_[0-9a-f]{2}", tracknames.levels)
+  match <- gregexpr("_[0-9a-fA-F]{2}", tracknames.levels)
   regmatches(tracknames.levels, match) <-
     lapply(regmatches(tracknames.levels, match), unescape.trackname)
 
@@ -543,7 +543,8 @@ levelplot.track.stats <-
            sd.shape = "line",
            box.fill = NULL,
            symmetric = FALSE,  # Make mean range symmetric about 0
-           scales = list(x = list(rot = 90), cex = scale.cex),
+           x.rot = 90,
+           scales = list(x = list(rot = x.rot), cex = scale.cex),
            panel = panel.track.stats,
            threshold = FALSE,
            use.sd = TRUE,
@@ -696,7 +697,7 @@ load.track.stats <- function(filename, mnemonics = NULL,
     args$patterns <- translations$old
     args$replacements <- translations$new
   } else {
-    args$translations <- translations
+    args$translation <- translations
   }
 
   stats <- do.call(read.func, args)
@@ -741,7 +742,7 @@ save.track.stats <-
   mnemonics <- read.mnemonics(mnemonic_file)
   translations <- read.mnemonics(translation_file)
   data <- load.track.stats(filename, mnemonics = mnemonics,
-                           translations = translations, ...)
+                           translation = translations, ...)
   save.track.stats.data(data, dirpath, namebase, ...)
 }
 

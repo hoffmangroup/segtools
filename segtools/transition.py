@@ -119,7 +119,7 @@ def save_html(dirpath, p_thresh, q_thresh, clobber=False, verbose=True):
     extra_namebases = {"graph": NAMEBASE_GRAPH}
 
     if p_thresh > 0:
-        thresh = "P > %s" % p_thresh
+        thresh = "P >= %s" % p_thresh
     elif q_thresh > 0:
         thresh = "P above %.2th quantile" % q_thresh
 

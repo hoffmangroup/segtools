@@ -716,13 +716,13 @@ This command is intended to be run after other Segtools
 commands. Starting in the current working directory (or directory
 provided with ``--results-dir``), the command finds files produced by
 the other Segtools commands (files matching ``*/*.div``) and compiles
-the results into an HTML report for review.
+the results into an HTML report for review. Run it in the parent
+directory of these directories.
 
 The ``SEGMENTATION`` argument and ``--mnemonic-file`` option
 should be the same as used to run the other Segtools commands.
 
 .. include:: _build/cmdline-help/segtools-html-report.help.txt
-
 
 
 .. ####################### PREPROCESS #######################
