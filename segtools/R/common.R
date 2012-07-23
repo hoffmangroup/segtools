@@ -5,7 +5,7 @@ library(latticeExtra)
 library(plyr)
 
 # Set default theme
-lattice.options(default.theme = "theme.dark2",
+lattice.options(default.theme = ".theme.dark2",
                 legend.bbox = "full")
 
 
@@ -250,7 +250,7 @@ ddgram.legend <- function(dd.row = NULL, row.ord = NULL,
   legend
 }
 
-theme.dark2 <- function() {
+.theme.dark2 <- function() {
   brew.dark2.8 <- brewer.pal(8, "Dark2")
   brew.paired.12 <- brewer.pal(12, "Paired")
   brew.paired.light.6 <- brew.paired.12[seq(1, 12, 2)]
@@ -285,7 +285,7 @@ theme.dark2 <- function() {
 }
 
 theme.slide <- function() {
- res <- theme.dark2()
+ res <- .theme.dark2()
 
  additions <-
    list(axis.text.x = list(cex = 1.3),
@@ -310,7 +310,7 @@ lattice.optionlist.slide <-
         right.padding = list(x = 0.05, units = "snpc")),
       default.theme = theme.slide)
 
-extpaste <- function(...) {
+.extpaste <- function(...) {
   paste(..., sep=".")
 }
 
@@ -336,8 +336,8 @@ print.image <- function(image, filepath, device, as.slide = FALSE, ...) {
   filepath
 }
 
-save.image <- function(image, basename, ext, dirname, device, ..., clobber = FALSE) {
-  filename.ext <- extpaste(basename, ext)
+save.plot <- function(image, basename, ext, dirname, device, ..., clobber = FALSE) {
+  filename.ext <- .extpaste(basename, ext)
   filepath <- file.path(dirname, filename.ext)
 
   if (!clobber && file.exists(filepath)) {
@@ -371,14 +371,14 @@ dev.print.images <- function(basename, dirname, image,
   # No need for PNG plot since it is done python-side
   if (make.png) {
     filename.raster <-
-      save.image(image, basename, "png", dirname, device.png,
+      save.plot(image, basename, "png", dirname, device.png,
                  width = width, height = height, units = "px",
                  ..., clobber = clobber)
   }
 
   if (make.slide) {
     filename.slide <-
-      save.image(image, basename, "slide.png", dirname, device.png,
+      save.plot(image, basename, "slide.png", dirname, device.png,
                  width = width.slide, height = height.slide,
                  units = "px", as.slide = TRUE,
                  ..., clobber = clobber)
@@ -386,7 +386,7 @@ dev.print.images <- function(basename, dirname, image,
 
   if (make.pdf) {
     filename.pdf <-
-      save.image(image, basename, "pdf", dirname, device.pdf,
+      save.plot(image, basename, "pdf", dirname, device.pdf,
                  width = width.pdf, height = height.pdf,
                  useDingbats = FALSE, as.slide = pdf.as.slide, ...,
                  clobber = clobber)
@@ -396,12 +396,12 @@ dev.print.images <- function(basename, dirname, image,
     # Suppress warnings about minimum font size
     filename.thumb <-
       suppressWarnings(
-        save.image(image, basename, "thumb.png", dirname, device.png,
+        save.plot(image, basename, "thumb.png", dirname, device.png,
                    width = 10, height = 10,
                    units = "in", res = 10, ..., clobber = clobber))
   }
 }
 
-save.images <- function(dirpath, basename, image, ..., clobber = FALSE) {
+save.plots <- function(dirpath, basename, image, ..., clobber = FALSE) {
   dev.print.images(basename, dirpath, image, ..., clobber = clobber)
 }

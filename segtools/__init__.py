@@ -15,6 +15,7 @@ import sys
 from collections import defaultdict
 from contextlib import contextmanager
 from functools import partial
+from logging import basicConfig, critical, INFO, info
 from numpy import array, int64, uint32
 from time import time
 
@@ -44,6 +45,8 @@ _READERS=dict(bed=read_bed, narrowpeak=read_bed,
 
 GFF_FORMATS = frozenset(["gff", "gtf"])
 BED_FORMATS = frozenset(["bed", "narrowpeak"])
+
+basicConfig(format='%(levelname)s:%(message)s', level=INFO)
 
 def get_r_dirname():
     return resource_filename(PKG_R, "")
@@ -377,14 +380,17 @@ def log(message, verbose=True, end="\n", file=sys.stderr):
 
     """
     if verbose:
-        file.write(str(message))
-        file.write(end)
+        if end != "\n" or file != sys.stderr:
+            # old code
+            file.write(str(message))
+            file.write(end)
+        else:
+            info(message)
 
 ## Die with error message
 def die(msg="Unexpected error"):
-    log("\nFatal error: %s\n" % msg)
+    critical(msg)
     sys.exit(1)
-
 
 ## Class to handle sourcing, plotting, and calling R functions
 class RInterface(object):

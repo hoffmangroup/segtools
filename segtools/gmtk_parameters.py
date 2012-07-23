@@ -82,10 +82,9 @@ def validate(gmtk_file, dirpath, p_thresh=P_THRESH, q_thresh=Q_THRESH,
 
     # XXX: why does this print "getbuffer" a few times? debug R
     # read.gmtk.transition() code
-    log("Loading gmtk transitions...", verbose, end="")
+    log("Loading gmtk transitions.", verbose)
 
     labels, probs = load_gmtk_transitions(gmtk_file, verbose=verbose)
-    log(" done", verbose)
 
     # If mnemonics weren't specified, let's create a mnemonic file
     if mnemonic_file is None and create_mnemonics:
@@ -100,7 +99,7 @@ def validate(gmtk_file, dirpath, p_thresh=P_THRESH, q_thresh=Q_THRESH,
                       mnemonic_file=mnemonic_file,
                       transcriptfile=transcriptfile, ropts=ropts)
 
-        with open_transcript(dirpath, MODULE  + ".stats") as transcriptfile:
+        with open_transcript(dirpath, MODULE  + ".stats", verified=True) as transcriptfile:
             SignalStats.save_plot(dirpath, namebase=NAMEBASE_STATS,
                                   filename=gmtk_file,
                                   clobber=clobber, gmtk=True,

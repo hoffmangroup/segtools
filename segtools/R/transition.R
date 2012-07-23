@@ -137,7 +137,7 @@ save.transition <- function(dirpath, namebase, filename,
                             clobber = FALSE,
                             image.size = 600, ...) {
   mnemonics <- read.mnemonics(mnemonic_file)
-  save.images(dirpath, namebase,
+  save.plots(dirpath, namebase,
               plot.transition(filename, mnemonics = mnemonics, ...),
               height = image.size,
               width = image.size,

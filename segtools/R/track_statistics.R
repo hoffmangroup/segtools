@@ -559,24 +559,17 @@ levelplot.track.stats <-
            normalize = TRUE,
            ...)
 {
-  if (!is.array(track.stats)) {
-    track.stats <- as.stats.array(track.stats)
-  }
+  track.stats <- maybe.as.array(track.stats)
+
   if (is.null(hierarchical)) {
     hierarchical <- FALSE
   }
 
-  if (dim(track.stats[, , "mean"])[2L] == 2L) {
-    norm.func <- normalize.binary.track.stats
+  if (is.binary(track.stats)) {
     symmetric <- TRUE
-  } else {
-    norm.func <- normalize.track.stats
   }
-  if (normalize)
-    stats.norm <- norm.func(track.stats, cov=cov)
-  else
-    stats.norm <- track.stats
 
+  stats.norm <- maybe.normalize(track.stats, normalize, cov)
   means <- stats.norm[, , "mean"]
   sds <- stats.norm[, , "sd"]
 
@@ -710,6 +703,19 @@ plot.track.stats <- function(filename, symmetric = FALSE, ...) {
   levelplot.track.stats(res, symmetric = symmetric, ...)
 }
 
+is.binary <- function(track.stats) {
+  dim(track.stats[,, "mean"])[2L] == 2L
+}
+
+get.norm.func <- function(track.stats) {
+  if (is.binary(track.stats)) {
+    normalize.binary.track.stats
+  }
+  else {
+    normalize.track.stats
+  }
+}
+
 save.track.stats.data <-
   function(data, dirpath, namebase, symmetric = FALSE, clobber = FALSE,
            square.size = 15,  # px
@@ -726,7 +732,7 @@ save.track.stats.data <-
   height.pdf <- as.numeric(height.pdf)
 
   levelplot.track.stats(data, symmetric = symmetric, ...)
-  save.images(dirpath, namebase,
+  save.plots(dirpath, namebase,
               levelplot.track.stats(data, symmetric = symmetric, ...),
               height = height,
               width = width,
@@ -735,15 +741,36 @@ save.track.stats.data <-
               clobber = clobber)
 }
 
+maybe.as.array <- function(track.stats) {
+  if (!is.array(track.stats)) {
+    as.stats.array(track.stats)
+  } else {
+    track.stats
+  }
+}
+
+maybe.normalize <- function(track.stats, normalize, cov = FALSE) {
+  if (normalize)
+    get.norm.func(track.stats)(track.stats, cov=cov)
+  else
+    track.stats
+}
+
 save.track.stats <-
   function(dirpath, namebase, filename, mnemonic_file = NULL,
-           translation_file = NULL, ...)
+           translation_file = NULL, normalize = TRUE, ...)
 {
   mnemonics <- read.mnemonics(mnemonic_file)
   translations <- read.mnemonics(translation_file)
   data <- load.track.stats(filename, mnemonics = mnemonics,
                            translation = translations, ...)
-  save.track.stats.data(data, dirpath, namebase, ...)
+
+  track.stats <- maybe.as.array(data$stats)
+  stats.norm <- maybe.normalize(track.stats, normalize)
+  means.norm <- t(stats.norm[,,"mean"])
+  write.csv(means.norm, file.path(dirpath, paste(namebase, "csv", sep=".")))
+
+  save.track.stats.data(data, dirpath, namebase, ..., normalize = normalize)
 }
 
 ## infilename: stats data.frame tab file

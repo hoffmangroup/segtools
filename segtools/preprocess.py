@@ -18,7 +18,7 @@ __version__ = "$Revision$"
 
 import sys
 
-from . import Annotation, Segmentation, add_common_options
+from . import Annotation, Segmentation, add_common_options, log
 
 def preprocess(infilename, outfilename=None, annotation=False, verbose=False, clobber=False):
     if annotation:
@@ -26,9 +26,8 @@ def preprocess(infilename, outfilename=None, annotation=False, verbose=False, cl
     else:
         file_type = Segmentation
 
-    print >>sys.stderr, ("Making %s object."
-                         " See --help for more options"
-                         % file_type.__name__)
+    log("Making %s object. See --help for more options" % file_type.__name__,
+        verbose=verbose)
     parsed_obj = file_type(infilename, verbose=verbose)
     parsed_obj.pickle(outfilename, verbose=verbose, clobber=clobber)
 

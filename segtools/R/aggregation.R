@@ -2,19 +2,19 @@ library(lattice)
 library(RColorBrewer)
 library(latticeExtra)
 library(plyr)
-library(reshape)
+library(reshape2)
 
 COLNAMES <- c("group", "component", "offset")
 lattice.options(panel.error="stop")
 
-read.aggregation <- function(filename, mnemonics = NULL, ..., 
+read.aggregation <- function(filename, mnemonics = NULL, ...,
                              comment.char = "#",
                              check.names = FALSE) {
   if (!file.exists(filename)) {
     stop(paste("Error: could not find aggregation file:", filename))
   }
-  data.raw <- read.delim(filename, ..., 
-                         comment.char=comment.char, 
+  data.raw <- read.delim(filename, ...,
+                         comment.char=comment.char,
                          check.names=check.names)
   colnames(data.raw)[1] <- "group"
   if (!all(colnames(data.raw)[1:3] == COLNAMES)) {
@@ -56,7 +56,7 @@ panel.scales <- function(data, layout, num_panels, x.axis = FALSE,
     component_subset <- subset(data, component == cur_component)
     min.x <- min(component_subset$offset, na.rm=TRUE)
     max.x <- max(component_subset$offset, na.rm=TRUE)
-    if (!is.finite(min.x)) 
+    if (!is.finite(min.x))
       print(component_subset)
     at.x.pretty <- at.pretty(from=min.x, to=max.x, length=5, largest=TRUE)
     at.x <- c(at.x, at.x.pretty)
@@ -88,10 +88,10 @@ panel.scales <- function(data, layout, num_panels, x.axis = FALSE,
       diff(range.y) / (1 - get.rug.start(ngroups + 2)) - diff(range.y)
     else
       0
-  
+
   min.y <- min(range.y[1], 0) - rug.height
   max.y <- max(range.y[2], 0)
-  
+
   limits.y <- extendrange(c(min.y, max.y))
   at.y <- unique(round(c(min.y, 0, max.y), digits = 2))
   scales <- list(x = list(relation = "free",
@@ -119,7 +119,7 @@ transpose.levels <- function(data.group, dim.length) {
     res[dest.indices] <- lev[source.indices]
     num.added <- num.added + length(dest.indices)
   }
-  
+
   factor(data.group, levels = res)
 }
 
@@ -136,10 +136,6 @@ melt.aggregation <- function(data.raw) {
   data
 }
 
-cast.aggregation <- function(data.df) {
-  cast(data.df, group + component + offset ~ label, value = "count")
-}
-
 calc.pvals <- function(count, total, random.prob) {
   ## Calculate "significance" of count and total given
   ## current random.prob.
@@ -149,17 +145,17 @@ calc.pvals <- function(count, total, random.prob) {
          ") for label: ", label,
          sep = "")
   }
-  
+
   expected <- total * random.prob
   sep <- abs(expected - count)
-  
-  signif <- 
+
+  signif <-
     if (total == 0) {
       ## No significance when there are no observed overlaps
       1
     } else if (count > 100 && expected < 10) {
-      ## Calculate two-tailed probability 
-      ppois(expected - sep, expected) + 
+      ## Calculate two-tailed probability
+      ppois(expected - sep, expected) +
         ppois(expected + sep - 1, expected, lower.tail = FALSE)
     } else {
       ## Binomial is symmetric, so probability is two-tailed with * 2
@@ -187,13 +183,13 @@ process.counts <- function(data, label.sizes, pseudocount = 1,
   ## Ideally, a multinomial test would be applied once for each bin
   ## (testing whether the distribution of overlaps by label is as expected),
   ## but the label-wise binomial seems a decent approximation.
-  
+
   ## Get sum over labels for each component and offset
   labels.sum <- with(data, aggregate(count, list(offset = offset,
                                                  component = component,
                                                  group = group), sum))
   names(labels.sum) <- gsub("^x$", "sum", names(labels.sum))
-  
+
   for (label in levels(data$label)) {
     random.prob <- label.sizes[label] / total.size
 ##    if (label == "NONE") cat(paste("\n\nNONE:\nrandom.prob:", random.prob))
@@ -237,7 +233,7 @@ panel.significance <- function(x, y, height, signif, col = plot.line$col,
   x.units <- "native"
   y.units <- "npc"
   plot.line <- trellis.par.get("plot.line")
-  
+
   ## Identify contiguous blocks of significance
   starts <- x[c(signif[1], !signif[-n] & signif[-1])]
   ends <- x[c(signif[-n] & !signif[-1], signif[n])]
@@ -273,7 +269,7 @@ panel.aggregation <- function(x, y, ngroups, signif = NULL, groups = NULL,
   if (!is.null(signif)) {
     signif <- as.logical(signif)[subscripts]
     signif[!is.finite(signif)] <- FALSE
-  
+
     if (any(signif)) {
       ## Only shade region for first.
       if (ngroups == 1) {
@@ -465,7 +461,7 @@ save.aggregation <- function(dirpath, namebase, tabfilename,
 
   image.size <- margin.size +
     panel.size * ceiling(sqrt(nlevels(data$data$label) / 2))
-  save.images(dirpath, namebase,
+  save.plots(dirpath, namebase,
               xyplot.aggregation(data, ...),
               width = image.size,
               height = image.size,
@@ -492,7 +488,7 @@ save.gene.aggregations.data <-
 
     data.sub <- subset(data$data, component %in% components.sub, drop = TRUE)
     data.sub$component <- factor(data.sub$component, levels=components.sub)
-    save.images(dirpath, namebase,
+    save.plots(dirpath, namebase,
                 xyplot.aggregation(data = data.sub, metadata = data$metadata,
                                    spacers = NULL, ...),
                 width = width,

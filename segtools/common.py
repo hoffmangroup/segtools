@@ -402,7 +402,7 @@ def iter_supercontig_segments(chromosome, segmentation, verbose=True):
 def setup_directory(dirname):
     if not os.path.isdir(dirname):
         try:
-            os.mkdir(dirname)
+            os.makedirs(dirname)
         except IOError:
             die("Error: Could not create output directory: %s" % (dirname))
     else:

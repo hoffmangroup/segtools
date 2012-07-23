@@ -112,7 +112,7 @@ save.length <- function(dirpath, namebase, tabfilename,
   mnemonics <- read.mnemonics(mnemonic_file)
   data <- read.length(tabfilename, mnemonics = mnemonics)
 
-  save.images(dirpath, namebase,
+  save.plots(dirpath, namebase,
               violinplot.length(data = data, ...),
               height = label.height * nlevels(data$label) + 75,
               width = image.width,
@@ -206,7 +206,7 @@ save.segment.sizes <- function(dirpath, namebase, tabfilename,
                                ...) {
   mnemonics <- read.mnemonics(mnemonic_file)
   data <- read.segment.sizes(tabfilename, mnemonics = mnemonics)
-  save.images(dirpath, namebase,
+  save.plots(dirpath, namebase,
               barchart.segment.sizes(data = data, ...),
               height = height,
               width = width,

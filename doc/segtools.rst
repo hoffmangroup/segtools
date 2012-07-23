@@ -6,7 +6,7 @@ Segtools |version| documentation
 :Organization: University of Washington
 :Address: Department of Genome Sciences, PO Box 355065,
           Seattle, WA 98195-5065, United States of America
-:Copyright: 2009-2011, Orion Buske; 2010-2012 Michael M. Hoffman
+:Copyright: 2009-2012, Orion Buske; 2010-2012 Michael M. Hoffman
 :Last updated: |today|
 
 .. currentmodule:: segtools
@@ -744,6 +744,9 @@ the segmentation, each Segtools command parses the segmentation file
 independently. If the segmentation is large, this can add an hour
 or more to the runtime of each Segtools command. Preprocessing cuts
 this load time to just a few seconds. See ``--help`` for more details.
+
+If you specify OUTFILE, `.pkl.gz` will be added on to its end for you,
+so there is no need to add it on yourself.
 
 .. include:: _build/cmdline-help/segtools-preprocess.help.txt
 

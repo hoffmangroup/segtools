@@ -2,7 +2,7 @@ library(RColorBrewer)
 library(lattice)
 library(latticeExtra)
 library(plyr)
-library(reshape)
+library(reshape2)
 
 ############### OVERLAP ANALYSIS ##############
 
@@ -160,7 +160,7 @@ pr.stats <- function(data, ...) {
 # Write an overlap data frame to a file
 write.stats <- function(stats, namebase, dirpath = ".", clobber = FALSE) {
   data <- stats$data
-  tabfilename <- extpaste(namebase, "tab")
+  tabfilename <- .extpaste(namebase, "tab")
   tabfilepath <- file.path(dirpath, tabfilename)
 
   if (file.exists(tabfilepath) && !clobber) {
@@ -265,7 +265,7 @@ save.overlap.performance <- function(dirpath, namebase, tabfilename,
   panels.sqrt <- max(c(sqrt(nlevels(stats$data$group)), 1))
   width <- 100 + panel.size * ceiling(panels.sqrt)
   height <- 200 + panel.size * floor(panels.sqrt)
-  save.images(dirpath, namebase,
+  save.plots(dirpath, namebase,
               xyplot.overlap(stats, cumulative = cumulative, ...),
               width = width,
               height = height,
@@ -396,7 +396,7 @@ save.overlap.heatmap <- function(dirpath, namebase, tabfilename,
 
   height <- 400 + panel.size * nrow(data$data)
   width <- 400 + panel.size * ncol(data$data)
-  save.images(dirpath, namebase,
+  save.plots(dirpath, namebase,
               levelplot.overlap(data, ..., max.contrast = max_contrast),
               height = height,
               width = width,

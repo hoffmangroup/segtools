@@ -10,6 +10,7 @@
 * add segtools.get_r_dirname() function
 * R transcripts: add #!/usr/bin/env Rscript at top
 * R transcripts now get source files using get_r_dirname()
+* move from use of reshape to reshape2
 
 1.1.9:
 * segtools-signal-distribution: cleaned up code and arguments to only support

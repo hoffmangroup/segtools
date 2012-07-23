@@ -20,21 +20,21 @@ import sys
 from . import log, Segmentation, die, add_common_options
 from .common import map_mnemonics, get_ordered_labels
 
-def print_bed(segments, filename=None):
-    """Print segments in BED format to file (or stdout if None)"""
-    if filename is None:
-        outfile = sys.stdout
-    else:
-        if os.path.isfile(filename):
-            log("Warning: overwriting file: %s" % filename)
+class StrandUnknown(str):
+    """sentinel object that converts to '.'"""
 
-        outfile = open(filename, "w")
+    def __str__(self):
+        return "."
 
-    for segment in segments:
-        outfile.write("%s\n" % "\t".join([str(val) for val in segment]))
+SCORE_DEFAULT = 0
+STRAND_UNKNOWN = StrandUnknown()
 
-    if outfile is not sys.stdout:
-        outfile.close()
+def get_strand(segment):
+    try:
+        return segment['strand']
+    # IndexError, not KeyError, because segment is a NumPy struct
+    except IndexError:
+        return STRAND_UNKNOWN
 
 def relabel(segfilename, mnemonicfilename, outfile=None, verbose=True):
     assert os.path.isfile(segfilename)
@@ -51,9 +51,9 @@ def relabel(segfilename, mnemonicfilename, outfile=None, verbose=True):
     except KeyError:
         colors = None
 
-    print >>sys.stderr, "Found labels:\n%s" % labels
-    print >>sys.stderr, "Found mnemonics:\n%s" % mnemonics
-    print >>sys.stderr, "Found colors:\n%s" % colors
+    log("Found labels:\n%s" % labels)
+    log("Found mnemonics:\n%s" % mnemonics)
+    log("Found colors:\n%s" % colors)
 
     if outfile is None:
         out = sys.stdout
@@ -67,14 +67,10 @@ def relabel(segfilename, mnemonicfilename, outfile=None, verbose=True):
                 end = segment['end']
                 old = segment['key']
                 tokens = [chrom, start, end, mnemonics[old]]
-                try:
-                    tokens.extend([0, segment['strand']])
 
-                # IndexError, not KeyError, because segment is a NumPy struct
-                except IndexError:
-                    # extend it anyway
-                    if colors:
-                        tokens.extend([0, "."])
+                strand = get_strand(segment)
+                if strand != STRAND_UNKNOWN or colors:
+                    tokens.extend([SCORE_DEFAULT, str(strand)])
 
                 if colors:
                     tokens.extend([start, end, colors[old]])

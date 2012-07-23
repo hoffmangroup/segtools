@@ -82,7 +82,7 @@ save.distances <- function(dirpath, namebase, tabfilename,
   data <- read.distances(tabfilename, mnemonics = mnemonics)
   rows <- nlevels(data$label)
   height <- 200 * rows
-  save.images(dirpath, namebase,
+  save.plots(dirpath, namebase,
               figure.distances(data = data, ...),
               height = height,
               width = width,

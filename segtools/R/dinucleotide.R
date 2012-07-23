@@ -1,5 +1,5 @@
 library(plyr)
-library(reshape)
+library(reshape2)
 library(RColorBrewer)
 library(lattice)
 library(latticeExtra)
@@ -100,7 +100,7 @@ save.dinuc <- function(dirpath, namebase, tabfilename,
   nucs <- read.nuc(tabfilename, mnemonics = mnemonics)
   dinuc <- normalize.dinuc(nucs)
   
-  save.images(dirpath, namebase,
+  save.plots(dirpath, namebase,
               levelplot.dinuc(data = dinuc, ...),
               height = height,
               width = width,
