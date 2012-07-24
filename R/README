@@ -1,0 +1,7 @@
+This is the source for Segtools as an R package.
+
+Run ./build.sh to generate the package tarball.
+
+Then you can install in R with install.packages("segtools_1.0.tar.gz", repos = NULL)
+
+From then on, only library(segtools) is necessary in your R scripts.
