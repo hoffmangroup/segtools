@@ -643,6 +643,12 @@ the final output. Here is sample pseudocode::
    useful for parallelizing this command, since multiple results can
    be merged together to generate the final output.
 
+.. cmdoption:: --transformation <transformation>, -t <transformation>
+
+   Transforms data upon reading from genomedata archive. 
+   This is desired when comparing gmtk parameters with signal
+   distribution because Segway transforms data by default. 
+
 
 
 .. ###################### UTILITIES ######################

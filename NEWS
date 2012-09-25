@@ -1,3 +1,7 @@
+1.1.11:
+  signal-distribution now gets a transformation as an option and apply it on data
+  A bug in signal-distribution is fixed that resulted in incorrect labeling. 
+
 1.1.10:
 
 * add "narrowPeak" as synonym format for "bed"

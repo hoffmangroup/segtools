@@ -18,7 +18,7 @@ import sys
 from collections import defaultdict
 from genomedata import Genome
 from functools import partial
-from numpy import isfinite, square, zeros
+from numpy import arcsinh, isfinite, square, zeros
 
 from . import log, Segmentation, die, RInterface, add_common_options, \
      open_transcript, ProgressBar
@@ -49,7 +49,7 @@ class SignalStats(object):
         return self._metadata
 
     @staticmethod
-    def from_segmentation(genome, segmentation, chroms=None,
+    def from_segmentation(genome, segmentation, chroms=None, transformation=None,
                           quick=False, verbose=True):
         """
         Computes a mean and variance for each track-label pair.
@@ -75,9 +75,9 @@ class SignalStats(object):
             die("Trying to calculate histogram for no tracks")
 
         (sum_total, sum2_total, dp_total) = \
-                    (zeros((len(tracks), len(labels)), dtype=float),
-                     zeros((len(tracks), len(labels)), dtype=float),
-                     zeros((len(tracks), len(labels)), dtype=int))
+            (zeros((len(tracks), len(labels)), dtype=float),
+             zeros((len(tracks), len(labels)), dtype=float),
+             zeros((len(tracks), len(labels)), dtype=int))
         log("Generating signal distribution histograms", verbose)
 
         with genome:
@@ -108,6 +108,9 @@ class SignalStats(object):
                                                      verbose=verbose):
                         seg_label = segment['key']
                         seg_data_nonan = seg_data[isfinite(seg_data)]
+                        if transformation == "arcsinh":
+                        	seg_data_nonan = (seg_data_nonan)
+
 
                         col_sum[seg_label] += seg_data_nonan.sum()
                         col_sum2[seg_label] += square(seg_data_nonan).sum()
@@ -124,8 +127,15 @@ class SignalStats(object):
         stats = defaultdict(partial(defaultdict, dict))
         for label in labels:
             for trackname, track_index in track_indices.iteritems():
-                cur_stat = stats[label][trackname]
-                cur_stat["sd"] = sds[track_index, label]
+                # cur_stat = stats[label][trackname]
+                # Paul:
+                # Use the name of the label name defined in the
+                # segmentation file as the key to the stats dictionary
+                # so segtools internal labeling is not propagated to
+                # user output.
+                segmentfile_defined_label = labels[label]
+                cur_stat = stats[segmentfile_defined_label][trackname]
+                cur_stat["sd"] = sds[track_index, label] 
                 cur_stat["mean"] = means[track_index, label]
                 cur_stat["n"] = dp_total[track_index, label]
 
@@ -140,7 +150,7 @@ class SignalStats(object):
             for row in reader:
                 label = row.pop('label')
                 trackname = row.pop('trackname')
-                stats[label][trackname] = row
+                stats[label][trackname] = row 
 
         return SignalStats(stats, **metadata)
 
@@ -235,7 +245,7 @@ def validate(bedfilename, genomedatadir, dirpath, clobber=False,
              quick=False, replot=False, noplot=False, verbose=True,
              mnemonic_file=None, create_mnemonics=False,
              inputdirs=None, chroms=None, ropts=None,
-             label_order_file=None, track_order_file=None):
+             label_order_file=None, track_order_file=None, transformation=None):
 
     if not replot:
         setup_directory(dirpath)
@@ -256,7 +266,7 @@ def validate(bedfilename, genomedatadir, dirpath, clobber=False,
         stats = SignalStats.from_file(dirpath, verbose=verbose)
     else:
         # Calculate stats over segmentation
-        stats = SignalStats.from_segmentation(genome, segmentation,
+        stats = SignalStats.from_segmentation(genome, segmentation, transformation=transformation,
                                               quick=quick, chroms=chroms,
                                               verbose=verbose)
 
@@ -304,6 +314,10 @@ def parse_options(args):
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "I/O options")
+    group.add_option("-t", "--transformation", action="store", metavar="TRANSFORMATION",
+                     dest="transformation", default=None,
+                     help="Applies the transformation on the data upon reading  from genomedata." 
+					 "The default is None, and currently only 'arcsinh' is implemented.")
     group.add_option("-c", "--chrom", action="append", metavar="CHROM",
                      dest="chroms", default=None,
                      help="Only perform the analysis on data in CHROM,"
