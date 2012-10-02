@@ -1,7 +1,3 @@
-1.1.11:
-  signal-distribution now gets a transformation as an option and apply it on data
-  A bug in signal-distribution is fixed that resulted in incorrect labeling. 
-
 1.1.10:
 
 * add "narrowPeak" as synonym format for "bed"
@@ -15,6 +11,9 @@
 * R transcripts: add #!/usr/bin/env Rscript at top
 * R transcripts now get source files using get_r_dirname()
 * move from use of reshape to reshape2
+* signal-distribution now gets a transformation as an option and apply it on data (Habil Zare)
+* A bug in signal-distribution is fixed that resulted in incorrect labeling. (Habil Zare)
+* support for Cairo (http://www.cairographics.org/) has been added for systems with the R Cairo package. Cairo does not require X11. (Jay Hesselberth & Paul Ellenbogen)
 
 1.1.9:
 * segtools-signal-distribution: cleaned up code and arguments to only support

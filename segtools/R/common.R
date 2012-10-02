@@ -3,6 +3,15 @@ library(lattice)
 library(RColorBrewer)
 library(latticeExtra)
 library(plyr)
+cairo.loaded <- require(Cairo, quietly=TRUE)
+
+if(cairo.loaded){
+  dev.pdf <- CairoPDF
+  dev.png <- CairoPNG
+} else {
+  dev.pdf <- pdf
+  dev.png <- png
+}
 
 # Set default theme
 lattice.options(default.theme = ".theme.dark2",
@@ -320,11 +329,33 @@ as.slide <- function(image) {
         par.settings = theme.slide())
 }
 
-print.image <- function(image, filepath, device, as.slide = FALSE, ...) {
+print.image <- function(image, filepath, device, make.thumb, make.pdf, as.slide = FALSE, ...) {
   ## create the filepath's parent directory, if it doesn't already exist
   dir.create(dirname(filepath), showWarnings=FALSE, recursive=TRUE)
 
-  device(filepath, ...)
+  # ... is put into a list so that it does not become a direct argument to c(),
+  # but is instead an argument to device in do.call(device, print.args) later
+  print.args <- c(filepath, useDingbats = NULL, dpi = NULL, list(...))
+  print(print.args)
+
+  # each device has it's own idiosyncrasy to adjust for, eg: Cairo is picky about dpi
+  if(cairo.loaded){
+    if(make.pdf){
+      print.args$dpi <- NULL
+    }
+    else if(make.thumb) {
+      print.args$dpi <- 10
+    }
+    else{
+      print.args$dpi <- "auto"
+    }
+  } else {
+    if(make.pdf){
+      print.args$useDingbats <- FALSE
+    }
+  }
+
+  do.call(device, print.args)
 
   if (as.slide) {
     plot(as.slide(image))
@@ -336,7 +367,7 @@ print.image <- function(image, filepath, device, as.slide = FALSE, ...) {
   filepath
 }
 
-save.plot <- function(image, basename, ext, dirname, device, ..., clobber = FALSE) {
+save.plot <- function(image, basename, ext, dirname, device, make.thumb = FALSE, make.pdf = FALSE, ..., clobber = FALSE) {
   filename.ext <- .extpaste(basename, ext)
   filepath <- file.path(dirname, filename.ext)
 
@@ -345,7 +376,7 @@ save.plot <- function(image, basename, ext, dirname, device, ..., clobber = FALS
               "Image will not be overwritten.",
               "Specify --clobber to overwrite."))
   } else {
-    tryCatch(print.image(image, filepath, device, ...),
+    tryCatch(print.image(image, filepath, device, make.thumb, make.pdf, ...),
              error = function(e) {
                cat(paste("Error creating image: ", filepath,
                          ". Error message: ", e$message, "\n", sep = ""))
@@ -359,8 +390,8 @@ dev.print.images <- function(basename, dirname, image,
                              width = 800, height = 800,
                              width.slide = 1280, height.slide = 1024,
                              width.pdf = 11, height.pdf = 8.5,
-                             device.png = png,
-                             device.pdf = pdf,
+                             device.png = dev.png,
+                             device.pdf = dev.pdf,
                              make.png = TRUE,
                              make.slide = TRUE,
                              make.pdf = TRUE,
@@ -388,7 +419,7 @@ dev.print.images <- function(basename, dirname, image,
     filename.pdf <-
       save.plot(image, basename, "pdf", dirname, device.pdf,
                  width = width.pdf, height = height.pdf,
-                 useDingbats = FALSE, as.slide = pdf.as.slide, ...,
+                 make.pdf = make.pdf, as.slide = pdf.as.slide, ...,
                  clobber = clobber)
   }
 
@@ -397,7 +428,7 @@ dev.print.images <- function(basename, dirname, image,
     filename.thumb <-
       suppressWarnings(
         save.plot(image, basename, "thumb.png", dirname, device.png,
-                   width = 10, height = 10,
+                   make.thumb = make.thumb, width = 10, height = 10,
                    units = "in", res = 10, ..., clobber = clobber))
   }
 }
