@@ -1,4 +1,6 @@
-This is the source for Segtools as an R package.
+This is the source for Segtools as an R package in its own right,
+rather than as R scripts called from Python/rpy2. The R scripts should
+be identical--R/segtools/R is just a symlink to segtools/R.
 
 Run ./build.sh to generate the package tarball.
 
