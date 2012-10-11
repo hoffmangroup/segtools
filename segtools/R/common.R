@@ -336,7 +336,6 @@ print.image <- function(image, filepath, device, make.thumb, make.pdf, as.slide 
   # ... is put into a list so that it does not become a direct argument to c(),
   # but is instead an argument to device in do.call(device, print.args) later
   print.args <- c(filepath, useDingbats = NULL, dpi = NULL, list(...))
-  print(print.args)
 
   # each device has it's own idiosyncrasy to adjust for, eg: Cairo is picky about dpi
   if(cairo.loaded){
