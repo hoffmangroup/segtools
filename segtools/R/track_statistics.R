@@ -544,7 +544,7 @@ levelplot.track.stats <-
            box.fill = NULL,
            symmetric = FALSE,  # Make mean range symmetric about 0
            x.rot = 90,
-           scales = list(x = list(rot = x.rot), cex = scale.cex),
+           scales = list(x = list(rot = x.rot), cex = scale.cex), # tck = c(1, 0)?
            panel = panel.track.stats,
            threshold = FALSE,
            use.sd = TRUE,
