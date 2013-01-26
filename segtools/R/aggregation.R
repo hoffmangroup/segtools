@@ -41,7 +41,7 @@ read.aggregation <- function(filename, mnemonics = NULL, ...,
 ## Generates pretty scales for the data.
 ## layout is a 2-element vector: c(num_rows, num_cols) for the xyplot
 ## num_panels is the number of panels/packets in the trellis
-panel.scales <- function(data, layout, num_panels, x.axis = FALSE,
+panel.scales.aggregation <- function(data, layout, num_panels, x.axis = FALSE,
                          significance = FALSE) {
   components <- levels(data$component)
   num_components <- length(components)
@@ -417,8 +417,8 @@ xyplot.aggregation <-
   between <- list(x = c(spaces.x, spacing.x),
                   y = spacing.y)
 
-  scales <- panel.scales(data, layout, num_panels, x.axis = x.axis,
-                         significance = significance)
+  scales <- panel.scales.aggregation(data, layout, num_panels, x.axis = x.axis,
+                                     significance = significance)
   axis.panel <- rep(c(0, 1), c(num_cols - 1, 1))
 
   ## Make top strips longer
