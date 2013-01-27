@@ -544,14 +544,15 @@ levelplot.track.stats <-
            box.fill = NULL,
            symmetric = FALSE,  # Make mean range symmetric about 0
            x.rot = 90,
-           scales = list(x = list(rot = x.rot), cex = scale.cex), # tck = c(1, 0)?
+           scales = list(x = list(rot = x.rot), cex = scale.cex), # how about `tck = c(1, 0)`?
            panel = panel.track.stats,
            threshold = FALSE,
            use.sd = TRUE,
            cov = FALSE,  # Use covariance
            legend = ddgram.legend(dd.row,  row.ord, dd.col,col.ord),
            colorkey.quantiles = c(0, 1),
-           colorkey = list(space = "left", at = colorkey.at),
+           colorkey.space = "left",
+           colorkey = list(space = colorkey.space, at = colorkey.at),
            color.levels = 100L,
            palette = colorRampPalette(rev(brewer.pal(11, "RdYlBu")),
                                       interpolate = "spline",
