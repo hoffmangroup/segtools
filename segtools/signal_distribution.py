@@ -9,7 +9,7 @@ distribution of signal values conditioned on segment labels.
 # A package-unique, descriptive module name used for filenames, etc
 MODULE="signal_distribution"
 
-__version__ = "$Revision$"
+__version__ = "$Revision: 9737 $"
 
 
 import os
@@ -49,8 +49,8 @@ class SignalStats(object):
         return self._metadata
 
     @staticmethod
-    def from_segmentation(genome, segmentation, chroms=None, transformation=None,
-                          quick=False, verbose=True):
+    def from_segmentation(genome, segmentation, chroms=None, tracks_subset=None,
+                          transformation=None, quick=False, verbose=True):
         """
         Computes a mean and variance for each track-label pair.
 
@@ -68,16 +68,19 @@ class SignalStats(object):
 
         labels = segmentation.labels
         tracks = genome.tracknames_continuous
-        # A dict from tracks to a range tuple
-        track_indices = dict(zip(tracks, range(len(tracks))))
+        if tracks_subset is None:
+            tracks_subset = tracks
 
-        if len(tracks) == 0:
+        # A dict mapping each track to it's array index.
+        track_indices = dict(zip(tracks, range(len(tracks_subset))))
+
+        if len(tracks) == 0 or len(tracks_subset) == 0:
             die("Trying to calculate histogram for no tracks")
 
         (sum_total, sum2_total, dp_total) = \
-            (zeros((len(tracks), len(labels)), dtype=float),
-             zeros((len(tracks), len(labels)), dtype=float),
-             zeros((len(tracks), len(labels)), dtype=int))
+            (zeros((len(tracks_subset), len(labels)), dtype=float),
+             zeros((len(tracks_subset), len(labels)), dtype=float),
+             zeros((len(tracks_subset), len(labels)), dtype=int))
         log("Generating signal distribution histograms", verbose)
 
         with genome:
@@ -93,14 +96,24 @@ class SignalStats(object):
                         segments = segmentation.chromosomes[chrom]
                     except KeyError:
                         continue
-                    progress = ProgressBar(len(segments) * len(tracks),
+                    progress = ProgressBar(len(segments) * len(tracks_subset),
                                            label="  %s: " % chrom)
 
-                for track_i, track in enumerate(tracks):
+                for track_i, track in enumerate(tracks_subset):
+                    """
+                    track_i is the index of the current item of the subset list
+                    of tracks (tracks_subset).
+
+                    col_index is the index into the genomedata archive, which
+                    contains a list of all the tracks.
+
+                    if tracks_subset == genome.tracknames_continuous
+                    then track_i == col_index (assuming the same ordering)
+                    """
                     col_index = chromosome.index_continuous(track)
-                    col_sum = sum_total[col_index]
-                    col_sum2 = sum2_total[col_index]
-                    col_dp = dp_total[col_index]
+                    col_sum = sum_total[track_i]
+                    col_sum2 = sum2_total[track_i]
+                    col_dp = dp_total[track_i] # data points???
                     # Iterate through supercontigs and segments together
                     for segment, seg_data in \
                             iter_segments_continuous(chromosome, segmentation,
@@ -109,7 +122,7 @@ class SignalStats(object):
                         seg_label = segment['key']
                         seg_data_nonan = seg_data[isfinite(seg_data)]
                         if transformation == "arcsinh":
-                        	seg_data_nonan = (seg_data_nonan)
+                        	seg_data_nonan = arcsinh(seg_data_nonan)
 
 
                         col_sum[seg_label] += seg_data_nonan.sum()
@@ -244,7 +257,7 @@ def read_order_file(filename):
 def validate(bedfilename, genomedatadir, dirpath, clobber=False,
              quick=False, replot=False, noplot=False, verbose=True,
              mnemonic_file=None, create_mnemonics=False,
-             inputdirs=None, chroms=None, ropts=None,
+             inputdirs=None, chroms=None, ropts=None, tracks_file=None,
              label_order_file=None, track_order_file=None, transformation=None):
 
     if not replot:
@@ -266,7 +279,15 @@ def validate(bedfilename, genomedatadir, dirpath, clobber=False,
         stats = SignalStats.from_file(dirpath, verbose=verbose)
     else:
         # Calculate stats over segmentation
-        stats = SignalStats.from_segmentation(genome, segmentation, transformation=transformation,
+        if tracks_file != None:
+            tracks_subset = read_order_file(tracks_file)
+        else:
+            # None here does not mean empty set,
+            # but that no subset was specified
+            tracks_subset = None 
+        stats = SignalStats.from_segmentation(genome, segmentation,
+                                              transformation=transformation,
+                                              tracks_subset=tracks_subset,
                                               quick=quick, chroms=chroms,
                                               verbose=verbose)
 
@@ -313,11 +334,19 @@ def parse_options(args):
                      " created and used for plotting")
     parser.add_option_group(group)
 
+    group = OptionGroup(parser, "Parameters")
+    group.add_option("-t", "--transformation", action="store",
+                     metavar="TRANSFORMATION", dest="transformation",
+                     default=None,
+                     help="Applies the transformation on the data upon reading"
+                     " from genomedata. The default is None, and currently only"
+                     " 'arcsinh' is implemented.")
+    group.add_option("--track", metavar="TRACK",
+                     dest="tracks_file", default=None, 
+                     help="Specifies a subset of tracks which to be analyzed.")
+    parser.add_option_group(group)
+
     group = OptionGroup(parser, "I/O options")
-    group.add_option("-t", "--transformation", action="store", metavar="TRANSFORMATION",
-                     dest="transformation", default=None,
-                     help="Applies the transformation on the data upon reading  from genomedata." 
-					 "The default is None, and currently only 'arcsinh' is implemented.")
     group.add_option("-c", "--chrom", action="append", metavar="CHROM",
                      dest="chroms", default=None,
                      help="Only perform the analysis on data in CHROM,"

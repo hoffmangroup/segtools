@@ -2,6 +2,11 @@ library(plyr)
 library(reshape2)
 library(cluster)
 
+## Often when using var[,,"index"] the code will include the option drop=false
+## to get something like var[,,"index"]. This is so that the dimensionality is
+## not lost.
+## See also: https://radfordneal.wordpress.com/2008/08/20/design-flaws-in-r-2-%E2%80%94-dropped-dimensions/
+
 COLNAMES <- c("label", "trackname", "mean", "sd")
 
 ## File should have fields: label, trackname, mean, sd, ...
@@ -292,7 +297,7 @@ normalize.track.stats <- function(stats, cov = FALSE, sd.scale = TRUE) {
   }
 
   ## Normalize mean
-  means <- stats[, , "mean"]
+  means <- stats[, , "mean", drop=FALSE]
   means.range <- t(apply(means, 1, range, finite = TRUE))
   means.min <- means.range[, 1]
   means.max <- means.range[, 2]
@@ -537,22 +542,22 @@ levelplot.track.stats <-
            track_order = list(),
            label_order = list(),
            hclust.label = length(label_order) == 0L,
-           hclust.track = length(track_order) == 0L,
+           # Don't cluster if an order is specified or if there is one track
+           hclust.track = (length(track_order) == 0L),
            clust.func = hclust,
            aspect = "fill",  # 'iso' for square boxes, 'fill' for rectangular
            sd.shape = "line",
            box.fill = NULL,
            symmetric = FALSE,  # Make mean range symmetric about 0
            x.rot = 90,
-           scales = list(x = list(rot = x.rot), cex = scale.cex), # how about `tck = c(1, 0)`?
+           scales = list(x = list(rot = x.rot), cex = scale.cex), # tck = c(1, 0)?
            panel = panel.track.stats,
            threshold = FALSE,
            use.sd = TRUE,
            cov = FALSE,  # Use covariance
            legend = ddgram.legend(dd.row,  row.ord, dd.col,col.ord),
            colorkey.quantiles = c(0, 1),
-           colorkey.space = "left",
-           colorkey = list(space = colorkey.space, at = colorkey.at),
+           colorkey = list(space = "left", at = colorkey.at),
            color.levels = 100L,
            palette = colorRampPalette(rev(brewer.pal(11, "RdYlBu")),
                                       interpolate = "spline",
@@ -560,6 +565,10 @@ levelplot.track.stats <-
            normalize = TRUE,
            ...)
 {
+  # We need to know if there is only one track so we can avoid trying to
+  # generate a dendogram in that case.
+  one.track <- nlevels(track.stats[,2,]) == 1L
+  
   track.stats <- maybe.as.array(track.stats)
 
   if (is.null(hierarchical)) {
@@ -571,8 +580,8 @@ levelplot.track.stats <-
   }
 
   stats.norm <- maybe.normalize(track.stats, normalize, cov)
-  means <- stats.norm[, , "mean"]
-  sds <- stats.norm[, , "sd"]
+  means <- stats.norm[, , "mean", drop=FALSE]
+  sds <- stats.norm[, , "sd", drop=FALSE]
 
   if (!any(is.finite(means))) {
     warning("No finite mean values found. Nothing to plot.")
@@ -600,6 +609,10 @@ levelplot.track.stats <-
     means <- means[,keep.cols]
     sds <- sds[,keep.cols]
   }
+
+  if (is.array(means)) { # occurs when one track is specified
+    means <- matrix(means)
+  }
   if (!is.matrix(means)) {
     stop("After removing non-finite values, there was not enough data to plot.")
   }
@@ -609,6 +622,8 @@ levelplot.track.stats <-
     sds[!is.finite(means)] <- 0
   }
 
+
+  
   stopifnot(length(colorkey.quantiles) == 2L)
   if (threshold || is.null(sds) || sd.shape == "line") {
     z.range <- quantile(nonfinite.omit(means), colorkey.quantiles)
@@ -635,14 +650,15 @@ levelplot.track.stats <-
   dd.col <- NULL
   row.ord <- 1L:nrow(means)
   col.ord <- 1L:ncol(means)
-  if (hclust.track) {
+
+  if (hclust.track && !one.track) {
     dd.row <- as.dendrogram(clust.func(dist(means)))
     row.ord <- order.dendrogram(dd.row)
   } else if (length(track_order) > 0L) {
     row.ord <- match(track_order, rownames(means))
     stopifnot(row.ord > 0L, length(row.ord) == nrow(means))
   }
-  if (hclust.label) {
+  if (hclust.label && !one.track) {
     dist.func <- if (hierarchical) hierarchical.dist else dist
     dd.col <- as.dendrogram(clust.func(dist.func(t(means))))
     col.ord <- order.dendrogram(dd.col)
@@ -651,11 +667,17 @@ levelplot.track.stats <-
     stopifnot(col.ord > 0L, length(col.ord) == ncol(means))
   }
   #par(oma = c(1, 1, 1, 1))  # Add a margin
-
+  print(row.ord)
+  print(col.ord)
+  print(sds)
+  print(dim(sds))
+  
   sds.ordered = NULL
   if (! is.null(sds)) {
     sds.ordered = t(sds[row.ord, col.ord])
   }
+
+ 
   levelplot(t(means[row.ord, col.ord, drop = FALSE]),
             sds = sds.ordered,
             aspect = aspect,
@@ -705,10 +727,11 @@ plot.track.stats <- function(filename, symmetric = FALSE, ...) {
 }
 
 is.binary <- function(track.stats) {
-  dim(track.stats[,, "mean"])[2L] == 2L
+  length(track.stats[,, "mean"]) == 2L
 }
 
 get.norm.func <- function(track.stats) {
+  
   if (is.binary(track.stats)) {
     normalize.binary.track.stats
   }
@@ -751,8 +774,9 @@ maybe.as.array <- function(track.stats) {
 }
 
 maybe.normalize <- function(track.stats, normalize, cov = FALSE) {
-  if (normalize)
+  if (normalize) {
     get.norm.func(track.stats)(track.stats, cov=cov)
+  }      
   else
     track.stats
 }
@@ -767,7 +791,9 @@ save.track.stats <-
                            translation = translations, ...)
 
   track.stats <- maybe.as.array(data$stats)
+ #  print(track.stats)
   stats.norm <- maybe.normalize(track.stats, normalize)
+  # print("after stats.norm")
   means.norm <- t(stats.norm[,,"mean"])
   write.csv(means.norm, file.path(dirpath, paste(namebase, "csv", sep=".")))
 
