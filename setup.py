@@ -70,6 +70,7 @@ if __name__ == "__main__":
           long_description=long_description,
           install_requires=install_requires,
           extras_require=extras_require,
+          setup_requires=["hgtools"],
           zip_safe=False,  # For R files to source others, they can't be zip'd
           packages=find_packages("."),
           include_package_data=True,
