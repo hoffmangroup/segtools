@@ -613,6 +613,10 @@ levelplot.track.stats <-
   if (is.array(means)) { # occurs when one track is specified
     means <- matrix(means)
   }
+  if(is.array(sds)) {
+    sds <- matrix(sds)
+  }
+
   if (!is.matrix(means)) {
     stop("After removing non-finite values, there was not enough data to plot.")
   }
@@ -623,7 +627,6 @@ levelplot.track.stats <-
   }
 
 
-  
   stopifnot(length(colorkey.quantiles) == 2L)
   if (threshold || is.null(sds) || sd.shape == "line") {
     z.range <- quantile(nonfinite.omit(means), colorkey.quantiles)
@@ -644,6 +647,7 @@ levelplot.track.stats <-
     seq(from = z.range[1L], to = z.max, length = color.levels + 1L)
   else
     c(seq(from = z.range[1L], to = z.range[2L], length = color.levels), z.max)
+
 
   # Set up dendrogram
   dd.row <- NULL
@@ -667,17 +671,13 @@ levelplot.track.stats <-
     stopifnot(col.ord > 0L, length(col.ord) == ncol(means))
   }
   #par(oma = c(1, 1, 1, 1))  # Add a margin
-  print(row.ord)
-  print(col.ord)
-  print(sds)
-  print(dim(sds))
   
   sds.ordered = NULL
   if (! is.null(sds)) {
     sds.ordered = t(sds[row.ord, col.ord])
   }
 
- 
+  print(t(means[row.ord, col.ord, drop = FALSE]))
   levelplot(t(means[row.ord, col.ord, drop = FALSE]),
             sds = sds.ordered,
             aspect = aspect,
