@@ -297,14 +297,20 @@ normalize.track.stats <- function(stats, cov = FALSE, sd.scale = TRUE) {
   }
 
   ## Normalize mean
-  means <- stats[, , "mean", drop=FALSE]
+  # We must select in this manner in order to prevent the track name being
+  # dropped in the case that there is only one track specified
+  means.undropped <- stats[,,"mean", drop = FALSE]
+  means <- matrix(means.undropped, nrow(means.undropped), ncol(means.undropped),
+                  dimnames = dimnames(means.undropped)[1:2])
   means.range <- t(apply(means, 1, range, finite = TRUE))
   means.min <- means.range[, 1]
   means.max <- means.range[, 2]
   stats[, , "mean"] <- (means - means.min) / (means.max - means.min)
 
   if ("sd" %in% dimnames(stats)[[3]]) {
-    sds <- stats[, , "sd"]
+    sds.undropped <- stats[, , "sd", drop=FALSE]
+    sds <- matrix(sds.undropped, nrow(sds.undropped), ncol(sds.undropped),
+                  dimnames = dimnames(sds.undropped)[1:2])
     if (cov) {  # Make sd into coefficient of variation (capped at 1)
       sds <- sds / rowMeans(means, na.rm = TRUE)
       sds[sds > 1] <- 1
@@ -580,8 +586,12 @@ levelplot.track.stats <-
   }
 
   stats.norm <- maybe.normalize(track.stats, normalize, cov)
-  means <- stats.norm[, , "mean", drop=FALSE]
-  sds <- stats.norm[, , "sd", drop=FALSE]
+  means.undropped <- stats.norm[,,"mean", drop = FALSE]
+  means <- matrix(means.undropped, nrow(means.undropped), ncol(means.undropped),
+                  dimnames = dimnames(means.undropped)[1:2])
+  sds.undropped <- stats.norm[, , "sd", drop=FALSE]
+  sds <- matrix(sds.undropped, nrow(sds.undropped), ncol(sds.undropped),
+                  dimnames = dimnames(sds.undropped)[1:2])
 
   if (!any(is.finite(means))) {
     warning("No finite mean values found. Nothing to plot.")
@@ -608,13 +618,6 @@ levelplot.track.stats <-
     warning("Ignoring labels without any finite mean values")
     means <- means[,keep.cols]
     sds <- sds[,keep.cols]
-  }
-
-  if (is.array(means)) { # occurs when one track is specified
-    means <- matrix(means)
-  }
-  if(is.array(sds)) {
-    sds <- matrix(sds)
   }
 
   if (!is.matrix(means)) {
@@ -677,7 +680,6 @@ levelplot.track.stats <-
     sds.ordered = t(sds[row.ord, col.ord])
   }
 
-  print(t(means[row.ord, col.ord, drop = FALSE]))
   levelplot(t(means[row.ord, col.ord, drop = FALSE]),
             sds = sds.ordered,
             aspect = aspect,
@@ -791,9 +793,7 @@ save.track.stats <-
                            translation = translations, ...)
 
   track.stats <- maybe.as.array(data$stats)
- #  print(track.stats)
   stats.norm <- maybe.normalize(track.stats, normalize)
-  # print("after stats.norm")
   means.norm <- t(stats.norm[,,"mean"])
   write.csv(means.norm, file.path(dirpath, paste(namebase, "csv", sep=".")))
 
