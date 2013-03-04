@@ -71,16 +71,18 @@ class SignalStats(object):
         if tracks_subset is None:
             tracks_subset = tracks
 
-        # A dict mapping each track to it's array index.
+        if len(tracks) == 0:
+            die("No tracks found in archive.")
+        elif len(tracks_subset):
+            die("Empty set of archive tracks specified.")
+
+        sum_total = zeros((len(tracks_subset), len(labels)), dtype=float)
+        sum2_total = zeros((len(tracks_subset), len(labels)), dtype=float)
+        dp_total = zeros((len(tracks_subset), len(labels)), dtype=int)
+
+        # A dict mapping each track to it's (*_total) array index in.
         track_indices = dict(zip(tracks, range(len(tracks_subset))))
 
-        if len(tracks) == 0 or len(tracks_subset) == 0:
-            die("Trying to calculate histogram for no tracks")
-
-        (sum_total, sum2_total, dp_total) = \
-            (zeros((len(tracks_subset), len(labels)), dtype=float),
-             zeros((len(tracks_subset), len(labels)), dtype=float),
-             zeros((len(tracks_subset), len(labels)), dtype=int))
         log("Generating signal distribution histograms", verbose)
 
         with genome:
@@ -104,8 +106,8 @@ class SignalStats(object):
                     track_i is the index of the current item of the subset list
                     of tracks (tracks_subset).
 
-                    col_index is the index into the genomedata archive, which
-                    contains a list of all the tracks.
+                    col_index is the index into the column of the genomedata
+                    archive for track.
 
                     if tracks_subset == genome.tracknames_continuous
                     then track_i == col_index (assuming the same ordering)
@@ -113,7 +115,7 @@ class SignalStats(object):
                     col_index = chromosome.index_continuous(track)
                     col_sum = sum_total[track_i]
                     col_sum2 = sum2_total[track_i]
-                    col_dp = dp_total[track_i] # data points???
+                    col_dp = dp_total[track_i]
                     # Iterate through supercontigs and segments together
                     for segment, seg_data in \
                             iter_segments_continuous(chromosome, segmentation,
@@ -135,6 +137,7 @@ class SignalStats(object):
                 if quick: break  # 1 chromosome
 
         means = sum_total / dp_total
+        # TODO: This is calculating variance. Do we want standard deviation?
         sds = (sum2_total - (square(sum_total) / dp_total))/(dp_total - 1)
 
         stats = defaultdict(partial(defaultdict, dict))
@@ -353,12 +356,11 @@ def parse_options(args):
                      " where CHROM is a chromosome name such as chr21 or"
                      " chrX (option can be used multiple times to allow"
                      " multiple chromosomes)")
-    group.add_option("--order-tracks", dest="track_order_file",
+    group.add_option("--tracks", dest="track_file",
                      default=None, metavar="FILE",
-                     help="If specified, tracks will be displayed"
-                     " in the order in FILE. FILE must be a permutation"
-                     " of all the printed tracks, one per line, exact"
-                     " matches only.")
+                     help="Measure signal distribution against subset of"
+                     " tracks listed in FILE. Tracks will be displayed"
+                     " in the order in FILE.")
     group.add_option("--order-labels", dest="label_order_file",
                      default=None, metavar="FILE",
                      help="If specified, label will be displayed"
