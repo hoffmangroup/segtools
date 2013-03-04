@@ -1,0 +1,4 @@
+build/
+segtools.egg-info/
+.pyc
+.egg
