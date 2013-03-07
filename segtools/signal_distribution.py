@@ -18,7 +18,7 @@ import sys
 from collections import defaultdict
 from genomedata import Genome
 from functools import partial
-from numpy import arcsinh, isfinite, square, zeros
+from numpy import arcsinh, isfinite, square, zeros, sqrt
 
 from . import log, Segmentation, die, RInterface, add_common_options, \
      open_transcript, ProgressBar
@@ -122,7 +122,7 @@ class SignalStats(object):
                 if quick: break  # 1 chromosome
 
         means = sum_total / dp_total
-        sds = (sum2_total - (square(sum_total) / dp_total))/(dp_total - 1)
+        sds = sqrt((sum2_total - (square(sum_total) / dp_total))/(dp_total - 1))
 
         stats = defaultdict(partial(defaultdict, dict))
         for label in labels:
