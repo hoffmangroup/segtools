@@ -73,15 +73,15 @@ class SignalStats(object):
 
         if len(tracks) == 0:
             die("No tracks found in archive.")
-        elif len(tracks_subset):
+        elif len(tracks_subset) < 1:
             die("Empty set of archive tracks specified.")
 
         sum_total = zeros((len(tracks_subset), len(labels)), dtype=float)
         sum2_total = zeros((len(tracks_subset), len(labels)), dtype=float)
         dp_total = zeros((len(tracks_subset), len(labels)), dtype=int)
 
-        # A dict mapping each track to it's (*_total) array index in.
-        track_indices = dict(zip(tracks, range(len(tracks_subset))))
+        # A dict mapping each track to its (*_total) array index.
+        track_indices = dict(zip(tracks_subset, range(len(tracks_subset))))
 
         log("Generating signal distribution histograms", verbose)
 
@@ -344,9 +344,6 @@ def parse_options(args):
                      help="Applies the transformation on the data upon reading"
                      " from genomedata. The default is None, and currently only"
                      " 'arcsinh' is implemented.")
-    group.add_option("--track", metavar="TRACK",
-                     dest="tracks_file", default=None, 
-                     help="Specifies a subset of tracks which to be analyzed.")
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "I/O options")
@@ -356,7 +353,7 @@ def parse_options(args):
                      " where CHROM is a chromosome name such as chr21 or"
                      " chrX (option can be used multiple times to allow"
                      " multiple chromosomes)")
-    group.add_option("--tracks", dest="track_file",
+    group.add_option("--tracks", dest="tracks_file",
                      default=None, metavar="FILE",
                      help="Measure signal distribution against subset of"
                      " tracks listed in FILE. Tracks will be displayed"
