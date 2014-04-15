@@ -18,7 +18,7 @@ import sys
 from collections import defaultdict
 from genomedata import Genome
 from functools import partial
-from numpy import arcsinh, isfinite, square, zeros, sqrt
+from numpy import arcsinh, isfinite, isnan, longdouble, sqrt, square, zeros
 
 from . import log, Segmentation, die, RInterface, add_common_options, \
      open_transcript, ProgressBar
@@ -75,8 +75,8 @@ class SignalStats(object):
             die("Trying to calculate histogram for no tracks")
 
         (sum_total, sum2_total, dp_total) = \
-            (zeros((len(tracks), len(labels)), dtype=float),
-             zeros((len(tracks), len(labels)), dtype=float),
+            (zeros((len(tracks), len(labels)), dtype=longdouble),
+             zeros((len(tracks), len(labels)), dtype=longdouble),
              zeros((len(tracks), len(labels)), dtype=int))
         log("Generating signal distribution histograms", verbose)
 
@@ -109,11 +109,11 @@ class SignalStats(object):
                         seg_label = segment['key']
                         seg_data_nonan = seg_data[isfinite(seg_data)]
                         if transformation == "arcsinh":
-                        	seg_data_nonan = (seg_data_nonan)
+                            seg_data_nonan = (seg_data_nonan)
 
 
-                        col_sum[seg_label] += seg_data_nonan.sum()
-                        col_sum2[seg_label] += square(seg_data_nonan).sum()
+                        col_sum[seg_label] += seg_data_nonan.sum(dtype=longdouble)
+                        col_sum2[seg_label] += square(seg_data_nonan).sum(dtype=longdouble)
                         col_dp[seg_label] += seg_data_nonan.shape[0]
                         if verbose:
                             progress.next()
@@ -135,7 +135,7 @@ class SignalStats(object):
                 # user output.
                 segmentfile_defined_label = labels[label]
                 cur_stat = stats[segmentfile_defined_label][trackname]
-                cur_stat["sd"] = sds[track_index, label] 
+                cur_stat["sd"] = sds[track_index, label]
                 cur_stat["mean"] = means[track_index, label]
                 cur_stat["n"] = dp_total[track_index, label]
 
@@ -150,7 +150,7 @@ class SignalStats(object):
             for row in reader:
                 label = row.pop('label')
                 trackname = row.pop('trackname')
-                stats[label][trackname] = row 
+                stats[label][trackname] = row
 
         return SignalStats(stats, **metadata)
 
@@ -316,7 +316,7 @@ def parse_options(args):
     group = OptionGroup(parser, "I/O options")
     group.add_option("-t", "--transformation", action="store", metavar="TRANSFORMATION",
                      dest="transformation", default=None,
-                     help="Applies the transformation on the data upon reading  from genomedata." 
+                     help="Applies the transformation on the data upon reading  from genomedata."
 					 "The default is None, and currently only 'arcsinh' is implemented.")
     group.add_option("-c", "--chrom", action="append", metavar="CHROM",
                      dest="chroms", default=None,
