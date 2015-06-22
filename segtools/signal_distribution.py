@@ -109,7 +109,7 @@ class SignalStats(object):
                         seg_label = segment['key']
                         seg_data_nonan = seg_data[isfinite(seg_data)]
                         if transformation == "arcsinh":
-                            seg_data_nonan = (seg_data_nonan)
+                            seg_data_nonan = arcsinh((seg_data_nonan))
 
 
                         col_sum[seg_label] += seg_data_nonan.sum(dtype=longdouble)
