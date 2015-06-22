@@ -481,7 +481,7 @@ In these cases, the :option:`--normalize` flag should be used.
    .. math:: enrichment(l, p) = \log_2 \dfrac{f_{obs} + 1}{f_{rand} + 1}
 
    where :math:`f_{obs}` is the observed overlap frequency and
-   :math:`f_{obs}` is the overlap frequency expected at random,
+   :math:`f_{rand}` is the overlap frequency expected at random,
    defined by:
 
    .. math::
