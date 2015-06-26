@@ -3,6 +3,8 @@ library(reshape2)
 library(cluster)
 
 COLNAMES <- c("label", "trackname", "mean", "sd")
+BASE_PLOT_WIDTH <- 450
+BASE_PLOT_HEIGHT <- 200
 
 ## File should have fields: label, trackname, mean, sd, ...
 read.track.stats <- function(filename, mnemonics = NULL,
@@ -720,17 +722,29 @@ get.norm.func <- function(track.stats) {
 save.track.stats.data <-
   function(data, dirpath, namebase, symmetric = FALSE, clobber = FALSE,
            square.size = 15,  # px
-           width = 450 + square.size * nlabels,
-           height = 200 + square.size * ntracks,
-           width.pdf = width / 72, height.pdf = height / 72, ...)
+           width = NULL,
+           height = NULL,
+           width.pdf = NULL, height.pdf = NULL, ...)
 {
   ntracks <- nlevels(data$stats$trackname)
   nlabels <- nlevels(data$stats$label)
   square.size <- as.numeric(square.size)
-  width <- as.integer(width)
-  height <- as.integer(height)
-  width.pdf <- as.numeric(width.pdf)
-  height.pdf <- as.numeric(height.pdf)
+
+  if (is.null(width)) {
+      width <- as.integer(BASE_PLOT_WIDTH + square.size * nlabels)
+  }
+
+  if (is.null(height)) {
+      height <- as.integer(BASE_PLOT_HEIGHT + square.size * ntracks)
+  }
+
+  if (is.null(width.pdf)) {
+      width.pdf <- as.numeric(width / 72)
+  }
+  
+  if (is.null(height.pdf)) {
+      height.pdf <- as.numeric(height / 72)
+  }
 
   levelplot.track.stats(data, symmetric = symmetric, ...)
   save.plots(dirpath, namebase,
