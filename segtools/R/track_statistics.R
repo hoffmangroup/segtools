@@ -555,7 +555,7 @@ levelplot.track.stats <-
            colorkey.quantiles = c(0, 1),
            colorkey.space = "left",
            colorkey = list(space = colorkey.space, at = colorkey.at,
-                           labels=list(at=c(0, 1.0), labels=c("Min", "Max"))),
+                           labels=list(at=c(0, 1.0), labels=c("Row min", "Row max"))),
            color.levels = 100L,
            palette = colorRampPalette(rev(brewer.pal(11, "RdYlBu")),
                                       interpolate = "spline",
