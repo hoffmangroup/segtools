@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 from __future__ import division
 
-__version__ = "$Revision$"
-
 # Copyright 2008 Michael M. Hoffman <mmh1@washington.edu>
 
 import sys

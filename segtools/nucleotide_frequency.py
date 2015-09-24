@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 from __future__ import division, with_statement
 
-__version__ = "$Revision$"
-
 """
 Provides command-line and package entry points for analyzing nucleotide
 and dinucleotide frequencies for each label in the segmentation or annotation
@@ -24,6 +22,7 @@ from . import log, Annotation, die, RInterface, open_transcript, \
 from .common import make_tabfilename, setup_directory, tab_saver
 
 from .html import save_html_div
+from .version import __version__
 
 # A package-unique, descriptive module name used for filenames, etc
 # Must be the same as the folder containing this script

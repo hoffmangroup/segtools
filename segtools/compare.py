@@ -6,11 +6,10 @@ Compare two segmentations
 
 from __future__ import division, with_statement
 
-__version__ = "$Revision$"
-
 import sys
 
 from . import log, Segmentation, add_common_options
+from .version import __version__
 
 def bases_in_segments(segments):
     """Return the number of bases in a segment array"""

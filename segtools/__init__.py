@@ -6,7 +6,6 @@ from __future__ import division, with_statement
 Copyright 2011, 2012: Michael Hoffman <mmh1@uw.edu>
 Copyright 2009: Orion Buske <stasis@uw.edu>
 """
-__version__ = "$Revision$"
 
 import os
 import re
@@ -23,6 +22,8 @@ from pkg_resources import resource_filename
 
 from .bed import read_native as read_bed
 from .gff import read_native as read_gff
+
+from .version import __version__
 
 try:
     PKG = __package__  # Python 2.6

@@ -12,13 +12,12 @@ Outputs the new segmentation in bed format to stdout (-o to change).
 
 from __future__ import division, with_statement
 
-__version__ = "$Revision$"
-
 import os
 import sys
 
 from . import log, Segmentation, die, add_common_options
 from .common import map_mnemonics, get_ordered_labels
+from .version import __version__
 
 class StrandUnknown(str):
     """sentinel object that converts to '.'"""

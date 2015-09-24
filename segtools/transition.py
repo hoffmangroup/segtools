@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 from __future__ import division, with_statement
 
-__version__ = "$Revision$"
-
 """
 Provides command-line and package entry points for analyzing the observed
 segmentation label transitions in the given BED-formatted segmentation.
@@ -41,6 +39,7 @@ from .common import check_clobber, get_ordered_labels, make_dotfilename, \
      make_tabfilename, map_mnemonics, setup_directory, tab_saver
 from .html import save_html_div
 from .mnemonics import create_mnemonic_file
+from .version import __version__
 
 NAMEBASE = "%s" % MODULE
 NAMEBASE_SUMMARY = make_namebase_summary(NAMEBASE)

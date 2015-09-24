@@ -13,8 +13,6 @@ by specifying --stranded.
 
 from __future__ import division, with_statement
 
-__version__ = "$Revision$"
-
 
 import os
 import sys
@@ -27,6 +25,7 @@ from . import Annotation, log, Segmentation, RInterface, open_transcript, \
 from .common import FeatureScanner, die, make_tabfilename, \
      setup_directory, tab_saver
 from .html import save_html_div
+from .version import __version__
 
 MODULE = "feature_distance"
 NAMEBASE = MODULE

@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 from __future__ import division, with_statement
 
-__version__ = "$Revision$"
-
 """
 Evaluates the overlap between two BED files, based upon the spec at:
 http://encodewiki.ucsc.edu/EncodeDCC/index.php/Overlap_analysis_tool_specification
@@ -23,6 +21,7 @@ from . import Annotation, log, open_transcript, Segmentation, RInterface, \
 from .common import check_clobber, die, get_ordered_labels, make_tabfilename, \
      setup_directory, SUFFIX_GZ, tab_saver
 from .html import save_html_div
+from .version import __version__
 
 # A package-unique, descriptive module name used for filenames, etc
 MODULE = "overlap"

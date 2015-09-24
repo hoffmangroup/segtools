@@ -14,8 +14,6 @@ as provided by exporting UCSC gene data in GTF format.
 # A package-unique, descriptive module name used for filenames, etc
 MODULE="feature_aggregation"
 
-__version__ = "$Revision$"
-
 import os
 import sys
 
@@ -29,6 +27,7 @@ from . import (Annotation, log, Segmentation, DTYPE_SEGMENT_START,
 from .common import (fill_array, get_ordered_labels, make_tabfilename,
                      map_segment_label, setup_directory, tab_saver)
 from .html import save_html_div
+from .version import __version__
 
 NAMEBASE = "%s" % MODULE
 NAMEBASE_SPLICING=os.extsep.join([NAMEBASE, "splicing"])

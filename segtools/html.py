@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 from __future__ import division, with_statement
 
-__version__ = "$Revision$"
-
 """
 html.py
 
@@ -23,6 +21,7 @@ from . import log, Segmentation, die, add_common_options
 from .common import check_clobber, get_ordered_labels, make_divfilename, \
      make_id, make_filename, make_tabfilename, map_mnemonics, NICE_EXTS, \
      PKG_RESOURCE
+from .version import __version__
 
 MNEMONIC_TEMPLATE_FILENAME = "mnemonic_div.tmpl"
 HEADER_TEMPLATE_FILENAME = "html_header.tmpl"

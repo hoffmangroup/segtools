@@ -4,8 +4,6 @@ from __future__ import division
 """gethelp.py: get help from a command-line script
 """
 
-__version__ = "$Revision$"
-
 ## Copyright 2011 Michael M. Hoffman <mmh1@uw.edu>
 
 from ConfigParser import RawConfigParser
@@ -14,6 +12,7 @@ import sys
 
 sys.path.insert(0, "..")
 from setup import entry_points
+from segtools.version import __version__
 
 def gethelp(scriptname):
     config = RawConfigParser()

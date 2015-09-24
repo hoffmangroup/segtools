@@ -6,8 +6,6 @@ gmtk_parameters.py
 
 from __future__ import division, with_statement
 
-__version__ = "$Revision$"
-
 # A package-unique, descriptive module name used for filenames, etc
 # Must be the same as the folder containing this script
 MODULE = "gmtk_parameters"
@@ -23,6 +21,7 @@ from .html import save_html_div
 from .transition import save_plot, save_graph
 from .mnemonics import create_mnemonic_file
 from .signal_distribution import SignalStats
+from .version import __version__
 
 NAMEBASE = "%s" % MODULE
 NAMEBASE_GRAPH = os.extsep.join([NAMEBASE, "graph"])

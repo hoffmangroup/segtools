@@ -11,8 +11,6 @@ length distribution of entries in a provided segmentation or annotation file.
 # Must be the same as the folder containing this script
 MODULE="length_distribution"
 
-__version__ = "$Revision$"
-
 import os
 import sys
 
@@ -25,6 +23,7 @@ from .common import get_ordered_labels, LABEL_ALL, make_tabfilename, \
      setup_directory, tab_saver
 
 from .html import save_html_div
+from .version import __version__
 
 FIELDNAMES_SUMMARY = ["label", "num.segs", "mean.len", "median.len",
                      "stdev.len", "num.bp", "frac.bp"]

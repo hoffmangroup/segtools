@@ -14,11 +14,10 @@ it in much faster (but be sure to keep the ".pkl" extension intact)!
 
 from __future__ import division, with_statement
 
-__version__ = "$Revision$"
-
 import sys
 
 from . import Annotation, Segmentation, add_common_options, log
+from .version import __version__
 
 def preprocess(infilename, outfilename=None, annotation=False, verbose=False, clobber=False):
     if annotation:

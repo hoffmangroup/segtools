@@ -1,7 +1,5 @@
 from __future__ import division, with_statement
 
-__version__ = "$Revision$"
-
 """
 Assorted utility functions and classes common or useful to most of Segtools.
 
@@ -12,7 +10,6 @@ Author: Orion Buske <stasis@uw.edu>
 # XXX: the things in here should be moved to __init__; test
 
 import os
-import sys
 
 from contextlib import closing, contextmanager
 from functools import partial

@@ -14,14 +14,13 @@ that describes the generated labels (use -m to change).
 
 from __future__ import division, with_statement
 
-__version__ = "$Revision$"
-
 import os
 import sys
 
 from numpy import concatenate
 
 from . import log, Segmentation, die, add_common_options
+from .version import __version__
 
 DEFAULT_HELPFILE = "flat.mnemonics"
 
