@@ -434,18 +434,6 @@ def print_bed_from_gene_component(features, component="terminal exon"):
                                                      feature["end"],
                                                      feature["name"])
 
-def calc_bin_starts(start, end, num_bins):
-    """Calculate internal bin locations"""
-    if num_bins <= 0:
-        return array([], dtype="int")
-
-    # linspace: Return evenly spaced numbers over a specified interval.
-    # endpoint=False
-    bin_starts_unrounded = linspace(start, end, num_bins, False)
-
-    res = empty(bin_starts_unrounded.shape, dtype="int")
-    round(bin_starts_unrounded, out=res)
-    return res
 
 def calc_feature_windows(feature, labels, mode, component_bins):
     """Calculate where the bin windows for this feature begin; Spread
@@ -500,7 +488,13 @@ def calc_feature_windows(feature, labels, mode, component_bins):
         #    (num_internal_bins, component, length)
         num_internal_bins = 0
 
-    internal_bins = calc_bin_starts(start, end, num_internal_bins)
+    # force the number of bins to 0 if it is negative
+    # XXX: I am not sure this is needed, why would
+    # the number of bins be negative?
+    num_bins = max(num_internal_bins, 0)
+
+    # calculate internal bin locations
+    internal_bins = linspace(start, end, num_bins, False).astype(int)
 
     # Calculate flanking base locations
     # XXX: what happens when the flanking regions are off the chromosome?
