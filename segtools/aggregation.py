@@ -494,7 +494,7 @@ def calc_feature_windows(feature, labels, mode, component_bins):
     num_bins = max(num_internal_bins, 0)
 
     # calculate internal bin locations
-    internal_bins = linspace(start, end, num_bins, False).astype(int)
+    internal_bins = linspace(start, end, num_bins, endpoint=False, dtype=int)
 
     # Calculate flanking base locations
     # XXX: what happens when the flanking regions are off the chromosome?
