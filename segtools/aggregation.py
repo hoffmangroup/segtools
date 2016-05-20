@@ -488,13 +488,10 @@ def calc_feature_windows(feature, labels, mode, component_bins):
         #    (num_internal_bins, component, length)
         num_internal_bins = 0
 
-    # force the number of bins to 0 if it is negative
-    # XXX: I am not sure this is needed, why would
-    # the number of bins be negative?
-    num_bins = max(num_internal_bins, 0)
+    assert num_internal_bins >= 0
 
     # calculate internal bin locations
-    unrounded_bins = linspace(start, end, num_bins, endpoint=False)
+    unrounded_bins = linspace(start, end, num_internal_bins, endpoint=False)
     internal_bins = round(unrounded_bins).astype(int)
 
     # Calculate flanking base locations
