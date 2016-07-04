@@ -125,7 +125,7 @@ class GeneAnnotation(Annotation):
         #   start is 0-indexed, end is non-inclusive (BED)
         gene_dict = defaultdict(partial(defaultdict, list))
         for row in self._iter_rows(filename, verbose=verbose):
-            if row['strand'] not in set(["+", "-"]):
+            if row['strand'] not in {"+", "-"}:
                 raise self.FormatError("ANNOTATION must specify a strand"
                                        " for every entry to aggregate with"
                                        " --mode=gene")
