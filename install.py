@@ -74,7 +74,8 @@ MIN_RPY2_VERSION = "2.1.3"
 R_URL = "http://cran.r-project.org/src/base/R-2/R-2.11.1.tar.gz"
 
 # List of R package pre-requisites
-R_PACKAGES = ["latticeExtra", "reshape"]
+R_PACKAGES = ["cluster", "plyr", "grDevices", "latticeExtra",
+              "reshape2", "lattice", "grid", "Cairo", "RColorBrewer"]
 
 # One command per line
 R_INSTALL_SCRIPT = """
