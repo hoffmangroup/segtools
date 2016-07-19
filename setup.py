@@ -57,7 +57,6 @@ install_requires = ["numpy>=1.3", "rpy2"]
 # XXX: add optional requirement for PyGraphviz
 extras_require = {'genomedata': "genomedata"}
 
-# install R packages
 class installRpackages(install):
     def run(self):
         import subprocess
@@ -67,7 +66,7 @@ class installRpackages(install):
             subprocess.call(command, shell=True)
             print "Required R packages were successfully installed."
         except:
-            print "Error installing R dependecies."
+            print "Error installing R packages."
         install.run(self)
 
 
