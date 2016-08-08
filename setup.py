@@ -53,7 +53,7 @@ segtools-transition = segtools.transition:main
 """
 #segtools = segtools.validate_all:main
 
-install_requires = ["numpy>=1.3", "rpy2"]
+install_requires = ["numpy>=1.3", "rpy2>=2.6.0"]
 # XXX: add optional requirement for PyGraphviz
 extras_require = {'genomedata': "genomedata"}
 
