@@ -392,11 +392,6 @@ xyplot.aggregation <-
   num_cols <- num_levels
   num_panels <- num_rows * num_cols
 
-  ## Rework layout to optimize organization
-  while (num_cols > num_rows) {
-    num_cols <- num_cols / 2
-    num_rows <- num_rows * 2
-  }
   num_cols <- ceiling(num_cols)
   layout <- c(num_rows, num_cols)
 
