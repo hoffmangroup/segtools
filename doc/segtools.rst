@@ -275,6 +275,7 @@ preprocess              preprocess
 relabel                 relabel
 signal-distribution     signal_distribution
 transition              transition
+gmtk-parameters         gmtk-parameters
 ======================  ====================
 
 
