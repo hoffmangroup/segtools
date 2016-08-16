@@ -522,14 +522,14 @@ class RInterface(object):
         else:
             r_console = lambda msg: r_log.append(str(msg))
 
-        self._rinterface.set_writeconsole(r_console)
+        self._rinterface.set_writeconsole_regular(r_console)
         try:
             result = self.call(func, *args, **kwargs)
         except self.RError:
             die("Encoundered error within R:\n%s" % "\n  ".join(r_log))
 
         # Return console back to stderr
-        self._rinterface.set_writeconsole(self._r_console)
+        self._rinterface.set_writeconsole_regular(self._r_console)
 
         log("Plotting completed in %.1f seconds" % (time() - start),
             self.verbose)
