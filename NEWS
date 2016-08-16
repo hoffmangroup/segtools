@@ -1,4 +1,5 @@
 1.1.11:
+* segtools-aggregation: fix bug: --mode gene option resulted in "ufunc 'rint' output (typecode 'd') could not be coerced to provided output parameter (typecode 'l') according to the casting rule ''same_kind''"
 * segtools-signal-distribution: Switched to using "longdouble" precision, in order to provide more accurate mean and variance estimates. (Max Libbrecht)
 
 1.1.10:
