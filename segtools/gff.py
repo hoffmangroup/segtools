@@ -39,8 +39,19 @@ class NativeDatum(Datum):
                     type, value = attribute.split(" ", 1)
                     self.attributes[type] = value.strip('"')  # Remove quotes
 
-                assert "gene_id" in self.attributes and \
-                    "transcript_id" in self.attributes
+                assert "gene_id" in self.attributes
+
+                # New gencode annotations rows (>=v24) with featuretype 'gene'
+                # no longer have a 'transcript_id' attribute. 
+                # Add the 'transcript_id' key to the attribute dict and set its
+                # value to the the value of 'gene_id' like it was in older
+                # gencode annotations.
+                if self.feature == "gene" and \
+                   "transcript_id" not in self.attributes:
+                   
+                    self.attributes["transcript_id"] = self.attributes["gene_id"]
+
+                assert "transcript_id" in self.attributes                 
 
             self._words = ((self.seqname, self.start, self.end)
                            + self._words[3:])
