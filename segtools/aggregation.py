@@ -125,13 +125,17 @@ class GeneAnnotation(Annotation):
         #   start is 0-indexed, end is non-inclusive (BED)
         gene_dict = defaultdict(partial(defaultdict, list))
         for row in self._iter_rows(filename, verbose=verbose):
-            if row['strand'] not in set(["+", "-"]):
+            if row['strand'] not in {"+", "-"}:
                 raise self.FormatError("ANNOTATION must specify a strand"
                                        " for every entry to aggregate with"
                                        " --mode=gene")
 
-            # Add feature to dict
-            gene_dict[row['gene_id']][row['transcript_id']].append(row)
+            # Skip GTF lines where the feature field == gene
+            # Prevent gene lines to be selected when
+            # calculating the longest transcript
+            if row['name'] != "gene":
+                # Add feature to dict
+                gene_dict[row['gene_id']][row['transcript_id']].append(row)
 
         log(" done", verbose)
         log("  Mapping onto gene model...", verbose, end="")
