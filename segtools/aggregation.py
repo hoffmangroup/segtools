@@ -130,8 +130,12 @@ class GeneAnnotation(Annotation):
                                        " for every entry to aggregate with"
                                        " --mode=gene")
 
-            # Add feature to dict
-            gene_dict[row['gene_id']][row['transcript_id']].append(row)
+            # Skip GTF lines where the feature field == gene
+            # Prevent gene lines to be selected when
+            # calculating the longest transcript
+            if row['name'] != "gene":
+                # Add feature to dict
+                gene_dict[row['gene_id']][row['transcript_id']].append(row)
 
         log(" done", verbose)
         log("  Mapping onto gene model...", verbose, end="")

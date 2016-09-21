@@ -1,4 +1,5 @@
 1.1.11:
+* segtools-aggregation: fix bug described in the Issue #44: Segtools aggregate in gene mode not necessarily pick the longest transcript. (Mickael Mendez)
 * replaced deprecated rpy2 calls to "set_writeconsole"
 * segtools-signal-distribution: Switched to using "longdouble" precision, in order to provide more accurate mean and variance estimates. (Max Libbrecht)
 
