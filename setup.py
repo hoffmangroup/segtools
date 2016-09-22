@@ -28,11 +28,18 @@ doclines = __doc__.splitlines()
 name, short_description = doclines[0].split(": ")
 long_description = "\n".join(doclines[2:])
 
-url = "http://noble.gs.washington.edu/proj/%s/" % name.lower()
+url = "http://pmgenomics.ca/hoffmanlab/proj/%s/" % name.lower()
 download_url = "%s%s-%s.tar.gz" % (url, name, __version__)
 
 classifiers = ["Natural Language :: English",
-               "Programming Language :: Python"]
+               "Development Status :: 5 - Production/Stable",
+               "Intended Audience :: Science/Research",
+               "License :: OSI Approved :: GNU General Public License v2 "
+               "(GPLv2)",
+               "Programming Language :: Python",
+               "Topic :: Scientific/Engineering :: Bio-Informatics",
+               "Operating System :: Unix",
+               "Programming Language :: Python :: 2.7"]
 
 entry_points = """
 [console_scripts]
@@ -61,7 +68,7 @@ if __name__ == "__main__":
           version=__version__,
           description=short_description,
           author="Michael Hoffman",
-          author_email="mmh1@uw.edu",
+          author_email="michael.hoffman@utoronto.ca",
           maintainer="Orion Buske",
           maintainer_email="stasis@uw.edu",
           url=url,
