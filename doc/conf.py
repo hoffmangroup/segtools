@@ -183,7 +183,7 @@ htmlhelp_basename = 'Segtoolsdoc'
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
   ('index', 'Segtools.tex', u'Segtools Documentation',
-   u'Orion J. Buske', 'manual'),
+   u'Michael Hoffman', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -216,5 +216,5 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'segtools', u'Segtools Documentation',
-     [u'Orion J. Buske'], 1)
+     [u'Michael Hoffman'], 1)
 ]
