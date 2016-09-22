@@ -1,12 +1,11 @@
 ================================
 Segtools |version| documentation
 ================================
-:Homepage: http://noble.gs.washington.edu/proj/segtools
-:Author: Orion Buske <stasis at uw dot edu>
-:Organization: University of Washington
-:Address: Department of Genome Sciences, PO Box 355065,
-          Seattle, WA 98195-5065, United States of America
-:Copyright: 2009-2012, Orion Buske; 2010-2012 Michael M. Hoffman
+:Homepage: http://pmgenomics.ca/hoffmanlab/proj/segtools
+:Author: Michael M. Hoffman <michael dot hoffman at utoronto dot ca>
+:Organization: Princess Margaret Cancer Centre
+:Address: Toronto Medical Discovery Tower 11-311, 101 College St, M5G 1L7, Toronto, Ontario, Canada
+:Copyright: 2009-2012, Orion Buske; 2010-2016 Michael M. Hoffman
 :Last updated: |today|
 
 .. currentmodule:: segtools
