@@ -34,7 +34,7 @@ Installation
 
 Segtools requires the following prerequisites:
 
-- Python 2.5.1-2.7, with Rpy2 2.1.3+
+- Python 2.7, with Rpy2 2.1.3+
 - Zlib
 - Numpy 1.3+
 - R 2.10.0+, with latticeExtra and reshape packages
@@ -43,20 +43,11 @@ Segtools requires the following prerequisites:
 Once these prerequisites are properly installed, Segtools can be
 installed with::
 
-  easy_install segtools
+  pip install segtools
 
 To use :ref:`segtools-signal-distribution <segtools-signal-distribution>`
 or :ref:`segtools-nucleotide-frequency <segtools-nucleotide-frequency>`,
 the Python packge, Genomedata, is also required.
-
-To help install these prerequisites and Segtools on any Linux platform,
-we developed a simple, interactive script_. To download and run the script::
-
-  wget http://noble.gs.washington.edu/proj/segtools/install.py
-  python install.py
-
-We are constantly trying to improve the installation script,
-so please let use know if you run into any trouble using it.
 
 Segmentations versus annotations
 ================================
@@ -890,14 +881,12 @@ this web page:
 
 .. _`BED4+ format`:
 .. _`BED format`: http://genome.ucsc.edu/FAQ/FAQformat#format1
-.. _script: http://noble.gs.washington.edu/proj/segtools/install.py
-
 .. _`GFF format`: http://genome.ucsc.edu/FAQ/FAQformat.html#format3
 
 .. _GTF:
 .. _`GTF format`: http://genome.ucsc.edu/FAQ/FAQformat.html#format4
-.. _Genomedata: http://noble.gs.washington.edu/proj/genomedata/
-.. _Segway: http://noble.gs.washington.edu/proj/segway/
+.. _Genomedata: 
+.. _Segway: https://www.pmgenomics.ca/hoffmanlab/proj/segway/ 
 .. _`UCSC Table Browser`: http://genome.ucsc.edu/cgi-bin/hgTables?command=start
 
 .. LocalWords:  Segtools Buske uw edu currentmodule segtools WS segmentations py
