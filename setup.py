@@ -19,9 +19,6 @@ import sys
 # relative imports
 assert sys.version_info >= (2, 5, 1)
 
-from ez_setup import use_setuptools
-use_setuptools()
-
 from setuptools import find_packages, setup
 
 doclines = __doc__.splitlines()
@@ -77,7 +74,6 @@ if __name__ == "__main__":
           long_description=long_description,
           install_requires=install_requires,
           extras_require=extras_require,
-          setup_requires=["hgtools"],
           zip_safe=False,  # For R files to source others, they can't be zip'd
           packages=find_packages("."),
           include_package_data=True,
