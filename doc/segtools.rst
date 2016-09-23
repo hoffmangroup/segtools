@@ -869,7 +869,7 @@ repeated inquiries.  You can subscribe here:
 If you want to **report a bug or request a feature**, please do so
 using our issue tracker:
 
-  http://code.google.com/p/segtools/issues
+  https://bitbucket.org/hoffmanlab/segtools/issues/
 
 If you do not want to read discussions about other people's use of
 Segtools, but would like to hear about new releases and other important
