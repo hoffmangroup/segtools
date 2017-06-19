@@ -14,7 +14,7 @@ import os
 import sys
 
 from collections import defaultdict
-from numpy import bincount, cast, iinfo, invert, logical_or, zeros
+from numpy import bincount, cast, iinfo, invert, logical_or, zeros, add
 
 from . import Annotation, log, open_transcript, Segmentation, RInterface, \
      add_common_options
@@ -109,8 +109,8 @@ def calc_overlap(subseg, qryseg, quick=False, clobber=False, mode=MODE_DEFAULT,
                 raise NotImplementedError("Unknown mode: %r" % mode)
 
             num_scores = key_scores.shape[0]
-            totals[0:num_scores] += key_scores
-            nones[0:num_scores] += key_scores
+            add(totals[0:num_scores], key_scores, out=totals[0:num_scores], casting="unsafe")
+            add(nones[0:num_scores], key_scores, out=nones[0:num_scores], casting="unsafe")
             continue
 
         # Track upper and lower bounds on range of segments that might
