@@ -344,7 +344,7 @@ segtools-transition
 
 .. program:: segtools-transition
 
-This command takes a segmentation and computes the frequencies all all
+This command takes a segmentation and computes the frequencies of all
 possible transitions between segment labels.
 
 :Visualization: A heatmap of transition frequencies between segment labels.
