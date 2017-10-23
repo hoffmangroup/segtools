@@ -79,7 +79,8 @@ if __name__ == "__main__":
           extras_require=extras_require,
           zip_safe=False,  # For R files to source others, they can't be zip'd
           packages=find_packages("."),
-          package_data={name: ['R/*']},
+          package_data={name: ['R/*',
+                               'resources/*']},
           include_package_data=True,
           entry_points=entry_points
           )
