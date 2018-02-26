@@ -103,8 +103,7 @@ def calc_overlap(subseg, qryseg, quick=False, clobber=False, mode=MODE_DEFAULT,
             elif mode == "bases":
                 # Weight each segment by its length
                 weights = segments['end'] - segments['start']
-                key_scores = bincount(segment_keys, weights=weights)
-                key_scores.astype("int")
+                key_scores = bincount(segment_keys, weights).astype("int")
             else:
                 raise NotImplementedError("Unknown mode: %r" % mode)
 
