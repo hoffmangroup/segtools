@@ -145,6 +145,10 @@ def print_distances(segmentation, annotation,
     if stranded:
         bin_distances.extend(["-Inf"] + range(-n_bins * bin_width, 0, bin_width))
 
+    count_len = n_bins * (stranded + 1) + 2 + stranded
+    assert count_len == len(bin_distances)
+    counts = zeros((len(labels), len(groups), count_len), dtype="int")
+
     log("Calulating distances...", verbose)
     start_time = time()
     for chrom in segment_data:
@@ -157,9 +161,6 @@ def print_distances(segmentation, annotation,
         log("  %s" % chrom, verbose)
         feature_scanner = FeatureScanner(features)
 
-        count_len = n_bins * (stranded + 1) + 2 + stranded
-        assert count_len == len(bin_distances)
-        counts = zeros((len(labels), len(groups), count_len), dtype="int")
         for segment in segments:
             nearest = feature_scanner.nearest(segment)
             distance = NaN
