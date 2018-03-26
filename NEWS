@@ -1,5 +1,5 @@
 1.1.12
-* segtools-feature-distance: prevent count table to be overwritten for each chromosomes
+* segtools-feature-distance: fix feature distance only counting last chromosome
 * segtools-overlap: fix type casting bug
 
 1.1.11:
