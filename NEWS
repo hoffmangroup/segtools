@@ -1,4 +1,4 @@
-1.1.12
+1.1.13:
 * segtools-feature-distance: fix feature distance only counting last chromosome
 * segtools-overlap: fix type casting bug
 
