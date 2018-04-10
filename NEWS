@@ -1,3 +1,7 @@
+1.1.14:
+* remove ez_setup from installation
+* remove setup information for data files requiring distutils and MANIFEST.in
+
 1.1.13:
 * segtools-feature-distance: fix feature distance only counting last chromosome
 * segtools-overlap: fix type casting bug
