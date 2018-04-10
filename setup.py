@@ -19,9 +19,6 @@ import sys
 # relative imports
 assert sys.version_info >= (2, 5, 1)
 
-from ez_setup import use_setuptools
-use_setuptools()
-
 from setuptools import find_packages, setup
 
 doclines = __doc__.splitlines()
@@ -79,8 +76,7 @@ if __name__ == "__main__":
           extras_require=extras_require,
           zip_safe=False,  # For R files to source others, they can't be zip'd
           packages=find_packages("."),
-          package_data={name: ['R/*',
-                               'resources/*']},
-          include_package_data=True,
+          package_data={name: ['R/*.R',
+                               'resources/*.tmpl']},
           entry_points=entry_points
           )
