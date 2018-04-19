@@ -1,5 +1,8 @@
 #!/usr/bin/env python
+from __future__ import absolute_import
 from __future__ import division, with_statement
+from __future__ import print_function
+import six
 
 """Segtools: tools for exploratory analysis of genomic segmentations
 
@@ -163,13 +166,13 @@ class Annotation(object):
                 yield row
 
     def _from_pickle(self, filename, verbose=True):
-        import cPickle
+        import six.moves.cPickle
         from .common import maybe_gzip_open
 
         log("  Unpickling %s" % self.__class__.__name__, verbose)
 
         with maybe_gzip_open(filename, 'rb') as ifp:
-            object = cPickle.load(ifp)
+            object = six.moves.cPickle.load(ifp)
             if not issubclass(object.__class__, self.__class__):
                 msg = ("Error: Cannot to load an indexed %s object"
                        " as an indexed %s object."
@@ -246,7 +249,7 @@ class Annotation(object):
             dtype.append(('strand', DTYPE_STRAND))
 
         chromosomes = dict((chrom, array(segments, dtype=dtype))
-                           for chrom, segments in data.iteritems())
+                           for chrom, segments in six.iteritems(data))
 
         # Sort segments within each chromosome
         if unsorted_chroms:
@@ -265,7 +268,7 @@ class Annotation(object):
 
     def pickle(self, filename=None, verbose=True, clobber=False):
         """Pickle the annotation into an output file"""
-        import cPickle
+        import six.moves.cPickle
         from .common import check_clobber, maybe_gzip_open
 
         if filename is None:
@@ -277,7 +280,7 @@ class Annotation(object):
         log("Pickling %s object to file: %s"
             % (self.__class__.__name__, filename), verbose)
         with maybe_gzip_open(filename, 'wb') as ofp:
-            cPickle.dump(self, ofp, -1)
+            six.moves.cPickle.dump(self, ofp, -1)
 
     def num_label_segments(self, label):
         return self._n_label_segments[str(label)]
@@ -343,7 +346,7 @@ class Segmentation(Annotation):
         """
         super(self.__class__, self)._from_file(filename, verbose=verbose)
 
-        for chrom, segments in self.chromosomes.iteritems():
+        for chrom, segments in six.iteritems(self.chromosomes):
             # Make sure there are no overlapping segments
             if segments.shape[0] > 1 and \
                     (segments['end'][:-1] > segments['start'][1:]).any():
@@ -429,11 +432,11 @@ class RInterface(object):
                 self.verbose)
 
             # write segtools.r.dirname code
-            print >>self._transcript, """segtools.r.dirname <-
-  system2("python",
-          c("-c", "'import segtools; print segtools.get_r_dirname()'"),
-          stdout = TRUE)"""
-            print >>self._transcript
+            print("""segtools.r.dirname <-
+            system2("python",
+            c("-c", "'import segtools; print segtools.get_r_dirname()'"),
+            stdout = TRUE)""", file=self._transcript)
+            print(file=self._transcript)
 
         # Source any R files
         for file in self._files:
@@ -445,8 +448,7 @@ class RInterface(object):
 
         filename_full = self._get_filename(filename)
         if self._transcript:
-            print >>self._transcript, \
-                "source(file.path(segtools.r.dirname, %r))" % filename
+            print("source(file.path(segtools.r.dirname, %r))" % filename, file=self._transcript)
 
         try:
             self._r.source(filename_full)
@@ -466,7 +468,7 @@ class RInterface(object):
 
     def dict_to_text(self, d):
         return ["%s = %s" % (key, self.arg_to_text(value))
-                for key, value in d.iteritems()]
+                for key, value in six.iteritems(d)]
 
     def call(self, func, *args, **kwargs):
         """Safer way to call R functions (without importing all that junk)
@@ -485,7 +487,7 @@ class RInterface(object):
             if arg is None:
                 args[arg_i] = ""
 
-        for key, val in kwargs.iteritems():
+        for key, val in six.iteritems(kwargs):
             if val is None:
                 kwargs[key] = ""
 
@@ -501,7 +503,7 @@ class RInterface(object):
             kwargs_text = self.dict_to_text(kwargs)
             all_args = ", ".join(args_text + kwargs_text)
 
-            print >>self._transcript, "%s(%s)" % (func, all_args)
+            print("%s(%s)" % (func, all_args), file=self._transcript)
 
         return self._r[func](*args, **kwargs)
         numpy2ri # was imported for side-effect
@@ -612,14 +614,14 @@ class ProgressBar(object):
 def open_transcript(dirpath, module, verified=False):
     filename = os.path.join(dirpath, os.extsep.join([module, EXT_R]))
     with open(filename, "w") as res:
-        print >>res, "#!/usr/bin/env Rscript"
-        print >>res, "## transcript produced by Segtools %s" % __version__
-        print >>res
+        print("#!/usr/bin/env Rscript", file=res)
+        print("## transcript produced by Segtools %s" % __version__, file=res)
+        print(file=res)
 
         if not verified:
-            print >>res, "## Experimental R transcript"
-            print >>res, "## You may not be able to run the R code in this file exactly as written."
-            print >>res
+            print("## Experimental R transcript", file=res)
+            print("## You may not be able to run the R code in this file exactly as written.", file=res)
+            print(file=res)
 
         yield res
 

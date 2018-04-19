@@ -1,5 +1,8 @@
 #!/usr/bin/env python
+from __future__ import absolute_import
 from __future__ import division, with_statement
+from __future__ import print_function
+import six
 
 """
 Provides command-line and package entry points for analyzing the
@@ -14,7 +17,13 @@ import os
 import sys
 
 from collections import defaultdict
-from genomedata import Genome
+
+# TODO Port Genomedata to Python 3
+try :
+    from genomedata import Genome
+except ImportError:
+    print("GENOMEDATA NOT AVAILABLE FOR PYTHON 3")
+
 from functools import partial
 from numpy import arcsinh, isfinite, isnan, longdouble, sqrt, square, zeros
 
@@ -125,7 +134,7 @@ class SignalStats(object):
 
         stats = defaultdict(partial(defaultdict, dict))
         for label in labels:
-            for trackname, track_index in track_indices.iteritems():
+            for trackname, track_index in six.iteritems(track_indices):
                 # cur_stat = stats[label][trackname]
                 # Paul:
                 # Use the name of the label name defined in the
@@ -159,8 +168,8 @@ class SignalStats(object):
         if self.data is None:
             self._data = o_stats.data
         else:
-            for label, label_stats in self._data.iteritems():
-                for trackname, track_stats in label_stats.iteritems():
+            for label, label_stats in six.iteritems(self._data):
+                for trackname, track_stats in six.iteritems(label_stats):
                     o_track_stats = o_stats.data[label][trackname]
                     n_1 = int(track_stats['n'])
                     n_2 = int(o_track_stats['n'])
@@ -182,8 +191,8 @@ class SignalStats(object):
                  namebase=NAMEBASE, fieldnames=FIELDNAMES):
         with tab_saver(dirpath, namebase, fieldnames, verbose=verbose,
                        clobber=clobber) as saver:
-            for label, label_stats in self._data.iteritems():
-                for trackname, track_stats in label_stats.iteritems():
+            for label, label_stats in six.iteritems(self._data):
+                for trackname, track_stats in six.iteritems(label_stats):
                     # assignments used for locals()
                     mean = track_stats["mean"]
                     sd = track_stats["sd"]
@@ -257,7 +266,7 @@ def validate(bedfilename, genomedatadir, dirpath, clobber=False,
         for inputdir in inputdirs:
             try:
                 sub_stats = SignalStats.from_file(inputdir, verbose=verbose)
-            except IOError, e:
+            except IOError as e:
                 log("Problem reading data from %s: %s" % (inputdir, e))
             else:
                 stats.add(sub_stats)

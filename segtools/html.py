@@ -1,5 +1,9 @@
 #!/usr/bin/env python
+from __future__ import absolute_import
 from __future__ import division, with_statement
+import six
+from six.moves import range
+from six.moves import zip
 
 """
 html.py
@@ -103,8 +107,8 @@ def tab2html(tabfile, header=True, mnemonicfile=None):
         rows = [line.split("\t") for line in lines]
         row_names = [row[0] for row in rows]
         # Make basic labels for row names
-        row_order = range(0, len(rows))
-        row_labels = dict(zip(row_order, row_names))
+        row_order = list(range(0, len(rows)))
+        row_labels = dict(list(zip(row_order, row_names)))
         if mnemonicfile:
             # Substitute these labels with mnemonics
             mnemonics = map_mnemonics(row_labels, mnemonicfile)
@@ -127,7 +131,7 @@ def tab2html(tabfile, header=True, mnemonicfile=None):
 def find_output_files(dirpath, namebase, d={}, tag=""):
     exts = NICE_EXTS
     # Add filenames of common present files to dict
-    for extname, ext in exts.iteritems():
+    for extname, ext in six.iteritems(exts):
         filename = make_filename(dirpath, namebase, ext)
         if os.path.isfile(filename):
             key = "%s%sfilename" % (tag, extname)
@@ -169,7 +173,7 @@ def form_template_dict(dirpath, namebase, module=None, extra_namebases={},
     # Find default files for all namebases
     d = {}
     find_output_files(dirpath, namebase, d=d)
-    for tag, nb in extra_namebases.iteritems():
+    for tag, nb in six.iteritems(extra_namebases):
         find_output_files(dirpath, nb, d=d, tag=tag)
 
     if module is not None:
@@ -178,7 +182,7 @@ def form_template_dict(dirpath, namebase, module=None, extra_namebases={},
         d[arg] = make_id(module, dirpath)
 
     # Add any tables
-    for tag, table in tables.iteritems():
+    for tag, table in six.iteritems(tables):
         if isinstance(table, tuple):
             table, tablemode = table
         else:
@@ -198,7 +202,7 @@ def form_template_dict(dirpath, namebase, module=None, extra_namebases={},
         d[filearg] = tablefilename
         d[tablearg] = val
 
-    for arg, val in kwargs.iteritems():
+    for arg, val in six.iteritems(kwargs):
         assert arg not in d  # Don't overwrite
         d[arg] = val
 
@@ -222,7 +226,7 @@ def save_html_div(template_filename, dirpath, namebase,
     log("Saving html data to file: %s" % div_filename, verbose)
     try:
         html = template_substitute(template_filename)(fields)
-    except KeyError, e:
+    except KeyError as e:
         log("Error: Missing data: %s. Skipping HTML output." % e)
         return
 
@@ -260,7 +264,7 @@ def make_genomebrowser_url(options, urltype):
 
     """
     url = GENOMEBROWSER_URL
-    for k, v in options.iteritems():
+    for k, v in six.iteritems(options):
         url += " %s=%s " % (k, v)
     url += " %sUrl=" % urltype
     return url

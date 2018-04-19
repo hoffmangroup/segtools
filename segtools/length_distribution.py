@@ -1,5 +1,8 @@
 #!/usr/bin/env python
+from __future__ import absolute_import
 from __future__ import division, with_statement
+import six
+from six.moves import zip
 
 """
 Provides command-line and package entry points for analyzing the
@@ -48,8 +51,8 @@ def annotation_lengths(annotation):
     labels = annotation.labels
 
     # convert segment coords to lengths
-    for rows in annotation.chromosomes.itervalues():
-        for label_key in labels.iterkeys():
+    for rows in six.itervalues(annotation.chromosomes):
+        for label_key in six.iterkeys(labels):
             labeled_row_indexes = (rows['key'] == label_key)
             labeled_rows = rows[labeled_row_indexes]
             length = labeled_rows['end'] - labeled_rows['start']
@@ -63,7 +66,7 @@ def annotation_lengths(annotation):
     # convert lengths to:
     # key: label_key
     # val: numpy.ndarray(dtype=integer)
-    for label_key, label_lengths_list in lengths.iteritems():
+    for label_key, label_lengths_list in six.iteritems(lengths):
         label_lengths = concatenate(label_lengths_list)
         lengths[label_key] = label_lengths
         num_bp[label_key] = label_lengths.sum()
