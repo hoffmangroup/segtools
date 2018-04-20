@@ -1,9 +1,11 @@
 #!/usr/bin/env python
+from __future__ import absolute_import
 from __future__ import division
 
 # Copyright 2008 Michael M. Hoffman <mmh1@washington.edu>
 
 import sys
+from six.moves import zip
 
 FIELDNAMES = ["chrom", "chromStart", "chromEnd", # required
               "name", "score", "strand", "thickStart", "thickEnd", "itemRgb",
@@ -37,7 +39,7 @@ class NativeDatum(Datum):
 def read(iterator, datum_cls=Datum):
     for line in iterator:
         words = line.split()
-        if words[0] == "track":  # Ignore any track lines
+        if words[0] == b"track":  # Ignore any track lines
             continue
 
         assert len(words) >= 3

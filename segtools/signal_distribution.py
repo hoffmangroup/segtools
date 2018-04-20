@@ -18,22 +18,22 @@ import sys
 
 from collections import defaultdict
 
-# TODO Port Genomedata to Python 3
-try :
-    from genomedata import Genome
-except ImportError:
-    print("GENOMEDATA NOT AVAILABLE FOR PYTHON 3")
-
 from functools import partial
 from numpy import arcsinh, isfinite, isnan, longdouble, sqrt, square, zeros
 
 from . import log, Segmentation, die, RInterface, add_common_options, \
      open_transcript, ProgressBar
 from .common import iter_segments_continuous,  \
-     make_tabfilename, setup_directory, tab_reader, tab_saver
+     make_tabfilename, setup_directory, tab_reader, tab_saver, COMPAT_ERROR
 from .html import save_html_div
 from .mnemonics import create_mnemonic_file
 from .version import __version__
+
+# XXX: Port Genomedata to Python 3
+try:
+    from genomedata import Genome
+except ImportError:
+    log(COMPAT_ERROR.format("Genomedata"))
 
 FIELDNAMES = ["label", "trackname", "mean", "sd", "n"]
 NAMEBASE = str(MODULE)

@@ -1,4 +1,7 @@
+from __future__ import absolute_import
 from __future__ import division, with_statement
+from __future__ import print_function
+import six
 
 """
 Assorted utility functions and classes common or useful to most of Segtools.
@@ -45,6 +48,8 @@ LABEL_ALL = "all"
 
 THUMB_SIZE = 100
 
+COMPAT_ERROR = "{} is not yet compatible with this version of Python"
+
 class OutputMasker(object):
     """Class to mask the output of a stream.
 
@@ -70,7 +75,7 @@ class FeatureScanner(object):
         if isinstance(features, ndarray):
             self._iter = iter(features)
             try:
-                self._current = self._iter.next()
+                self._current = next(self._iter)
             except StopIteration:
                 pass
             else:
@@ -139,7 +144,7 @@ class FeatureScanner(object):
                     nearest_dist = dist
 
                 try:
-                    self._current = self._iter.next()
+                    self._current = next(self._iter)
                 except StopIteration:
                     self._has_next = False
                     break
@@ -175,7 +180,7 @@ class FeatureScanner(object):
 def inverse_dict(d):
     """Given a dict, returns the inverse of the dict (val -> key)"""
     res = {}
-    for k, v in d.iteritems():
+    for k, v in six.iteritems(d):
         assert v not in res
         res[v] = k
     return res
@@ -240,8 +245,8 @@ def tab_saver(dirpath, basename, fieldnames=None, header=True,
     with open(outfilename, "w") as outfile:
         if metadata is not None:
             assert isinstance(metadata, dict)
-            metadata_strs = ["%s=%s" % pair for pair in metadata.iteritems()]
-            print >>outfile, "# %s" % " ".join(metadata_strs)
+            metadata_strs = ["%s=%s" % pair for pair in six.iteritems(metadata)]
+            print("# %s" % " ".join(metadata_strs), file=outfile)
 
         if fieldnames:
             yield DictWriter(outfile, fieldnames, header=header,
@@ -355,7 +360,7 @@ def iter_segments_continuous(chromosome, segmentation, column=None,
         while supercontig is None or start >= supercontig.end:
             try:
                 # Raises StopIteration if out of supercontigs
-                supercontig, continuous = supercontig_iter.next()
+                supercontig, continuous = next(supercontig_iter)
             except StopIteration:
                 raise
 
@@ -415,7 +420,7 @@ def get_ordered_labels(labels, mnemonics=[]):
     if mnemonics is not None and len(mnemonics) > 0:
         # Create key lookup dictionary
         key_lookup = {}  # old_label -> label_key
-        for label_key, label in labels.iteritems():
+        for label_key, label in six.iteritems(labels):
             assert(label not in key_lookup)  # Enforce 1-to-1
             key_lookup[label] = label_key
 
@@ -428,7 +433,7 @@ def get_ordered_labels(labels, mnemonics=[]):
     else:
         # Don't change labels, but specify ordering
         partial_int_labels = {}
-        for key, label in labels.iteritems():
+        for key, label in six.iteritems(labels):
             try:
                 partial_int_labels[int(label)] = key
             except ValueError:
@@ -448,7 +453,7 @@ def map_mnemonics(labels, mnemonicfilename, field="new"):
         return []
 
     label_order, label_mnemonics = load_mnemonics(mnemonicfilename)
-    str_labels = labels.values()
+    str_labels = list(labels.values())
     mnemonics = []
     # Add mapping for labels in mnemonic file
     for old_label in label_order:

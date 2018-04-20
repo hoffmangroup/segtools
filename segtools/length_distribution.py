@@ -21,9 +21,9 @@ from collections import defaultdict
 from numpy import concatenate, median
 
 from . import Annotation, die, RInterface, open_transcript, \
-     add_common_options
+     add_common_options, log
 from .common import get_ordered_labels, LABEL_ALL, make_tabfilename, \
-     setup_directory, tab_saver
+     setup_directory, tab_saver, COMPAT_ERROR
 
 from .html import save_html_div
 from .version import __version__
@@ -190,8 +190,11 @@ def validate(filename, dirpath, clobber=False, replot=False, noplot=False,
                            show_bases=show_bases, ropts=ropts,
                            transcriptfile=transcriptfile)
 
-    save_html(dirpath, clobber=clobber, mnemonicfile=mnemonic_file,
+    try:
+        save_html(dirpath, clobber=clobber, mnemonicfile=mnemonic_file,
               verbose=verbose)
+    except TypeError:
+        log(COMPAT_ERROR.format("save_html function"))
 
 def parse_options(args):
     from optparse import OptionGroup, OptionParser
