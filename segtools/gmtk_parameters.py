@@ -116,12 +116,8 @@ def validate(gmtk_file, dirpath, p_thresh=P_THRESH, q_thresh=Q_THRESH,
                    gene_graph=gene_graph, mnemonic_file=mnemonic_file,
                    namebase=NAMEBASE_GRAPH, verbose=verbose)
 
-    try:
-        save_html(dirpath, gmtk_file, p_thresh=p_thresh, q_thresh=q_thresh,
+    save_html(dirpath, gmtk_file, p_thresh=p_thresh, q_thresh=q_thresh,
               clobber=clobber)
-    except TypeError:
-        log(COMPAT_ERROR.format("save_html function"))
-
 
 def parse_options(args):
     from optparse import OptionParser, OptionGroup

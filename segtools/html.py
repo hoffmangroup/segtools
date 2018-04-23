@@ -24,7 +24,7 @@ from string import Template
 from . import log, Segmentation, die, add_common_options
 from .common import check_clobber, get_ordered_labels, make_divfilename, \
      make_id, make_filename, make_tabfilename, map_mnemonics, NICE_EXTS, \
-     PKG_RESOURCE
+     PKG_RESOURCE, COMPAT_ERROR
 from .version import __version__
 
 MNEMONIC_TEMPLATE_FILENAME = "mnemonic_div.tmpl"
@@ -228,6 +228,9 @@ def save_html_div(template_filename, dirpath, namebase,
         html = template_substitute(template_filename)(fields)
     except KeyError as e:
         log("Error: Missing data: %s. Skipping HTML output." % e)
+        return
+    except TypeError:
+        log(COMPAT_ERROR.format("save_html function"))
         return
 
     write_html_div(dirpath, namebase, html, clobber=clobber)

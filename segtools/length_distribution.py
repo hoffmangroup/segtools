@@ -190,11 +190,8 @@ def validate(filename, dirpath, clobber=False, replot=False, noplot=False,
                            show_bases=show_bases, ropts=ropts,
                            transcriptfile=transcriptfile)
 
-    try:
-        save_html(dirpath, clobber=clobber, mnemonicfile=mnemonic_file,
+    save_html(dirpath, clobber=clobber, mnemonicfile=mnemonic_file,
               verbose=verbose)
-    except TypeError:
-        log(COMPAT_ERROR.format("save_html function"))
 
 def parse_options(args):
     from optparse import OptionGroup, OptionParser

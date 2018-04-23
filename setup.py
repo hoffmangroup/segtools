@@ -17,7 +17,7 @@ import sys
 
 # required for from __future__ import division, with_statement;
 # relative imports
-assert sys.version_info >= (2, 5, 1)
+assert sys.version_info >= (2, 7, 0)
 
 from setuptools import find_packages, setup
 
@@ -40,12 +40,12 @@ classifiers = ["Natural Language :: English",
                "Programming Language :: Python :: 3.5"
                ]
 
-python3_compatible_tools = [
+python3_compatible_entry_points = [
     'segtools-gmtk-parameters = segtools.gmtk_parameters:main',
     'segtools-length-distribution = segtools.length_distribution:main'
 ]
 
-python2_only_tools = [
+python2_only_entry_points = [
     "segtools-aggregation = segtools.aggregation:main",
     "segtools-compare = segtools.compare:main",
     "segtools-feature-distance = segtools.feature_distance:main",
@@ -62,11 +62,11 @@ python2_only_tools = [
 ]
 
 entry_points = {
-        'console_scripts': python3_compatible_tools,
+        'console_scripts': python3_compatible_entry_points,
     }
 
 if sys.version_info[0] == 2:
-    entry_points['console_scripts'].append(python2_only_tools)
+    entry_points['console_scripts'].append(python2_only_entry_points)
 
 # entry_points = """
 # [console_scripts]
