@@ -14,7 +14,6 @@ import os
 import sys
 
 from collections import defaultdict
-from genomedata import Genome
 from functools import partial
 from numpy import arcsinh, isfinite, isnan, longdouble, sqrt, square, zeros
 
@@ -364,6 +363,8 @@ def parse_options(args):
 
 ## Command-line entry point
 def main(args=sys.argv[1:]):
+    from genomedata import Genome
+
     (options, args) = parse_options(args)
     bedfilename = args[0]
     genomedatadir = args[1]
