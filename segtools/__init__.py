@@ -166,13 +166,13 @@ class Annotation(object):
                 yield row
 
     def _from_pickle(self, filename, verbose=True):
-        import six.moves.cPickle
+        from segtools.six.moves import cPickle
         from .common import maybe_gzip_open
 
         log("  Unpickling %s" % self.__class__.__name__, verbose)
 
         with maybe_gzip_open(filename, 'rb') as ifp:
-            object = six.moves.cPickle.load(ifp)
+            object = cPickle.load(ifp)
             if not issubclass(object.__class__, self.__class__):
                 msg = ("Error: Cannot to load an indexed %s object"
                        " as an indexed %s object."
@@ -268,7 +268,7 @@ class Annotation(object):
 
     def pickle(self, filename=None, verbose=True, clobber=False):
         """Pickle the annotation into an output file"""
-        import six.moves.cPickle
+        from segtools.six.moves import cPickle
         from .common import check_clobber, maybe_gzip_open
 
         if filename is None:
@@ -280,7 +280,7 @@ class Annotation(object):
         log("Pickling %s object to file: %s"
             % (self.__class__.__name__, filename), verbose)
         with maybe_gzip_open(filename, 'wb') as ofp:
-            six.moves.cPickle.dump(self, ofp, -1)
+            cPickle.dump(self, ofp, -1)
 
     def num_label_segments(self, label):
         return self._n_label_segments[str(label)]
