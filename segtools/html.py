@@ -24,7 +24,7 @@ from string import Template
 from . import log, Segmentation, die, add_common_options
 from .common import check_clobber, get_ordered_labels, make_divfilename, \
      make_id, make_filename, make_tabfilename, map_mnemonics, NICE_EXTS, \
-     PKG_RESOURCE, COMPAT_ERROR
+     PKG_RESOURCE, PY3_COMPAT_ERROR
 from .version import __version__
 
 MNEMONIC_TEMPLATE_FILENAME = "mnemonic_div.tmpl"
@@ -107,8 +107,8 @@ def tab2html(tabfile, header=True, mnemonicfile=None):
         rows = [line.split("\t") for line in lines]
         row_names = [row[0] for row in rows]
         # Make basic labels for row names
-        row_order = list(range(0, len(rows)))
-        row_labels = dict(list(zip(row_order, row_names)))
+        row_order = range(0, len(rows))
+        row_labels = dict(zip(row_order, row_names))
         if mnemonicfile:
             # Substitute these labels with mnemonics
             mnemonics = map_mnemonics(row_labels, mnemonicfile)
@@ -230,7 +230,7 @@ def save_html_div(template_filename, dirpath, namebase,
         log("Error: Missing data: %s. Skipping HTML output." % e)
         return
     except TypeError:
-        log(COMPAT_ERROR.format("save_html function"))
+        log(PY3_COMPAT_ERROR.format("save_html function"))
         return
 
     write_html_div(dirpath, namebase, html, clobber=clobber)

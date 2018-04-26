@@ -23,7 +23,7 @@ from numpy import concatenate, median
 from . import Annotation, die, RInterface, open_transcript, \
      add_common_options, log
 from .common import get_ordered_labels, LABEL_ALL, make_tabfilename, \
-     setup_directory, tab_saver, COMPAT_ERROR
+     setup_directory, tab_saver, PY3_COMPAT_ERROR
 
 from .html import save_html_div
 from .version import __version__

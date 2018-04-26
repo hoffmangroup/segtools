@@ -48,7 +48,7 @@ LABEL_ALL = "all"
 
 THUMB_SIZE = 100
 
-COMPAT_ERROR = "{} is not yet compatible with this version of Python"
+PY3_COMPAT_ERROR = "{} is not yet compatible with this version of Python"
 
 class OutputMasker(object):
     """Class to mask the output of a stream.
@@ -453,7 +453,6 @@ def map_mnemonics(labels, mnemonicfilename, field="new"):
         return []
 
     label_order, label_mnemonics = load_mnemonics(mnemonicfilename)
-    str_labels = list(labels.values())
     mnemonics = []
     # Add mapping for labels in mnemonic file
     for old_label in label_order:
@@ -463,7 +462,7 @@ def map_mnemonics(labels, mnemonicfilename, field="new"):
         #except KeyError:
         #die("Mnemonic file missing expected column: %s" % field)
 
-        if old_label in str_labels:
+        if old_label in six.itervalues(labels):
             mnemonics.append([old_label, new_label])
 
     # Add mapping for labels not in mnemonic file
