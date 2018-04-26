@@ -844,7 +844,7 @@ def validate(bedfilename, featurefilename, dirpath,
             features = Annotation(featurefilename, verbose=verbose)
             num_features = features.num_segments()
             if by_groups:
-                groups = list(features.labels.values())
+                groups = list(six.itervalues(features.labels))
             else:
                 groups = ["features"]
 
