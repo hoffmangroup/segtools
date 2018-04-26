@@ -2,9 +2,9 @@
 from __future__ import absolute_import
 from __future__ import division, with_statement
 from __future__ import print_function
-import six
-from six.moves import range
-from six.moves import zip
+import segtools.six as six
+from segtools.six.moves import range
+from segtools.six.moves import zip
 
 """
 This module aggregates segmentation data around features, generating

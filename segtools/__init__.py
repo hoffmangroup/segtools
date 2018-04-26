@@ -2,7 +2,7 @@
 from __future__ import absolute_import
 from __future__ import division, with_statement
 from __future__ import print_function
-import six
+import segtools.six as six
 
 """Segtools: tools for exploratory analysis of genomic segmentations
 

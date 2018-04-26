@@ -14,7 +14,7 @@ by specifying --stranded.
 from __future__ import absolute_import
 from __future__ import division, with_statement
 from __future__ import print_function
-from six.moves import range
+from segtools.six.moves import range
 
 import os
 import sys
