@@ -214,7 +214,7 @@ def gzip_open(*args, **kwargs):
 
 def maybe_gzip_open(filename, *args, **kwargs):
     if filename.endswith(SUFFIX_GZ):
-        return gzip_open(filename, *args, **kwargs)
+        return gzip_open(filename, "rt", *args, **kwargs)  # 'rt' so that it's consistent with when it's not a gzip
     else:
         return open(filename, *args, **kwargs)
 
