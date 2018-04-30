@@ -3,6 +3,7 @@ from __future__ import absolute_import
 from __future__ import division, with_statement
 from __future__ import print_function
 import segtools.six as six
+from segtools.six.moves import cPickle
 
 """Segtools: tools for exploratory analysis of genomic segmentations
 
@@ -166,7 +167,6 @@ class Annotation(object):
                 yield row
 
     def _from_pickle(self, filename, verbose=True):
-        from segtools.six.moves import cPickle
         from .common import maybe_gzip_open
 
         log("  Unpickling %s" % self.__class__.__name__, verbose)
@@ -268,7 +268,6 @@ class Annotation(object):
 
     def pickle(self, filename=None, verbose=True, clobber=False):
         """Pickle the annotation into an output file"""
-        from segtools.six.moves import cPickle
         from .common import check_clobber, maybe_gzip_open
 
         if filename is None:
