@@ -63,11 +63,11 @@ def entry_points():
     ]
 
     entry_points = {
-            'console_scripts': python3_compatible_entry_points,
+            'console_scripts': python3_compatible_entry_points
         }
 
     if sys.version_info[0] == 2:
-        entry_points['console_scripts'].append(python2_only_entry_points)
+        entry_points['console_scripts'].extend(python2_only_entry_points)
 
     return entry_points
 

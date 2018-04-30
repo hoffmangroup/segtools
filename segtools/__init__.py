@@ -142,7 +142,7 @@ class Annotation(object):
 
         log("  Parsing lines from %s format" % format, verbose)
 
-        with maybe_gzip_open(filename) as infile:
+        with maybe_gzip_open(filename, 'rt') as infile:
             for datum in reader(infile):
                 row = {}
                 d = datum.__dict__
@@ -364,7 +364,7 @@ class Segmentation(Annotation):
         segtool = ""
         tracks = []
 
-        with maybe_gzip_open(filename) as ifp:
+        with maybe_gzip_open(filename, 'rt') as ifp:
             line = ifp.readline()
 
         matching = regexp.search(line)
