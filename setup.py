@@ -41,14 +41,15 @@ classifiers = ["Natural Language :: English",
                "Programming Language :: Python :: 3.6"
                ]
 
+
 def entry_points():
     python3_compatible_entry_points = [
+        "segtools-aggregation = segtools.aggregation:main",
         'segtools-gmtk-parameters = segtools.gmtk_parameters:main',
         'segtools-length-distribution = segtools.length_distribution:main'
     ]
 
     python2_only_entry_points = [
-        "segtools-aggregation = segtools.aggregation:main",
         "segtools-compare = segtools.compare:main",
         "segtools-feature-distance = segtools.feature_distance:main",
         "segtools-flatten = segtools.flatten:main",
