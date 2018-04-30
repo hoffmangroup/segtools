@@ -46,7 +46,8 @@ def entry_points():
     python3_compatible_entry_points = [
         "segtools-aggregation = segtools.aggregation:main",
         'segtools-gmtk-parameters = segtools.gmtk_parameters:main',
-        'segtools-length-distribution = segtools.length_distribution:main'
+        'segtools-length-distribution = segtools.length_distribution:main',
+        "segtools-preprocess = segtools.preprocess:main"
     ]
 
     python2_only_entry_points = [
@@ -56,7 +57,6 @@ def entry_points():
         "segtools-html-report = segtools.html:main",
         "segtools-nucleotide-frequency = segtools.nucleotide_frequency:main [genomedata]",
         "segtools-overlap = segtools.overlap:main",
-        "segtools-preprocess = segtools.preprocess:main",
         "segtools-relabel = segtools.relabel:main",
         "segtools-signal-distribution = segtools.signal_distribution:main [genomedata]",
         "segtools-transition = segtools.transition:main"
