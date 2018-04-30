@@ -42,7 +42,7 @@ EXT_R = "R"
 DTYPE_SEGMENT_START = int64
 DTYPE_SEGMENT_END = int64
 DTYPE_SEGMENT_KEY = uint32
-DTYPE_STRAND = '|S1'
+DTYPE_STRAND = '|U1'
 
 _READERS=dict(bed=read_bed, narrowpeak=read_bed,
               gff=read_gff, gtf=partial(read_gff, gtf=True))
