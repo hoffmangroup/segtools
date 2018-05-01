@@ -45,6 +45,7 @@ classifiers = ["Natural Language :: English",
 def entry_points():
     python3_compatible_entry_points = [
         "segtools-aggregation = segtools.aggregation:main",
+        "segtools-feature-distance = segtools.feature_distance:main",
         'segtools-gmtk-parameters = segtools.gmtk_parameters:main',
         'segtools-length-distribution = segtools.length_distribution:main',
         "segtools-preprocess = segtools.preprocess:main"
@@ -52,7 +53,6 @@ def entry_points():
 
     python2_only_entry_points = [
         "segtools-compare = segtools.compare:main",
-        "segtools-feature-distance = segtools.feature_distance:main",
         "segtools-flatten = segtools.flatten:main",
         "segtools-html-report = segtools.html:main",
         "segtools-nucleotide-frequency = segtools.nucleotide_frequency:main [genomedata]",
