@@ -5,7 +5,7 @@ from __future__ import division
 # Copyright 2008 Michael M. Hoffman <mmh1@washington.edu>
 
 import sys
-from segtools.six.moves import zip
+from six.moves import zip
 
 FIELDNAMES = ["chrom", "chromStart", "chromEnd", # required
               "name", "score", "strand", "thickStart", "thickEnd", "itemRgb",

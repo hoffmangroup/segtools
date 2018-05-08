@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 from __future__ import absolute_import
 from __future__ import division, with_statement
-import segtools.six as six
-from segtools.six.moves import zip
+import six
+from six.moves import zip
 
 """
 Provides command-line and package entry points for analyzing the observed

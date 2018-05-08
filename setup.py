@@ -72,7 +72,7 @@ def entry_points():
     return entry_points
 
 
-install_requires = ["numpy>=1.3", "rpy2>=2.6.0,<2.9"]
+install_requires = ["numpy>=1.3", "rpy2>=2.6.0,<2.9", "six"]
 # XXX: add optional requirement for PyGraphviz
 extras_require = {'genomedata': "genomedata"}
 

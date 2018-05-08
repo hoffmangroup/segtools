@@ -6,7 +6,7 @@ gmtk_parameters.py
 
 from __future__ import absolute_import
 from __future__ import division, with_statement
-from segtools.six.moves import range
+from six.moves import range
 
 # A package-unique, descriptive module name used for filenames, etc
 # Must be the same as the folder containing this script
