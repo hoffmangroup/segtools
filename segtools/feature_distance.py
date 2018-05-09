@@ -11,8 +11,10 @@ Distances can be strand-corrected with respect to stranded features
 by specifying --stranded.
 """
 
+from __future__ import absolute_import
 from __future__ import division, with_statement
-
+from __future__ import print_function
+from six.moves import range
 
 import os
 import sys
@@ -48,7 +50,7 @@ def print_line(labels, chrom, segment, distance):
               str(segment['end']),
               labels[segment['key']],
               str(distance)]
-    print DELIM.join(fields)
+    print(DELIM.join(fields))
 
 def save_tab(counts, bins, labels, groups, outdir,
              clobber=False, verbose=True):
@@ -103,7 +105,7 @@ def test_calc_distance_bin():
 
     for n_bins, bin_width in params:
         stranded = True
-        bins = range(n_bins * 2 + 3)
+        bins = list(range(n_bins * 2 + 3))
         tests = [(0, 0),
                  (1, 1),
                  (bin_width, 1),
@@ -138,12 +140,12 @@ def print_distances(segmentation, annotation,
     labels = segmentation.labels
     groups = annotation.labels
 
-    print DELIM.join(PRINT_FIELDS)
+    print(DELIM.join(PRINT_FIELDS))
 
-    bin_distances = range(0, n_bins * bin_width + 1, bin_width) + \
+    bin_distances = list(range(0, n_bins * bin_width + 1, bin_width)) + \
         ["Inf"]
     if stranded:
-        bin_distances.extend(["-Inf"] + range(-n_bins * bin_width, 0, bin_width))
+        bin_distances.extend(["-Inf"] + list(range(-n_bins * bin_width, 0, bin_width)))
 
     count_len = n_bins * (stranded + 1) + 2 + stranded
     assert count_len == len(bin_distances)

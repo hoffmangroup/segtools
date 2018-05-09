@@ -1,5 +1,10 @@
 #!/usr/bin/env python
+from __future__ import absolute_import
 from __future__ import division, with_statement
+from __future__ import print_function
+import six
+from six.moves import range
+from six.moves import zip
 
 """
 This module aggregates segmentation data around features, generating
@@ -146,7 +151,7 @@ class GeneAnnotation(Annotation):
         n_genes = 0
         n_label_segments = {}
         n_label_bases = {}
-        for gene_id, transcript_dict in gene_dict.iteritems():
+        for gene_id, transcript_dict in six.iteritems(gene_dict):
             # Select only longest transcript
             transcript_id, transcript = \
                 self._get_longest_transcript(transcript_dict)
@@ -179,13 +184,13 @@ class GeneAnnotation(Annotation):
                  ('strand', DTYPE_STRAND)]
 
         chromosomes = dict((chrom, array(features, dtype=dtype))
-                           for chrom, features in data.iteritems())
+                           for chrom, features in six.iteritems(data))
 
         log(" done", verbose)
         log("  Sorting...", verbose, end="")
 
         # Sort features by ascending start
-        for chrom_features in chromosomes.itervalues():
+        for chrom_features in six.itervalues(chromosomes):
             chrom_features.sort(order=['start'])
 
         log(" done", verbose)
@@ -420,7 +425,7 @@ class GeneAnnotation(Annotation):
         # check to see if this is OK
         max_length = 0
         res = None
-        for id, rows in transcript_dict.iteritems():
+        for id, rows in six.iteritems(transcript_dict):
             length = get_transcript_length(rows)
             if length > max_length:
                 max_length = length
@@ -430,13 +435,13 @@ class GeneAnnotation(Annotation):
 
 def print_bed_from_gene_component(features, component="terminal exon"):
     with open("%s.bed" % component, "w") as ofp:
-        for chrom, chrom_features in features.iteritems():
+        for chrom, chrom_features in six.iteritems(features):
             for feature in chrom_features:
                 if feature["name"].startswith(component):
-                    print >>ofp, "%s\t%s\t%s\t%s" % (chrom,
+                    print("%s\t%s\t%s\t%s" % (chrom,
                                                      feature["start"],
                                                      feature["end"],
-                                                     feature["name"])
+                                                     feature["name"]), file=ofp)
 
 
 def calc_feature_windows(feature, labels, mode, component_bins):
@@ -560,12 +565,12 @@ def calc_aggregation(segmentation, features, mode, groups, components,
     #      value: numpy.ndarray histogram [bin, label_key]
     counts = dict([(group,
                     dict([(component, fill_array(0, (bins, len(labels))))
-                          for component, bins in component_bins.iteritems()]))
+                          for component, bins in six.iteritems(component_bins)]))
                    for group in groups])
 
     counted_features = 0
 
-    for chrom, segments in segmentation.chromosomes.iteritems():
+    for chrom, segments in six.iteritems(segmentation.chromosomes):
         log("\t%s" % chrom, verbose)
 
         try:
@@ -641,7 +646,7 @@ def calc_aggregation(segmentation, features, mode, groups, components,
 
 def make_row(labels, row_data):
     values = {}
-    for label_key, label in labels.iteritems():
+    for label_key, label in six.iteritems(labels):
         values[label] = row_data[label_key]
 
     return values
@@ -678,7 +683,7 @@ def save_tab(segmentation, features, counts, components, component_bins,
             else:
                 sum = 0
                 count = 0
-                for chrom_features in features.chromosomes.itervalues():
+                for chrom_features in six.itervalues(features.chromosomes):
                     if component == REGION_COMPONENT:
                         # Merge groups
                         sum += (chrom_features['end'] -
@@ -839,7 +844,7 @@ def validate(bedfilename, featurefilename, dirpath,
             features = Annotation(featurefilename, verbose=verbose)
             num_features = features.num_segments()
             if by_groups:
-                groups = features.labels.values()
+                groups = list(six.itervalues(features.labels))
             else:
                 groups = ["features"]
 
