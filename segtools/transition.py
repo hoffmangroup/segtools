@@ -1,5 +1,8 @@
 #!/usr/bin/env python
+from __future__ import absolute_import
 from __future__ import division, with_statement
+import six
+from six.moves import zip
 
 """
 Provides command-line and package entry points for analyzing the observed
@@ -22,8 +25,8 @@ XXX: Graphiz currently assumes integer labels in sorted order in file
 
 # A package-unique, descriptive module name used for filenames, etc
 # Must be the same as the folder containing this script
-MODULE = "transition"
 
+MODULE = "transition"
 
 import os
 import sys
@@ -65,7 +68,7 @@ def calc_transitions(segmentation):
     self_transition_count = 0
     # NxN matrix for transition counts
     counts = zeros((len(labels), len(labels)), dtype="int")
-    for segments in segmentation.chromosomes.itervalues():
+    for segments in six.itervalues(segmentation.chromosomes):
         # Inch along rows, looking at all pairs
         row_it = iter(segments)
         row1 = None
@@ -229,7 +232,7 @@ def save_graph(labels, probs, dirpath, q_thresh=Q_THRESH, p_thresh=P_THRESH,
         code = call(cmd, shell=True)
         if code != 0:
             raise Exception()
-    except Exception, e:
+    except Exception as e:
         log("Error: Failed to draw pdf graph: %s" % str(e))
 
     log(" done", verbose)

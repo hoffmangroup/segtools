@@ -4,10 +4,13 @@
 gmtk_parameters.py
 """
 
+from __future__ import absolute_import
 from __future__ import division, with_statement
+from six.moves import range
 
 # A package-unique, descriptive module name used for filenames, etc
 # Must be the same as the folder containing this script
+
 MODULE = "gmtk_parameters"
 
 import os
@@ -16,7 +19,7 @@ import sys
 from numpy import array
 
 from . import log, die, RInterface, add_common_options, open_transcript
-from .common import setup_directory
+from .common import setup_directory, PY3_COMPAT_ERROR
 from .html import save_html_div
 from .transition import save_plot, save_graph
 from .mnemonics import create_mnemonic_file
@@ -115,7 +118,6 @@ def validate(gmtk_file, dirpath, p_thresh=P_THRESH, q_thresh=Q_THRESH,
 
     save_html(dirpath, gmtk_file, p_thresh=p_thresh, q_thresh=q_thresh,
               clobber=clobber)
-
 
 def parse_options(args):
     from optparse import OptionParser, OptionGroup

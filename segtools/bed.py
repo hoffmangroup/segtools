@@ -1,9 +1,11 @@
 #!/usr/bin/env python
+from __future__ import absolute_import
 from __future__ import division
 
 # Copyright 2008 Michael M. Hoffman <mmh1@washington.edu>
 
 import sys
+from six.moves import zip
 
 FIELDNAMES = ["chrom", "chromStart", "chromEnd", # required
               "name", "score", "strand", "thickStart", "thickEnd", "itemRgb",

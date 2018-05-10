@@ -17,7 +17,7 @@ import sys
 
 # required for from __future__ import division, with_statement;
 # relative imports
-assert sys.version_info >= (2, 5, 1)
+assert sys.version_info >= (2, 7, 0)
 
 from setuptools import find_packages, setup
 
@@ -36,27 +36,43 @@ classifiers = ["Natural Language :: English",
                "Programming Language :: Python",
                "Topic :: Scientific/Engineering :: Bio-Informatics",
                "Operating System :: Unix",
-               "Programming Language :: Python :: 2.7"]
+               "Programming Language :: Python :: 2.7",
+               "Programming Language :: Python :: 3",
+               "Programming Language :: Python :: 3.6"
+               ]
 
-entry_points = """
-[console_scripts]
-segtools-aggregation = segtools.aggregation:main
-segtools-compare = segtools.compare:main
-segtools-feature-distance = segtools.feature_distance:main
-segtools-flatten = segtools.flatten:main
-segtools-gmtk-parameters = segtools.gmtk_parameters:main
-segtools-html-report = segtools.html:main
-segtools-length-distribution = segtools.length_distribution:main
-segtools-nucleotide-frequency = segtools.nucleotide_frequency:main [genomedata]
-segtools-overlap = segtools.overlap:main
-segtools-preprocess = segtools.preprocess:main
-segtools-relabel = segtools.relabel:main
-segtools-signal-distribution = segtools.signal_distribution:main [genomedata]
-segtools-transition = segtools.transition:main
-"""
-#segtools = segtools.validate_all:main
 
-install_requires = ["numpy>=1.3", "rpy2>=2.6.0,<2.9", "textinput"]
+def entry_points():
+    python3_compatible_entry_points = [
+        "segtools-aggregation = segtools.aggregation:main",
+        "segtools-feature-distance = segtools.feature_distance:main",
+        'segtools-gmtk-parameters = segtools.gmtk_parameters:main',
+        'segtools-length-distribution = segtools.length_distribution:main',
+        "segtools-preprocess = segtools.preprocess:main"
+    ]
+
+    python2_only_entry_points = [
+        "segtools-compare = segtools.compare:main",
+        "segtools-flatten = segtools.flatten:main",
+        "segtools-html-report = segtools.html:main",
+        "segtools-nucleotide-frequency = segtools.nucleotide_frequency:main [genomedata]",
+        "segtools-overlap = segtools.overlap:main",
+        "segtools-relabel = segtools.relabel:main",
+        "segtools-signal-distribution = segtools.signal_distribution:main [genomedata]",
+        "segtools-transition = segtools.transition:main"
+    ]
+
+    entry_points = {
+            'console_scripts': python3_compatible_entry_points
+        }
+
+    if sys.version_info[0] == 2:
+        entry_points['console_scripts'].extend(python2_only_entry_points)
+
+    return entry_points
+
+
+install_requires = ["numpy>=1.3", "rpy2>=2.6.0,<2.9", "six", "textinput"]
 # XXX: add optional requirement for PyGraphviz
 extras_require = {'genomedata': "genomedata"}
 
@@ -78,5 +94,5 @@ if __name__ == "__main__":
           packages=find_packages("."),
           package_data={name: ['R/*.R',
                                'resources/*.tmpl']},
-          entry_points=entry_points
+          entry_points=entry_points()
           )
