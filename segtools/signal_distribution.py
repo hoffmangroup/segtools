@@ -373,6 +373,12 @@ def parse_options(args):
 
 ## Command-line entry point
 def main(args=sys.argv[1:]):
+
+    if sys.version_info[0] == 3:
+        die(PY3_COMPAT_ERROR.format("Genomedata"))
+
+    from genomedata import Genome
+
     (options, args) = parse_options(args)
     bedfilename = args[0]
     genomedatadir = args[1]
