@@ -1,5 +1,9 @@
 #!/usr/bin/env python
+from __future__ import absolute_import
 from __future__ import division, with_statement
+import six
+from six.moves import range
+from six.moves import zip
 
 """
 html.py
@@ -20,7 +24,7 @@ from string import Template
 from . import log, Segmentation, die, add_common_options
 from .common import check_clobber, get_ordered_labels, make_divfilename, \
      make_id, make_filename, make_tabfilename, map_mnemonics, NICE_EXTS, \
-     PKG_RESOURCE
+     PKG_RESOURCE, PY3_COMPAT_ERROR
 from .version import __version__
 
 MNEMONIC_TEMPLATE_FILENAME = "mnemonic_div.tmpl"
@@ -127,7 +131,7 @@ def tab2html(tabfile, header=True, mnemonicfile=None):
 def find_output_files(dirpath, namebase, d={}, tag=""):
     exts = NICE_EXTS
     # Add filenames of common present files to dict
-    for extname, ext in exts.iteritems():
+    for extname, ext in six.iteritems(exts):
         filename = make_filename(dirpath, namebase, ext)
         if os.path.isfile(filename):
             key = "%s%sfilename" % (tag, extname)
@@ -169,7 +173,7 @@ def form_template_dict(dirpath, namebase, module=None, extra_namebases={},
     # Find default files for all namebases
     d = {}
     find_output_files(dirpath, namebase, d=d)
-    for tag, nb in extra_namebases.iteritems():
+    for tag, nb in six.iteritems(extra_namebases):
         find_output_files(dirpath, nb, d=d, tag=tag)
 
     if module is not None:
@@ -178,7 +182,7 @@ def form_template_dict(dirpath, namebase, module=None, extra_namebases={},
         d[arg] = make_id(module, dirpath)
 
     # Add any tables
-    for tag, table in tables.iteritems():
+    for tag, table in six.iteritems(tables):
         if isinstance(table, tuple):
             table, tablemode = table
         else:
@@ -198,7 +202,7 @@ def form_template_dict(dirpath, namebase, module=None, extra_namebases={},
         d[filearg] = tablefilename
         d[tablearg] = val
 
-    for arg, val in kwargs.iteritems():
+    for arg, val in six.iteritems(kwargs):
         assert arg not in d  # Don't overwrite
         d[arg] = val
 
@@ -222,8 +226,11 @@ def save_html_div(template_filename, dirpath, namebase,
     log("Saving html data to file: %s" % div_filename, verbose)
     try:
         html = template_substitute(template_filename)(fields)
-    except KeyError, e:
+    except KeyError as e:
         log("Error: Missing data: %s. Skipping HTML output." % e)
+        return
+    except TypeError:
+        log(PY3_COMPAT_ERROR.format("save_html function"))
         return
 
     write_html_div(dirpath, namebase, html, clobber=clobber)
@@ -260,7 +267,7 @@ def make_genomebrowser_url(options, urltype):
 
     """
     url = GENOMEBROWSER_URL
-    for k, v in options.iteritems():
+    for k, v in six.iteritems(options):
         url += " %s=%s " % (k, v)
     url += " %sUrl=" % urltype
     return url
