@@ -116,7 +116,7 @@ interfaces.
 .. _`python-compatibility-by-tool`:
 
 Python 2/3 compatibility status
-----------------------------
+-------------------------------
 
 Segtools is available for both Python 2 and Python 3.
 This table shows the compatibility of each tool for both Python versions:
