@@ -47,7 +47,7 @@ installed with::
 
 To use :ref:`segtools-signal-distribution <segtools-signal-distribution>`
 or :ref:`segtools-nucleotide-frequency <segtools-nucleotide-frequency>`,
-the Python packge, Genomedata, is also required.
+the Python package, Genomedata, is also required.
 
 To know what tools are compatible for Python 2 and 3 see the
 :ref:`Python compatibility table<python-compatibility-by-tool>`.
