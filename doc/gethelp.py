@@ -12,10 +12,11 @@ from cStringIO import StringIO
 import sys
 
 sys.path.insert(0, "..")
-from setup import entry_points
+from setup import python3_compatible_entry_points, python2_compatible_entry_points
 from segtools.version import __version__
 
 def gethelp(scriptname):
+    entry_points = python2_compatible_entry_points + python3_compatible_entry_points
     config = RawConfigParser()
     config.readfp(StringIO(entry_points))
 
