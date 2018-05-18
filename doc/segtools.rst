@@ -34,7 +34,7 @@ Installation
 
 Segtools requires the following prerequisites:
 
-- Python 2.7, with Rpy2 2.1.3+
+- Python 2.7 *or* Python 3.6, with Rpy2 2.1.3+
 - Zlib
 - Numpy 1.3+
 - R 2.10.0+, with latticeExtra and reshape packages
@@ -48,6 +48,9 @@ installed with::
 To use :ref:`segtools-signal-distribution <segtools-signal-distribution>`
 or :ref:`segtools-nucleotide-frequency <segtools-nucleotide-frequency>`,
 the Python packge, Genomedata, is also required.
+
+To know what tools are compatible for Python 2 and 3 see the
+:ref:`Python compatibility table<python-compatibility-by-tool>`.
 
 Segmentations versus annotations
 ================================
@@ -108,6 +111,45 @@ Segtools commands can be run through their
 :ref:`command-line <command-line-interface>`
 or :ref:`Python <python-interface>`
 interfaces.
+
+
+.. _`python-compatibility-by-tool`:
+
+Python 2/3 compatibility status
+----------------------------
+
+Segtools is available for both Python 2 and Python 3.
+This table shows the compatibility of each tool for both Python versions:
+
++-------------------------+------------+------------+
+|           Tool          |  Python 2  |  Python 3  |
++=========================+============+============+
+|       aggregation       |     ✓      |     ✓      |
++-------------------------+------------+------------+
+|         compare         |     ✓      |            |
++-------------------------+------------+------------+
+|    feature-distance     |     ✓      |     ✓      |
++-------------------------+------------+------------+
+|         flatten         |     ✓      |            |
++-------------------------+------------+------------+
+|      html-report        |     ✓      |            |
++-------------------------+------------+------------+
+|   length-distribution   |     ✓      |     ✓      |
++-------------------------+------------+------------+
+|   nucleotide-frequency  |     ✓      |            |
++-------------------------+------------+------------+
+|         overlap         |     ✓      |            |
++-------------------------+------------+------------+
+|       preprocess        |     ✓      |     ✓      |
++-------------------------+------------+------------+
+|         relabel         |     ✓      |            |
++-------------------------+------------+------------+
+|   signal-distribution   |     ✓      |            |
++-------------------------+------------+------------+
+|       transition        |     ✓      |            |
++-------------------------+------------+------------+
+|     gmtk-parameters     |     ✓      |     ✓      |
++-------------------------+------------+------------+
 
 
 .. _`command-line-interface`:
