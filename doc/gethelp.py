@@ -6,7 +6,8 @@ from __future__ import division
 
 ## Copyright 2011 Michael M. Hoffman <mmh1@uw.edu>
 
-from ConfigParser import RawConfigParser
+from __future__ import absolute_import
+from six.moves.configparser import RawConfigParser
 from cStringIO import StringIO
 import sys
 
