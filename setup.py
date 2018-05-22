@@ -41,7 +41,7 @@ classifiers = ["Natural Language :: English",
                "Programming Language :: Python :: 3.6"
                ]
 
-python3_compatible_entry_points = """
+py3_entry_points = """
 [console_scripts]
 segtools-aggregation = segtools.aggregation:main
 segtools-feature-distance = segtools.feature_distance:main
@@ -49,7 +49,7 @@ segtools-gmtk-parameters = segtools.gmtk_parameters:main
 segtools-length-distribution = segtools.length_distribution:main
 segtools-preprocess = segtools.preprocess:main
 """
-python2_compatible_entry_points = """
+py2_entry_points = """
 [console_scripts]
 segtools-aggregation = segtools.aggregation:main
 segtools-compare = segtools.compare:main
@@ -69,9 +69,9 @@ segtools-transition = segtools.transition:main
 
 def get_entry_points():
     if sys.version_info[0] == 2:
-        return python2_compatible_entry_points
+        return py2_entry_points
 
-    return python3_compatible_entry_points
+    return py3_entry_points
 
 
 install_requires = ["numpy>=1.3", "rpy2>=2.6.0,<2.9", "six", "textinput"]

@@ -12,13 +12,12 @@ from cStringIO import StringIO
 import sys
 
 sys.path.insert(0, "..")
-from setup import python3_compatible_entry_points, python2_compatible_entry_points
+from setup import py3_entry_points, py2_entry_points
 from segtools.version import __version__
 
 def gethelp(scriptname):
-    entry_points = python2_compatible_entry_points + python3_compatible_entry_points
     config = RawConfigParser()
-    config.readfp(StringIO(entry_points))
+    config.readfp(StringIO(py2_entry_points + py3_entry_points))
 
     entry = config.get("console_scripts", scriptname).split()[0]
     module_name, _, func_name = entry.partition(":")
