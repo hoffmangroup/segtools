@@ -310,6 +310,9 @@ transition              transition
 gmtk-parameters         gmtk-parameters
 ======================  ====================
 
+Note: while all commands can be run using both Python 2 and Python 3, only those
+specified in the :ref:`Python compatibility table<python-compatibility-by-tool>`
+will do so correctly.
 
 Commands
 ========
