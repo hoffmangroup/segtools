@@ -149,7 +149,7 @@ barchart.segment.sizes <-
            show_bases = TRUE,
            show_segments = TRUE,
            xlab = "Fraction of segmentation",
-           ylab = "Segment label",
+           ylab = "Label",
            panel = panel.segment.sizes,
            as.table = TRUE,
            xlim = c(0, max.frac),

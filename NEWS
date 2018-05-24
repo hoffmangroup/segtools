@@ -1,4 +1,5 @@
 1.1.15:
+* segtools-length-distribution: set same y-label for length-distribution and segment-sizes plots
 * segtools-gmtk-parameters: added compatibility with python 3
 * segtools-length-distribution: added compatibility with python 3
 * segtools-aggregation: added compatibility with python 3
