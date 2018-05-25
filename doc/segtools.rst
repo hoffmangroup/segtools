@@ -34,7 +34,7 @@ Installation
 
 Segtools requires the following prerequisites:
 
-- Python 2.7 *or* Python 3.6, with Rpy2 2.1.3+
+- Python 2.7 *or* Python 3.6+, with Rpy2 2.1.3+
 - Zlib
 - Numpy 1.3+
 - R 2.10.0+, with latticeExtra and reshape packages
@@ -310,6 +310,9 @@ transition              transition
 gmtk-parameters         gmtk-parameters
 ======================  ====================
 
+Note: while all commands can be run using both Python 2 and Python 3, only those
+specified in the :ref:`Python compatibility table<python-compatibility-by-tool>`
+will do so correctly.
 
 Commands
 ========
