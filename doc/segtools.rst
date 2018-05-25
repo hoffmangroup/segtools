@@ -34,7 +34,7 @@ Installation
 
 Segtools requires the following prerequisites:
 
-- Python 2.7 *or* Python 3.6, with Rpy2 2.1.3+
+- Python 2.7 *or* Python 3.6+, with Rpy2 2.1.3+
 - Zlib
 - Numpy 1.3+
 - R 2.10.0+, with latticeExtra and reshape packages
