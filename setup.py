@@ -7,9 +7,6 @@ in the context of the genome! Using R for graphics, Segtools provides a
 number of modules to analyze a segmentation in various ways and help you
 interpret its biological relevance.
 """
-
-from segtools import __version__
-
 # Copyright 2008-2011 Michael M. Hoffman <mmh1@uw.edu>
 # Copyright 2009-2011 Orion J. Buske <stasis@uw.edu>
 
@@ -20,6 +17,11 @@ import sys
 assert sys.version_info >= (2, 7, 0)
 
 from setuptools import find_packages, setup
+
+# Read in version number without sourcing __init__.py
+SEGTOOLS_VERSION_PYTHON_FILE = "segtools/version.py"
+with open(SEGTOOLS_VERSION_PYTHON_FILE) as version_python_file:
+    exec(version_python_file.read())
 
 doclines = __doc__.splitlines()
 name, short_description = doclines[0].split(": ")
@@ -75,6 +77,7 @@ def get_entry_points():
 
 
 install_requires = ["numpy>=1.3", "rpy2>=2.6.0,<2.9", "six", "textinput"]
+SEGTOOLS_VERSION_FILE = "segtools/version.py"
 # XXX: add optional requirement for PyGraphviz
 extras_require = {'genomedata': "genomedata"}
 
