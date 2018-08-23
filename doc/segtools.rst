@@ -32,7 +32,13 @@ Please cite the manuscript if you use Segtools.
 Installation
 ============
 
-Segtools requires the following prerequisites:
+With Bioconda_, segtools can be installed with::
+
+    conda install segtools
+
+.. _Bioconda: https://bioconda.github.io/
+
+Otherwise, Segtools requires the following prerequisites:
 
 - Python 2.7 *or* Python 3.6+, with Rpy2 2.1.3+
 - Zlib
