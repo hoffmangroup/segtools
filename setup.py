@@ -76,7 +76,7 @@ def get_entry_points():
     return py3_entry_points
 
 
-install_requires = ["numpy>=1.3", "rpy2>=2.6.0,<2.9", "six", "textinput"]
+install_requires = ["numpy>=1.3", "rpy2>=2.6.0", "six", "textinput"]
 SEGTOOLS_VERSION_FILE = "segtools/version.py"
 # XXX: add optional requirement for PyGraphviz
 extras_require = {'genomedata': "genomedata"}
