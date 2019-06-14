@@ -45,6 +45,7 @@ classifiers = ["Natural Language :: English",
 
 py3_entry_points = """
 [console_scripts]
+segtools-overlap = segtools.overlap:main
 segtools-aggregation = segtools.aggregation:main
 segtools-feature-distance = segtools.feature_distance:main
 segtools-gmtk-parameters = segtools.gmtk_parameters:main
