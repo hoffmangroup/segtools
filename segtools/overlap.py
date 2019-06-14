@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 from __future__ import division, with_statement
+from __future__ import absolute_import
+import six
 
 """
 Evaluates the overlap between two BED files, based upon the spec at:
@@ -68,7 +70,7 @@ def calc_overlap(subseg, qryseg, quick=False, clobber=False, mode=MODE_DEFAULT,
     if print_segments:
         outfiles = {}
         header = "# %s" % "\t".join(OVERLAPPING_SEGMENTS_FIELDS)
-        for sub_label_key, sub_label in sub_labels.iteritems():
+        for sub_label_key, sub_label in six.iteritems(sub_labels):
             outfilename = os.extsep.join([OVERLAPPING_SEGMENTS_NAMEBASE,
                                           sub_label, "txt"])
             outfilepath = os.path.join(dirpath, outfilename)
@@ -115,7 +117,7 @@ def calc_overlap(subseg, qryseg, quick=False, clobber=False, mode=MODE_DEFAULT,
         # Track upper and lower bounds on range of segments that might
         #   be in the range of the current segment (to keep O(n))
         qry_segment_iter = iter(qry_segments)
-        qry_segment = qry_segment_iter.next()
+        qry_segment = next(qry_segment_iter)
         qry_segments_in_range = []
         for sub_segment in subseg.chromosomes[chrom]:
             substart = sub_segment['start']
@@ -149,7 +151,7 @@ def calc_overlap(subseg, qryseg, quick=False, clobber=False, mode=MODE_DEFAULT,
                     # qry_segment overlaps with sub_segment
                     qry_segments_in_range.append(qry_segment)
                 try:
-                    qry_segment = qry_segment_iter.next()
+                    qry_segment = next(qry_segment_iter)
                 except StopIteration:
                     qry_segment = None
 
@@ -203,7 +205,7 @@ def calc_overlap(subseg, qryseg, quick=False, clobber=False, mode=MODE_DEFAULT,
             elif mode == "bases":
                 # Keep track of total covered by any labels
                 covered = zeros(sublength, dtype="bool")
-                for qrylabelkey, segments in label_overlaps.iteritems():
+                for qrylabelkey, segments in six.iteritems(label_overlaps):
                     # Look at total covered by single label
                     label_covered = zeros(sublength, dtype="bool")
                     for segment in segments:
@@ -225,7 +227,7 @@ def calc_overlap(subseg, qryseg, quick=False, clobber=False, mode=MODE_DEFAULT,
         if quick: break
 
     if print_segments:
-        for outfile in outfiles.itervalues():
+        for outfile in six.itervalues(outfiles):
             outfile.close()
 
     return (counts, totals, nones)
