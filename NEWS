@@ -1,3 +1,6 @@
+1.2.2:
+* segtools-overlap: added compatibility with python 3
+
 1.2.1:
 * removed external dependencies when reading version information during setup
 
