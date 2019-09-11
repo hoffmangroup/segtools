@@ -1,4 +1,5 @@
 1.2.3:
+* add support for rpy2 version 3
 
 1.2.2:
 * segtools-overlap: added compatibility with python 3
