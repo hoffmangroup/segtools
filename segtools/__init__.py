@@ -51,10 +51,32 @@ _READERS=dict(bed=read_bed, narrowpeak=read_bed,
 GFF_FORMATS = frozenset(["gff", "gtf"])
 BED_FORMATS = frozenset(["bed", "narrowpeak"])
 
+# Determine rpy2 version and get correct imports
+# Get the correct write console callback function between Rpy2 versions
+try:
+    from rpy2.rinterface import set_writeconsole_regular
+    RPY2_MAJOR_VERSION = 2
+except ImportError:
+    from rpy2.rinterface_lib.callbacks import consolewrite_print
+    RPY2_MAJOR_VERSION = 3
+
 basicConfig(format='%(levelname)s:%(message)s', level=INFO)
+
+
+def set_r_writeconsole(callback):
+    """ Sets the (regular) R console to output to the callback function
+    instead """
+    if RPY2_MAJOR_VERSION == 3:
+        # The function should be overridden with an assignment
+        consolewrite_print = callback  # NOQA
+    else:
+        # The function should be called with the callback as an argument
+        set_writeconsole_regular(callback)
+
 
 def get_r_dirname():
     return resource_filename(PKG_R, "")
+
 
 class Annotation(object):
     """Base class for representing annotation files (BED/GFF/GTF files)
@@ -422,7 +444,14 @@ class RInterface(object):
         from rpy2.robjects import r, rinterface
         self._r = r
         self._rinterface = rinterface
-        self.RError = rinterface.RRuntimeError
+        # Try to get the correct exception type depending on the rpy2 version
+        # installed
+        if RPY2_MAJOR_VERSION == 3:
+            # 3.x Rpy2 version
+            self.RError = rinterface.RRuntimeWarning
+        else:
+            # 2.x Rpy2 version
+            self.RError = rinterface.RRuntimeError
 
         # Set up transcript
         self._transcript = transcriptfile
@@ -523,14 +552,16 @@ class RInterface(object):
         else:
             r_console = lambda msg: r_log.append(str(msg))
 
-        self._rinterface.set_writeconsole_regular(r_console)
+        set_r_writeconsole(r_console)
+
         try:
             result = self.call(func, *args, **kwargs)
         except self.RError:
             die("Encoundered error within R:\n%s" % "\n  ".join(r_log))
 
         # Return console back to stderr
-        self._rinterface.set_writeconsole_regular(self._r_console)
+        set_r_writeconsole(self._r_console)
+        self._rinterface._post_initr_setup
 
         log("Plotting completed in %.1f seconds" % (time() - start),
             self.verbose)
@@ -666,4 +697,3 @@ def add_common_options(parser, keys, **kwargs):
 
 if __name__ == "__main__":
     pass
-
