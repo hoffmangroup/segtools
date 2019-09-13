@@ -52,13 +52,13 @@ GFF_FORMATS = frozenset(["gff", "gtf"])
 BED_FORMATS = frozenset(["bed", "narrowpeak"])
 
 # Determine rpy2 version and get correct imports
-# Get the correct write console callback function betwen Rpy2 versions
+# Get the correct write console callback function between Rpy2 versions
 try:
     from rpy2.rinterface import set_writeconsole_regular
-    RPY_MAJOR_VERSION = 2
+    RPY2_MAJOR_VERSION = 2
 except ImportError:
     from rpy2.rinterface_lib.callbacks import consolewrite_print
-    RPY_MAJOR_VERSION = 3
+    RPY2_MAJOR_VERSION = 3
 
 basicConfig(format='%(levelname)s:%(message)s', level=INFO)
 
@@ -66,7 +66,7 @@ basicConfig(format='%(levelname)s:%(message)s', level=INFO)
 def set_r_writeconsole(callback):
     """ Sets the (regular) R console to output to the callback function
     instead """
-    if RPY_MAJOR_VERSION == 3:
+    if RPY2_MAJOR_VERSION == 3:
         # The function should be overridden with an assignment
         consolewrite_print = callback  # NOQA
     else:
@@ -446,7 +446,7 @@ class RInterface(object):
         self._rinterface = rinterface
         # Try to get the correct exception type depending on the rpy2 version
         # installed
-        if RPY_MAJOR_VERSION == 3:
+        if RPY2_MAJOR_VERSION == 3:
             # 3.x Rpy2 version
             self.RError = rinterface.RRuntimeWarning
         else:
@@ -697,4 +697,3 @@ def add_common_options(parser, keys, **kwargs):
 
 if __name__ == "__main__":
     pass
-
