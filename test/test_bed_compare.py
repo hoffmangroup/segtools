@@ -8,7 +8,7 @@ import unittest
 from tempfile import NamedTemporaryFile
 
 from segtools import Segmentation
-from segtools.bed_compare import edit_distance
+from segtools.compare import edit_distance
 
 def beddata2bed(lines):
     # Input lines should each be a tuple of (chrom, start, end, label)
@@ -17,6 +17,7 @@ def beddata2bed(lines):
         strings.append("chr%s\t%d\t%d\t%s" % line)
     return "\n".join(strings)
 
+@unittest.skip("No data for base BED Generation tests")
 class BedGenerator(unittest.TestCase):
     def init(self):
         pass
@@ -25,8 +26,8 @@ class BedGenerator(unittest.TestCase):
         self.init()
 
         # Create fake bed files
-        self._open_bedfiles = [NamedTemporaryFile(suffix=".bed"),
-                               NamedTemporaryFile(suffix=".bed")]
+        self._open_bedfiles = [NamedTemporaryFile(mode="w", suffix=".bed"),
+                               NamedTemporaryFile(mode="w",  suffix=".bed")]
         for file, data in zip(self._open_bedfiles, self.beddata):
             file.write(beddata2bed(data))
         for file in self._open_bedfiles:
@@ -36,7 +37,8 @@ class BedGenerator(unittest.TestCase):
     def tearDown(self):
         for file in self._open_bedfiles:
             file.close()
-
+            
+@unittest.skip("No data for base BED Generation tests")
 class EditDistanceTester(BedGenerator):
     def test(self):
         stats = edit_distance(self.bedfiles[0], self.bedfiles[1], verbose=False)

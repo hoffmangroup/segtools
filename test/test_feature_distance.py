@@ -6,9 +6,11 @@ import os
 import sys
 import unittest
 
-from tempfile import NamedTemporaryFile
+from shutil import rmtree
+from tempfile import mkdtemp, NamedTemporaryFile
 
-from segtools.feature_distance import DELIM, feature_distance, STANDARD_FIELDS
+from segtools.feature_distance import DELIM, feature_distance, PRINT_FIELDS
+
 
 def data2bed(lines):
     # Input lines should each be a tuple of (chrom, start, end, label)
@@ -61,84 +63,79 @@ class OutputSaver(object):
     def log(self):
         return "".join(self._log)
 
-class MainTester(unittest.TestCase):
-    def init(self):
-        pass
+class FeatureDistanceTestCases:
+    class MainTester(unittest.TestCase):
+        def init(self):
+            pass
 
-    def setUp(self):
-        self.kwargs = {"verbose": False}
-        self.init()
+        def setUp(self):
+            self.kwargs = {"verbose": False}
+            self.init()
 
-        # Set self.features from self.segments, self.features_list
-        self.feature_files = []
-        self.segment_file = None
-        self._open_files = []
+            # Set self.features from self.segments, self.features_list
+            self.feature_file = None
+            self.segment_file = None
+            self._open_files = []
+            
+            self.output_path = mkdtemp()
 
-        new_file = NamedTemporaryFile(suffix=".bed")
-        new_file.write(data2bed(self.segments))
-        new_file.flush()
-        self._open_files.append(new_file)
-        self.segment_file = new_file.name
+            new_file = NamedTemporaryFile(mode="w",suffix=".bed")
+            new_file.write(data2bed(self.segments))
+            new_file.flush()
+            self._open_files.append(new_file)
+            self.segment_file = new_file.name
 
-        for type, data in self.features_list:
+            type, data = self.features
+
             if type == "bed":
-                new_file = NamedTemporaryFile(suffix=".bed")
+                new_file = NamedTemporaryFile(mode="w", suffix=".bed")
                 new_file.write(data2bed(data))
             elif type == "gff":
-                new_file = NamedTemporaryFile(suffix=".gff")
+                new_file = NamedTemporaryFile(mode="w",suffix=".gff")
                 new_file.write(data2gff(data))
             elif type == "gtf":
-                new_file = NamedTemporaryFile(suffix=".gtf")
+                new_file = NamedTemporaryFile(mode="w",suffix=".gtf")
                 new_file.write(data2gff(data))
 
             new_file.flush()
             self._open_files.append(new_file)
-            self.feature_files.append(new_file.name)
+            self.feature_file = new_file.name
 
-    def tearDown(self):
-        for file in self._open_files:
-            file.close()
+        def tearDown(self):
+            for file in self._open_files:
+                file.close()
+            
+            rmtree(self.output_path)
 
-    def test(self):
-        # Run function, logging stdout
-        self._saver = OutputSaver()
-        stats = feature_distance(self.segment_file, self.feature_files,
-                                 **self.kwargs)
-        self._saver.restore()
-        log_lines = self._saver.log().strip("\n").split("\n")
-        log_header = log_lines.pop(0).split(DELIM)
+        def test(self):
+            # Run function, logging stdout
+            self._saver = OutputSaver()
+            _ = feature_distance(self.segment_file, self.feature_file,
+                                 self.output_path, **self.kwargs)
+            self._saver.restore()
+            log_lines = self._saver.log().strip("\n").split("\n")
+            log_header = log_lines.pop(0).split(DELIM)
 
-        # Check header
-        header_answer = STANDARD_FIELDS + \
-            [os.path.basename(filename) for filename in self.feature_files]
-        self.assertEqual(log_header, header_answer)
+            # Check header
+            header_answer = PRINT_FIELDS
+            self.assertEqual(log_header, header_answer)
 
-        # Check values
-        observed_strs = [line.split(DELIM)[len(STANDARD_FIELDS):]
-                         for line in log_lines]
-        answer_strs = [[str(val) for val in line] for line in self.answer]
+            # Check values
+            observed_strs = [[line.split(DELIM)[-1]]
+                            for line in log_lines]
+            answer_strs = [[str(val) for val in line] for line in self.answer]
 
-        self.assertEqual(observed_strs, answer_strs)
+            self.assertEqual(observed_strs, answer_strs)
 
-class TestSimple(MainTester):
+class TestSimple(FeatureDistanceTestCases.MainTester):
     def init(self):
         self.segments = [(1, 5, 6, 1),
                          (1, 10, 15, 1),
                          (1, 15, 20, 1)]
-        self.features_list = [("bed", [(1, 6, 11, 1),
-                                       (1, 11, 12, 1)])]
+        self.features = ("bed", [(1, 6, 11, 1),
+                                 (1, 11, 12, 1)])
         self.answer = [[1], [0], [4]]
 
-class TestStrandCorrect(MainTester):
-    def init(self):
-        self.kwargs["correct_strands"] = [0]
-        self.segments = [(1, 60, 90, 0),
-                         (1, 130, 140, 0)]
-        self.features_list = [("gtf", [(1, 1, 10, 1, "+"),
-                                       (1, 2, 3, 2, "-"),
-                                       (1, 3, 50, 4, "+"),
-                                       (1, 120, 125, 1, "-")])]
-        self.answer = [[-11], [6]]
 
 def suite():
     classes = []

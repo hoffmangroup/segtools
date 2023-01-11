@@ -27,54 +27,55 @@ def data2gff(lines):
                            (chr, "source", label, start+1, end))
     return "\n".join(strings)
 
-class OverlapTester(unittest.TestCase):
-    def init(self):
-        pass
+class OverlapTestCases:
+    class OverlapTester(unittest.TestCase):
+        def init(self):
+            pass
 
-    def setUp(self):
-        self.kwargs = {"verbose": False}
-        self.init()
+        def setUp(self):
+            self.kwargs = {"verbose": False}
+            self.init()
 
-        # Set self.features from self.subject, self.query
-        self.features = []
-        self._open_files = []
-        for type, data in [self.subject, self.query]:
-            if type == "bed":
-                new_file = NamedTemporaryFile(suffix=".bed")
-                new_file.write(data2bed(data))
-            elif type == "gff":
-                new_file = NamedTemporaryFile(suffix=".gff")
-                new_file.write(data2gff(data))
-            elif type == "gtf":
-                new_file = NamedTemporaryFile(suffix=".gtf")
-                new_file.write(data2gff(data))
+            # Set self.features from self.subject, self.query
+            self.features = []
+            self._open_files = []
+            for type, data in [self.subject, self.query]:
+                if type == "bed":
+                    new_file = NamedTemporaryFile(mode="w", suffix=".bed")
+                    new_file.write(data2bed(data))
+                elif type == "gff":
+                    new_file = NamedTemporaryFile(mode="w", suffix=".gff")
+                    new_file.write(data2gff(data))
+                elif type == "gtf":
+                    new_file = NamedTemporaryFile(mode="w", suffix=".gtf")
+                    new_file.write(data2gff(data))
 
-            new_file.flush()
-            self._open_files.append(new_file)
-            features = Annotation(new_file.name, verbose=False)
+                new_file.flush()
+                self._open_files.append(new_file)
+                features = Annotation(new_file.name, verbose=False)
 
-            if features:
-                self.features.append(features)
+                if features:
+                    self.features.append(features)
 
-    def tearDown(self):
-        for file in self._open_files:
-            file.close()
+        def tearDown(self):
+            for file in self._open_files:
+                file.close()
 
-    def test(self):
-        stats = calc_overlap(*self.features, **self.kwargs)
-        self.assertValuesEqual(stats, self.answer)
+        def test(self):
+            stats = calc_overlap(*self.features, **self.kwargs)
+            self.assertValuesEqual(stats, self.answer)
 
-    def assertArraysEqual(self, arr1, arr2):
-        not_equal = (arr1 != arr2)
-        if not_equal.any():
-            self.fail("%r != %r" % (arr1, arr2))
+        def assertArraysEqual(self, arr1, arr2):
+            not_equal = (arr1 != arr2)
+            if not_equal.any():
+                self.fail("%r != %r" % (arr1, arr2))
 
-    def assertValuesEqual(self, observed, expected):
-        # counts, totals, nones
-        for val1, val2 in zip(observed, expected):
-            self.assertArraysEqual(val1, array(val2))
+        def assertValuesEqual(self, observed, expected):
+            # counts, totals, nones
+            for val1, val2 in zip(observed, expected):
+                self.assertArraysEqual(val1, array(val2))
 
-class TestSegmentPerfectOverlap(OverlapTester):
+class TestSegmentPerfectOverlap(OverlapTestCases.OverlapTester):
     def init(self):
         self.kwargs["mode"] = "segments"
         self.subject = ("bed", [(1, 0, 50, 1),  # chrom, start, end, label
@@ -85,7 +86,7 @@ class TestSegmentPerfectOverlap(OverlapTester):
                        (1, 1),  # total
                        (0, 0))  # none
 
-class TestBasePerfectOverlap(OverlapTester):
+class TestBasePerfectOverlap(OverlapTestCases.OverlapTester):
     def init(self):
         self.kwargs["mode"] = "bases"
         self.subject = ("bed", [(1, 0, 50, 1),
@@ -96,7 +97,7 @@ class TestBasePerfectOverlap(OverlapTester):
                        (50, 50),
                        (0, 0))
 
-class TestSegmentNoOverlap(OverlapTester):
+class TestSegmentNoOverlap(OverlapTestCases.OverlapTester):
     def init(self):
         self.kwargs["mode"] = "segments"
         self.subject = ("bed", [(1, 10, 20, 1)])
@@ -105,7 +106,7 @@ class TestSegmentNoOverlap(OverlapTester):
                        (1),
                        (1))
 
-class TestBaseNoOverlap(OverlapTester):
+class TestBaseNoOverlap(OverlapTestCases.OverlapTester):
     def init(self):
         self.kwargs["mode"] = "bases"
         self.subject = ("bed", [(1, 10, 20, 1)])
@@ -114,7 +115,7 @@ class TestBaseNoOverlap(OverlapTester):
                        (10),
                        (10))
 
-class TestSegmentNoOverlapChrom(OverlapTester):
+class TestSegmentNoOverlapChrom(OverlapTestCases.OverlapTester):
     def init(self):
         self.kwargs["mode"] = "segments"
         self.subject = ("bed", [(1, 10, 20, 1)])
@@ -123,7 +124,7 @@ class TestSegmentNoOverlapChrom(OverlapTester):
                        (1),
                        (1))
 
-class TestBaseNoOverlapChrom(OverlapTester):
+class TestBaseNoOverlapChrom(OverlapTestCases.OverlapTester):
     def init(self):
         self.kwargs["mode"] = "bases"
         self.subject = ("bed", [(1, 10, 20, 1)])
@@ -132,7 +133,7 @@ class TestBaseNoOverlapChrom(OverlapTester):
                        (10),
                        (10))
 
-class TestSegmentSimpleOverlap(OverlapTester):
+class TestSegmentSimpleOverlap(OverlapTestCases.OverlapTester):
     def init(self):
         self.kwargs["mode"] = "segments"
         self.subject = ("bed", [(1, 11, 20, 1),
@@ -143,7 +144,7 @@ class TestSegmentSimpleOverlap(OverlapTester):
                        (1, 1, 1),
                        (0, 0, 1))
 
-class TestBaseSimpleOverlap(OverlapTester):
+class TestBaseSimpleOverlap(OverlapTestCases.OverlapTester):
     def init(self):
         self.kwargs["mode"] = "bases"
         self.subject = ("bed", [(1, 11, 20, 1),
@@ -154,7 +155,7 @@ class TestBaseSimpleOverlap(OverlapTester):
                        (9, 10, 3),
                        (4, 0, 3))
 
-class TestSegmentStackedFeatures(OverlapTester):
+class TestSegmentStackedFeatures(OverlapTestCases.OverlapTester):
     def init(self):
         self.kwargs["mode"] = "segments"
         self.subject = ("bed", [(1, 0, 10, 1)])
@@ -166,7 +167,7 @@ class TestSegmentStackedFeatures(OverlapTester):
                        (1),
                        (0))
 
-class TestBaseStackedFeatures(OverlapTester):
+class TestBaseStackedFeatures(OverlapTestCases.OverlapTester):
     def init(self):
         self.kwargs["mode"] = "bases"
         self.subject = ("bed", [(1, 0, 10, 1)])
@@ -178,7 +179,7 @@ class TestBaseStackedFeatures(OverlapTester):
                        (10),
                        (2))
 
-class TestSegmentOverlappingFeatures(OverlapTester):
+class TestSegmentOverlappingFeatures(OverlapTestCases.OverlapTester):
     def init(self):
         self.kwargs["mode"] = "segments"
         self.subject = ("bed", [(1, 0, 10, 1),
@@ -192,7 +193,7 @@ class TestSegmentOverlappingFeatures(OverlapTester):
                        (2, 1),
                        (0, 0))
 
-class TestBaseOverlappingFeatures(OverlapTester):
+class TestBaseOverlappingFeatures(OverlapTestCases.OverlapTester):
     def init(self):
         self.kwargs["mode"] = "bases"
         self.subject = ("bed", [(1, 0, 10, 1),
@@ -206,7 +207,7 @@ class TestBaseOverlappingFeatures(OverlapTester):
                        (20, 10),
                        (0, 0))
 
-class TestSegmentComplexOverlap(OverlapTester):
+class TestSegmentComplexOverlap(OverlapTestCases.OverlapTester):
     def init(self):
         self.kwargs["mode"] = "segments"
         self.subject = ("bed", [(1, 0, 4, 1),
@@ -228,7 +229,7 @@ class TestSegmentComplexOverlap(OverlapTester):
                        (2, 3, 2),
                        (0, 1, 1))
 
-class TestBaseComplexOverlap(OverlapTester):
+class TestBaseComplexOverlap(OverlapTestCases.OverlapTester):
     def init(self):
         self.kwargs["mode"] = "bases"
         self.subject = ("bed", [(1, 0, 4, 1),
@@ -250,7 +251,7 @@ class TestBaseComplexOverlap(OverlapTester):
                        (5, 8, 105),
                        (0, 2, 99))
 
-class TestSegmentComplexOverlapReversed(OverlapTester):
+class TestSegmentComplexOverlapReversed(OverlapTestCases.OverlapTester):
     def init(self):
         self.kwargs["mode"] = "segments"
         self.subject = ("bed", [(1, 0, 10, 1),
@@ -273,7 +274,7 @@ class TestSegmentComplexOverlapReversed(OverlapTester):
                        (1, 0, 0))
 
 
-class TestBaseComplexOverlapReversed(OverlapTester):
+class TestBaseComplexOverlapReversed(OverlapTestCases.OverlapTester):
     def init(self):
         self.kwargs["mode"] = "bases"
         self.subject = ("bed", [(1, 0, 10, 1),
