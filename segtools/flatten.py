@@ -12,7 +12,7 @@ that describes the generated labels (use -m to change).
 # Date:   02.02.2010
 
 
-from __future__ import division, with_statement
+
 
 import os
 import sys
@@ -190,13 +190,13 @@ def merge_segments(segmentations):
     shifted_labels = {}  # shifted_key -> label_string
     for file in files:
         segmentation = segmentations[file]
-        chroms.update(segmentation.chromosomes.keys())
+        chroms.update(list(segmentation.chromosomes.keys()))
         labels = segmentation.labels
 
         # Shift labels of file to be unique
         label_offset = len(shifted_labels)
         label_offsets[file] = label_offset
-        for key, label in labels.iteritems():
+        for key, label in iter(list(labels.items())):
             shifted_labels[key + label_offset] = "%s:%s" % (file, label)
 
     signature_labels = {}  # (shifted_key, ...) -> flat_key
@@ -232,31 +232,31 @@ def filter_segments(labels, segments, filter=None):
         raise ValueError("Invalid value of filter: %s" % str(filter))
 
     # Find span of labels and whole segmentation
-    print >>sys.stderr, "Calculating span of labels and segmentation...",
+    print("Calculating span of labels and segmentation...", end=' ', file=sys.stderr)
     n_seg = 0
-    n_keys = dict([(key, 0) for key in labels.iterkeys()])
+    n_keys = dict([(key, 0) for key in iter(list(labels.keys()))])
     for segment in segments:
         key = segment[3]
         length = segment[2] - segment[1]
         n_keys[key] += length
         n_seg += length
-    print >>sys.stderr, "done"
+    print("done", file=sys.stderr)
 
     # Find segment labels that need to be filtered
     filtered_labels = dict(labels)  # Copy of original labels
     thresh = n_seg * filter
-    for key, n_key in n_keys.iteritems():
+    for key, n_key in iter(list(n_keys.items())):
         if n_key < thresh:
             del filtered_labels[key]
 
     # Remove segments not in filtered segment labels
-    print >>sys.stderr, "Filtering segment labels below threshold...",
+    print("Filtering segment labels below threshold...", end=' ', file=sys.stderr)
     filtered_segments = []
     for segment in segments:
         key = segment[3]
         if key in filtered_labels:
             filtered_segments.append(segment)
-    print >>sys.stderr, "done"
+    print("done", file=sys.stderr)
 
     return filtered_labels, filtered_segments
 
@@ -282,7 +282,7 @@ def print_readme(labels, filename=DEFAULT_HELPFILE):
 
     with open(filename, "w") as ofp:
         ofp.write("%s\n" % "\t".join(["old", "new", "description"]))
-        for key, label in labels.iteritems():
+        for key, label in iter(list(labels.items())):
             ofp.write("%s\n" % "\t".join([str(key), str(key), label]))
 
 def flatten(files, outfile=None, helpfile=DEFAULT_HELPFILE,

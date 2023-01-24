@@ -24,7 +24,7 @@ from string import Template
 from . import log, Segmentation, die, add_common_options
 from .common import check_clobber, get_ordered_labels, make_divfilename, \
      make_id, make_filename, make_tabfilename, map_mnemonics, NICE_EXTS, \
-     PKG_RESOURCE, PY3_COMPAT_ERROR
+     PKG_RESOURCE
 from .version import __version__
 
 MNEMONIC_TEMPLATE_FILENAME = "mnemonic_div.tmpl"
@@ -44,13 +44,15 @@ GENOMEBROWSER_LINK_TMPL = """
 DESCRIPTION_MODULE = ("description", "Segmentation information")
 MNEMONIC_MODULE = ("mnemonics", "Mnemonics")
 
-template_string = partial(resource_string, PKG_RESOURCE)
+# resource_string returns bytes
+# Ref: https://importlib-resources.readthedocs.io/en/latest/migration.html#pkg-resources-resource-string
+template_bytes = partial(resource_string, PKG_RESOURCE)
 
 def template_substitute(filename):
     """
     Simplify import resource strings in the package
     """
-    return Template(template_string(filename)).safe_substitute
+    return Template(template_bytes(filename).decode()).safe_substitute
 
 def tuple2link(entry):
     """entry should be a (url, text) tuple"""
@@ -228,9 +230,6 @@ def save_html_div(template_filename, dirpath, namebase,
         html = template_substitute(template_filename)(fields)
     except KeyError as e:
         log("Error: Missing data: %s. Skipping HTML output." % e)
-        return
-    except TypeError:
-        log(PY3_COMPAT_ERROR.format("save_html function"))
         return
 
     write_html_div(dirpath, namebase, html, clobber=clobber)

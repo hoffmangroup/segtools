@@ -48,8 +48,6 @@ LABEL_ALL = "all"
 
 THUMB_SIZE = 100
 
-PY3_COMPAT_ERROR = "{} is not yet compatible with this version of Python"
-
 class OutputMasker(object):
     """Class to mask the output of a stream.
 

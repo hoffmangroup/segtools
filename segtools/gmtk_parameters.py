@@ -19,7 +19,7 @@ import sys
 from numpy import array
 
 from . import log, die, RInterface, add_common_options, open_transcript
-from .common import setup_directory, PY3_COMPAT_ERROR
+from .common import setup_directory
 from .html import save_html_div
 from .transition import save_plot, save_graph
 from .mnemonics import create_mnemonic_file

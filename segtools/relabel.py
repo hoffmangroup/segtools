@@ -10,7 +10,7 @@ Outputs the new segmentation in bed format to stdout (-o to change).
 # Author: Orion Buske <stasis@uw.edu>
 # Date:   05.16.2011
 
-from __future__ import division, with_statement
+
 
 import os
 import sys
@@ -31,8 +31,8 @@ STRAND_UNKNOWN = StrandUnknown()
 def get_strand(segment):
     try:
         return segment['strand']
-    # IndexError, not KeyError, because segment is a NumPy struct
-    except IndexError:
+    # IndexError or ValueError, not KeyError, because segment is a NumPy struct
+    except (IndexError, ValueError):
         return STRAND_UNKNOWN
 
 def relabel(segfilename, mnemonicfilename, outfile=None, verbose=True):
@@ -60,7 +60,7 @@ def relabel(segfilename, mnemonicfilename, outfile=None, verbose=True):
         out = open(outfile, "w")
 
     try:
-        for chrom, segments in segmentation.chromosomes.iteritems():
+        for chrom, segments in segmentation.chromosomes.items():
             def print_segment(segment, label):
                 start = segment['start']
                 end = segment['end']
@@ -73,7 +73,7 @@ def relabel(segfilename, mnemonicfilename, outfile=None, verbose=True):
 
                 if colors:
                     tokens.extend([start, end, colors[old]])
-                print >>out, "\t".join(map(str, tokens))
+                print("\t".join(map(str, tokens)), file=out)
 
             prev_segment = segments[0]
             prev_label = mnemonics[prev_segment['key']]

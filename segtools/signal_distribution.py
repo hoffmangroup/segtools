@@ -24,16 +24,12 @@ from numpy import arcsinh, isfinite, isnan, longdouble, sqrt, square, zeros
 from . import log, Segmentation, die, RInterface, add_common_options, \
      open_transcript, ProgressBar
 from .common import iter_segments_continuous,  \
-     make_tabfilename, setup_directory, tab_reader, tab_saver, PY3_COMPAT_ERROR
+     make_tabfilename, setup_directory, tab_reader, tab_saver
 from .html import save_html_div
 from .mnemonics import create_mnemonic_file
 from .version import __version__
 
-# XXX: Port Genomedata to Python 3
-try:
-    from genomedata import Genome
-except ImportError:
-    log(PY3_COMPAT_ERROR.format("Genomedata"))
+from genomedata import Genome
 
 FIELDNAMES = ["label", "trackname", "mean", "sd", "n"]
 NAMEBASE = str(MODULE)
@@ -373,9 +369,6 @@ def parse_options(args):
 
 ## Command-line entry point
 def main(args=sys.argv[1:]):
-
-    if sys.version_info[0] == 3:
-        die(PY3_COMPAT_ERROR.format("Genomedata"))
 
     from genomedata import Genome
 

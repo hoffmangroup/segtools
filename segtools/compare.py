@@ -24,7 +24,7 @@ def edit_distance(bedfile1, bedfile2, quick=False, verbose=True):
                      for bedfile in [bedfile1, bedfile2]]
 
     for segmentation in segmentations:
-        for segments in segmentation.chromosomes.itervalues():
+        for segments in iter(segmentation.chromosomes.values()):
             if not (segments['start'][1:] >= segments['end'][:-1]).all():
                 raise SyntaxError("Overlapping segments found in: %s" % \
                                       segmentation.name)
@@ -66,9 +66,9 @@ def edit_distance(bedfile1, bedfile2, quick=False, verbose=True):
 
         # Segments in both segmentations
         segs1_iter = iter(segs1)
-        start1, end1, key1 = segs1_iter.next()
+        start1, end1, key1 = next(segs1_iter)
         segs2_iter = iter(segs2)
-        start2, end2, key2 = segs2_iter.next()
+        start2, end2, key2 = next(segs2_iter)
         while True:
             advance1 = False
             advance2 = False
@@ -111,7 +111,7 @@ def edit_distance(bedfile1, bedfile2, quick=False, verbose=True):
             # Carry out any pending advances
             if advance1:
                 try:
-                    start1, end1, key1 = segs1_iter.next()
+                    start1, end1, key1 = next(segs1_iter)
                 except StopIteration:
                     bases_missing1 += end2 - start2
                     for start2, end2, key2 in segs2_iter:
@@ -120,7 +120,7 @@ def edit_distance(bedfile1, bedfile2, quick=False, verbose=True):
 
             if advance2:
                 try:
-                    start2, end2, key2 = segs2_iter.next()
+                    start2, end2, key2 = next(segs2_iter)
                 except StopIteration:
                     bases_missing2 += end1 - start1
                     for start1, end1, key1 in segs1_iter:

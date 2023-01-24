@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from __future__ import division, with_statement
+
 
 """
 Provides command-line and package entry points for analyzing nucleotide
@@ -100,7 +100,7 @@ def calc_nucleotide_frequencies(annotation, genome,
     dinuc_counts = defaultdict(dict)
 
     labels = annotation.labels
-    for label_key in labels.iterkeys():
+    for label_key in labels.keys():
         nuc_counts[label_key] = zeros(len(nuc_categories)+1, dtype=numpy.long)
         dinuc_counts[label_key] = zeros(len(dinuc_categories)+1,
                                         dtype=numpy.long)
