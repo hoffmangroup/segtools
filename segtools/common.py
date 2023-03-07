@@ -37,6 +37,10 @@ EXT_SLIDE = os.extsep.join(["slide", EXT_PNG])
 EXT_THUMB = os.extsep.join(["thumb", EXT_PNG])  # for thumbnails
 EXT_SUMMARY = os.extsep.join(["summary", EXT_TAB])
 
+GENOMEDATA_INSTALL_ERROR_MSG = "Genomedata is required for this tool. " \
+                               "Please install the 'genomedata' package " \
+                               "for this python environment"
+
 IMG_EXTS = [EXT_PNG, EXT_PDF, EXT_SLIDE, EXT_THUMB]
 NICE_EXTS = dict(tab=EXT_TAB, pdf=EXT_PDF, png=EXT_PNG, html=EXT_HTML,
                  div=EXT_DIV, slide=EXT_SLIDE, thumb=EXT_THUMB,

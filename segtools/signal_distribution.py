@@ -29,7 +29,13 @@ from .html import save_html_div
 from .mnemonics import create_mnemonic_file
 from .version import __version__
 
-from genomedata import Genome
+# Detect runtime genomedata dependency
+try:
+    from genomedata import Genome
+except ModuleNotFoundError:
+    from .common import GENOMEDATA_INSTALL_ERROR_MSG
+    raise ModuleNotFoundError(GENOMEDATA_INSTALL_ERROR_MSG) from None
+
 
 FIELDNAMES = ["label", "trackname", "mean", "sd", "n"]
 NAMEBASE = str(MODULE)

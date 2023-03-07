@@ -14,7 +14,14 @@ import sys
 import warnings
 
 from collections import defaultdict
-from genomedata import Genome
+
+# Detect runtime genomedata dependency
+try:
+    from genomedata import Genome
+except ModuleNotFoundError:
+    from .common import GENOMEDATA_INSTALL_ERROR_MSG
+    raise ModuleNotFoundError(GENOMEDATA_INSTALL_ERROR_MSG) from None
+
 from numpy import zeros, bincount, array
 
 from . import log, Annotation, die, RInterface, open_transcript, \
