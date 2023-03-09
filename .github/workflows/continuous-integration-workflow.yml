@@ -1,0 +1,45 @@
+name: Build and Test
+
+# Workflow is triggered only on push to the master branch or a pull request to
+# the master branch
+
+on:
+  push:
+      branches: [ master ]
+  pull_request:
+      branches: [ master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup R installation
+        uses: r-lib/actions/setup-r@v2
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.7'
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Install test dependencies
+        run: |
+          python3 -m pip install build
+      - name: Build repository
+        run: |
+          python3 -m build
+      - name: Install
+        run: |
+          python3 -m pip install -v .
+          pip list
+      - name: Install R Package Dependencies
+        run: |
+          python3 -c "from segtools import install_r_dependencies; install_r_dependencies()"
+      - name: Run tests
+        run: |
+          cd test && python3 run_all.py 
+      - uses: actions/upload-artifact@v3
+        with:
+          name: segtools-build
+          path: dist/*

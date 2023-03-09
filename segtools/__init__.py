@@ -24,6 +24,9 @@ from time import time
 
 from pkg_resources import resource_filename
 
+import rpy2.robjects.packages as r_packages
+from rpy2.robjects.vectors import StrVector
+
 from .bed import read_native as read_bed
 from .gff import read_native as read_gff
 
@@ -51,6 +54,9 @@ _READERS=dict(bed=read_bed, narrowpeak=read_bed,
 GFF_FORMATS = frozenset(["gff", "gtf"])
 BED_FORMATS = frozenset(["bed", "narrowpeak"])
 
+# List of R package pre-requisites
+R_PACKAGES = ["latticeExtra", "reshape"]
+
 # Determine rpy2 version and get correct imports
 # Get the correct write console callback function between Rpy2 versions
 try:
@@ -76,6 +82,14 @@ def set_r_writeconsole(callback):
 
 def get_r_dirname():
     return resource_filename(PKG_R, "")
+
+
+def install_r_dependencies() -> None:
+    # Ref: https://rpy2.github.io/doc/latest/html/robjects_rpackages.html#installing-removing-r-packages
+
+    utils = r_packages.importr('utils')
+    utils.chooseCRANmirror(ind=1) # Select first mirror
+    utils.install_packages(StrVector(R_PACKAGES))
 
 
 class Annotation(object):
