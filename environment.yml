@@ -1,0 +1,12 @@
+name: segtools
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - genomedata
+  - python=3.8
+  - r-base
+  - rpy2 >=2.6.0
+  - r-latticeextra
+  - r-reshape2
