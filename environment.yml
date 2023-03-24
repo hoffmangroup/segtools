@@ -6,6 +6,7 @@ channels:
 dependencies:
   - genomedata
   - python=3.8
+  - importlib_metadata
   - r-base
   - rpy2 >=2.6.0
   - r-latticeextra

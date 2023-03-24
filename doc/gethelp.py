@@ -13,7 +13,8 @@ MODULE_NAME = 'segtools'
 sys.path.insert(0, "..")
 
 def gethelp(scriptname):
-    (entry_point,_) = entry_points(group="console_scripts", name=scriptname)
+    console_scripts = entry_points()["console_scripts"]
+    entry_point = [x for x in console_scripts if x.name==scriptname][0]
     entry = entry_point.value
     module_name, _, func_name = entry.partition(":")
 
