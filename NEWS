@@ -1,4 +1,12 @@
-1.2.4:
+1.3.0:
+* dropped official python 2 support
+* all tools are now supported on python 3
+* updated build system and removed legacy installation scripts
+* added support for wheel distributions
+* latest docs now available on segtools.readthedocs.org
+* updated existing test cases
+* added runtime checks for genomedata in segtools-nucleotide-frequency and segtools-signal-distribution
+* added CITATION.cff for aiding in citation
 
 1.2.3:
 * add support for rpy2 version 3
